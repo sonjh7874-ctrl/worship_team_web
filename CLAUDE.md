@@ -6,6 +6,7 @@ claude.ai Project("DX스쿨 개인 사이드 프로젝트")의 설계 문서를 
 @docs/문제정의-재료.md
 @docs/ERD.md
 @docs/API명세.md
+@docs/전체_로드맵.md
 
 (`schema.sql`은 대량 DDL이라 항상 불러오지 않는다. 필요할 때 `docs/schema.sql`을 직접 Read해서 참고할 것.)
 
@@ -54,13 +55,20 @@ claude.ai Project("DX스쿨 개인 사이드 프로젝트")의 설계 문서를 
 - `docs/ERD.md` — 테이블 12개 구조와 설계 결정 근거 (mermaid ERD 포함)
 - `docs/API명세.md` — 31개 엔드포인트 명세 초안. 구현 시 이 문서 기준으로 라우터를 만들고 실제 Swagger(`/docs`)와 동기화 유지
 - `docs/schema.sql` — Supabase에 그대로 실행 가능한 DDL (테이블/제약/RLS/seed 데이터 포함)
+- `docs/전체_로드맵.md` — Phase 0~6 전체 진행 순서와 각 Phase의 작업 분해. 완료된 Phase는 상단에 완료 표시가 돼 있으니, 세션 시작 시 이 문서로 지금이 어느 Phase인지부터 파악할 것
 
-## 다음 세션에서 이어갈 작업 (2026-08-18 기준)
+## 다음 세션에서 이어갈 작업 (2026-08-19 기준)
 
-- [ ] FastAPI 프로젝트 스캐폴딩 (Router - Service - Repository 구조)
-- [ ] Supabase 프로젝트 생성 후 `docs/schema.sql` 실행
-- [ ] `/contis` 콘티 CRUD부터 Vertical Slice 착수 (8/19 목표)
-- [ ] React 프론트 스캐폴딩, 콘티 상세 화면부터
+Phase 0(기반 구축)·Phase 1(콘티 기능 마무리)까지 완료. 콘티 조회/생성/수정/삭제, 곡 배치 편집, 악보 업로드, 상세 페이지·과거 목록까지 화면-API-DB 흐름이 전부 동작한다. 자세한 내용은 `docs/전체_로드맵.md`의 Phase 1 절 참고.
+
+다음은 **Phase 2 — 공지사항 + 월간 스케줄 (기능 2, 기본 CRUD)**:
+
+- [ ] 인명부(`members`) CRUD — 스케줄 배정 드롭다운의 전제 데이터라 이 단계에서 먼저 처리
+- [ ] 공지사항 CRUD (콘티와 동일한 패턴 재사용)
+- [ ] 월간 스케줄 CRUD — `schedule_assignments`(세로형) 저장 + 조회 시 화면용으로 피벗해서 응답하는 서비스 로직
+- [ ] Frontend: 공지 목록/상세, 월별 스케줄 조회 화면
+
+착수 전에 Phase 1 때처럼 작업을 더 작은 단위로 쪼갠 설계(SDD)부터 다시 정리할 것.
 
 ## claude.ai Project와 이 로컬 저장소의 관계
 
