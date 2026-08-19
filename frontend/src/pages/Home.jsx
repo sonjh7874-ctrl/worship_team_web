@@ -1,18 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import MicStageLayout from "../components/MicStageLayout";
+import InstrumentPositionGrid from "../components/InstrumentPositionGrid";
 import { fetchLatestConti } from "../api/contis";
 import { fetchNoticeList } from "../api/notices";
 import { fetchSchedule } from "../api/schedules";
-
-const INSTRUMENT_LABELS = {
-  key1: "Key1",
-  key2: "Key2",
-  drum: "드럼",
-  bass: "베이스",
-  electric: "일렉",
-  singer_helper: "싱도/자막",
-  score: "악보",
-};
 
 // 이번 주 콘티 / 이번 달 스케줄 / 공지를 한 화면에서 요약해서 보여주는 사이트 루트 대시보드.
 // 세 섹션은 서로 무관한 데이터라, 하나가 없거나 실패해도 나머지는 정상 표시돼야 한다
@@ -102,23 +94,16 @@ function Home() {
         )}
         {!scheduleLoading &&
           !scheduleError &&
-          weeks.map((week) => {
-            const filled = [
-              ...Object.entries(week.instrument)
-                .filter(([, v]) => v)
-                .map(([code, v]) => `${INSTRUMENT_LABELS[code]} ${v.name}`),
-              ...Object.entries(week.singer.mic)
-                .filter(([, v]) => v)
-                .sort(([a], [b]) => Number(a) - Number(b))
-                .map(([slot, v]) => `마이크${slot} ${v.name}`),
-            ];
-            return (
-              <p key={week.id}>
+          weeks.map((week) => (
+            <div key={week.id}>
+              <p>
                 <strong>{week.week_label}</strong> {week.service_date}
-                {filled.length > 0 && ` — ${filled.join(", ")}`}
               </p>
-            );
-          })}
+              <InstrumentPositionGrid instrument={week.instrument} />
+              <MicStageLayout mic={week.singer.mic} choir={week.singer.choir} />
+              {week.absence_note && <p>불참: {week.absence_note}</p>}
+            </div>
+          ))}
         <Link to="/schedules">전체 보기</Link>
       </section>
 

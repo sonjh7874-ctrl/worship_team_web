@@ -7,35 +7,10 @@ import {
   deleteWeek,
   fetchSchedule,
 } from "../api/schedules";
-
-const INSTRUMENT_LABELS = {
-  key1: "Key1",
-  key2: "Key2",
-  drum: "드럼",
-  bass: "베이스",
-  electric: "일렉",
-  singer_helper: "싱도/자막",
-  score: "악보",
-};
-
-// 마이크 1~8은 항상 8개 키를 유지한 채 내려오므로(백엔드 피벗 응답), 값이 있는 슬롯만 걸러 표시한다.
-// 각 슬롯 값은 {member_id, name} 객체 — 편집 화면에서 드롭다운을 미리 채우려면 member_id가 필요해
-// 이름 문자열이 아니라 객체로 내려온다.
-function MicList({ mic }) {
-  const entries = Object.entries(mic)
-    .filter(([, person]) => person)
-    .sort(([a], [b]) => Number(a) - Number(b));
-  if (entries.length === 0) return null;
-  return (
-    <p>
-      마이크: {entries.map(([slot, person]) => `${slot}번 ${person.name}`).join(", ")}
-    </p>
-  );
-}
+import MicStageLayout from "../components/MicStageLayout";
+import InstrumentPositionGrid from "../components/InstrumentPositionGrid";
 
 function WeekCard({ week, scheduleId, year, month, onDelete }) {
-  const instrumentEntries = Object.entries(week.instrument).filter(([, v]) => v);
-
   return (
     <div style={{ border: "1px solid #ccc", padding: "0.5rem", marginBottom: "0.5rem" }}>
       <strong>{week.week_label}</strong> {week.service_date}{" "}
@@ -47,7 +22,6 @@ function WeekCard({ week, scheduleId, year, month, onDelete }) {
       </button>
 
       {week.remark && <p>비고: {week.remark}</p>}
-      {week.absence_note && <p>불참: {week.absence_note}</p>}
       {week.special && (
         <p>
           특순: {week.special.title}
@@ -55,23 +29,14 @@ function WeekCard({ week, scheduleId, year, month, onDelete }) {
         </p>
       )}
 
-      {instrumentEntries.length > 0 && (
-        <p>
-          악기팀:{" "}
-          {instrumentEntries
-            .map(([code, person]) => `${INSTRUMENT_LABELS[code]} ${person.name}`)
-            .join(", ")}
-        </p>
-      )}
+      <InstrumentPositionGrid instrument={week.instrument} />
 
-      <MicList mic={week.singer.mic} />
-      {week.singer.choir.length > 0 && (
-        <p>콰이어: {week.singer.choir.map((p) => p.name).join(", ")}</p>
-      )}
+      <MicStageLayout mic={week.singer.mic} choir={week.singer.choir} />
       {week.singer.caption && <p>싱어 자막: {week.singer.caption.name}</p>}
       {week.singer.score.length > 0 && (
         <p>싱어 악보: {week.singer.score.map((p) => p.name).join(", ")}</p>
       )}
+      {week.absence_note && <p>불참: {week.absence_note}</p>}
     </div>
   );
 }
