@@ -23,7 +23,8 @@ function ContiDetail() {
 
   return (
     <div>
-      <Link to="/">← 메인으로</Link>
+      <Link to="/">← 메인으로</Link>{" "}
+      <Link to={`/conti/${contiId}/edit`}>편집</Link>
       <ContiDetailView conti={conti} />
     </div>
   );
