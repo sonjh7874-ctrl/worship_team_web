@@ -75,7 +75,11 @@ function ScheduleEdit() {
   const month = searchParams.get("month");
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [loadError, setLoadError] = useState(null);
+  // 저장 실패(예: 비밀번호 오류로 인한 401)는 loadError와 분리한다.
+  // loadError는 화면 전체를 에러 메시지로 대체하는 용도라, 저장 실패에 재사용하면
+  // 입력 중이던 폼 전체가 사라져 무엇이 실패했는지 알기 어려워진다.
+  const [formError, setFormError] = useState(null);
   const [message, setMessage] = useState(null);
   const [password, setPassword] = useState("");
 
@@ -105,7 +109,7 @@ function ScheduleEdit() {
 
   useEffect(() => {
     setLoading(true);
-    setError(null);
+    setLoadError(null);
     Promise.all([
       fetchSchedule(year, month),
       fetchMembers("instrument", true),
@@ -114,7 +118,7 @@ function ScheduleEdit() {
       .then(([schedule, instMembers, singMembers]) => {
         const week = schedule.weeks.find((w) => String(w.id) === String(weekId));
         if (!week) {
-          setError("주차를 찾을 수 없습니다.");
+          setLoadError("주차를 찾을 수 없습니다.");
           return;
         }
         setWeekLabel(week.week_label);
@@ -157,7 +161,7 @@ function ScheduleEdit() {
           week.singer.score.filter((p) => p.member_id == null).map((p) => p.name)
         );
       })
-      .catch((err) => setError(err.message))
+      .catch((err) => setLoadError(err.message))
       .finally(() => setLoading(false));
   }, [year, month, weekId]);
 
@@ -167,7 +171,7 @@ function ScheduleEdit() {
 
   async function handleSaveMeta(e) {
     e.preventDefault();
-    setError(null);
+    setFormError(null);
     setMessage(null);
     try {
       await updateWeek(
@@ -186,13 +190,13 @@ function ScheduleEdit() {
       );
       setMessage("주차 정보가 저장되었습니다.");
     } catch (err) {
-      setError(err.message);
+      setFormError(err.message);
     }
   }
 
   async function handleSaveAssignments(e) {
     e.preventDefault();
-    setError(null);
+    setFormError(null);
     setMessage(null);
 
     const assignments = [];
@@ -236,15 +240,15 @@ function ScheduleEdit() {
       await putAssignments(scheduleId, weekId, { assignments }, password);
       setMessage("배정이 저장되었습니다.");
     } catch (err) {
-      setError(err.message);
+      setFormError(err.message);
     }
   }
 
   if (loading) return <p>불러오는 중...</p>;
-  if (error) return (
+  if (loadError) return (
     <div>
       <Link to="/schedules">← 스케줄로</Link>
-      <p style={{ color: "red" }}>{error}</p>
+      <p style={{ color: "red" }}>{loadError}</p>
     </div>
   );
 
@@ -264,6 +268,7 @@ function ScheduleEdit() {
         </label>
       </div>
 
+      {formError && <p style={{ color: "red" }}>{formError}</p>}
       {message && <p style={{ color: "green" }}>{message}</p>}
 
       <form onSubmit={handleSaveMeta}>
