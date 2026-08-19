@@ -54,3 +54,38 @@ def create(service_date: date, title: str) -> dict:
         .execute()
     )
     return res.data[0]
+
+
+def update(conti_id: int, fields: dict) -> dict | None:
+    res = (
+        get_supabase()
+        .table(TABLE)
+        .update(fields)
+        .eq("id", conti_id)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def delete(conti_id: int) -> bool:
+    res = get_supabase().table(TABLE).delete().eq("id", conti_id).execute()
+    return bool(res.data)
+
+
+def replace_songs(conti_id: int, rows: list[dict]) -> None:
+    supabase = get_supabase()
+    supabase.table("conti_songs").delete().eq("conti_id", conti_id).execute()
+    if rows:
+        supabase.table("conti_songs").insert(rows).execute()
+
+
+def delete_song(conti_id: int, order_no: int) -> bool:
+    res = (
+        get_supabase()
+        .table("conti_songs")
+        .delete()
+        .eq("conti_id", conti_id)
+        .eq("order_no", order_no)
+        .execute()
+    )
+    return bool(res.data)
