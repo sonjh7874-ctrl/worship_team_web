@@ -6,6 +6,8 @@ import MemberMain from "./pages/MemberMain";
 import NoticeDetail from "./pages/NoticeDetail";
 import NoticeEdit from "./pages/NoticeEdit";
 import NoticeMain from "./pages/NoticeMain";
+import ScheduleEdit from "./pages/ScheduleEdit";
+import ScheduleMain from "./pages/ScheduleMain";
 
 function App() {
   return (
@@ -19,6 +21,8 @@ function App() {
       <Route path="/notices/new" element={<NoticeEdit />} />
       <Route path="/notices/:noticeId" element={<NoticeDetail />} />
       <Route path="/notices/:noticeId/edit" element={<NoticeEdit />} />
+      <Route path="/schedules" element={<ScheduleMain />} />
+      <Route path="/schedules/:scheduleId/weeks/:weekId/edit" element={<ScheduleEdit />} />
     </Routes>
   );
 }
