@@ -89,6 +89,9 @@ function ScheduleEdit() {
 
   const [instrumentMembers, setInstrumentMembers] = useState([]);
   const [singerMembers, setSingerMembers] = useState([]);
+  // 콰이어는 싱어팀 전용 포지션이 아니라, 그 주에 악기 담당이 없는 악기팀원도 설 수 있다.
+  // 그래서 콰이어 드롭다운만 두 팀을 합친 목록을 쓴다 (다른 마이크/포지션은 팀별 유지).
+  const [choirEligibleMembers, setChoirEligibleMembers] = useState([]);
 
   // 배정 폼 상태. GET /schedules 응답의 각 슬롯은 {member_id, name} 객체로 오므로,
   // member_id가 있으면 드롭다운을 그 값으로 미리 채우고(singleAssignments/choirIds/singerScoreIds),
@@ -123,6 +126,9 @@ function ScheduleEdit() {
         setSpecialMemo(week.special?.memo || "");
         setInstrumentMembers(instMembers);
         setSingerMembers(singMembers);
+        setChoirEligibleMembers(
+          [...singMembers, ...instMembers].sort((a, b) => a.name.localeCompare(b.name))
+        );
 
         const singles = {};
         const unlinked = {};
@@ -367,10 +373,14 @@ function ScheduleEdit() {
         </div>
         <div>
           <label>
-            콰이어 (Ctrl/Cmd + 클릭으로 다중 선택){" "}
+            콰이어 (싱어·악기 모두 가능, Ctrl/Cmd + 클릭으로 다중 선택){" "}
           </label>
           <br />
-          <MultiMemberSelect values={choirIds} onChange={setChoirIds} members={singerMembers} />
+          <MultiMemberSelect
+            values={choirIds}
+            onChange={setChoirIds}
+            members={choirEligibleMembers}
+          />
           <UnlinkedList label="콰이어" people={unlinkedChoir} />
         </div>
         <div>
