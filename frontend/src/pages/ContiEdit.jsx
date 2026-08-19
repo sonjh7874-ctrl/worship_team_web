@@ -198,7 +198,7 @@ function ContiEdit() {
     setError(null);
     try {
       await deleteConti(contiId, password);
-      navigate("/");
+      navigate("/conti");
     } catch (err) {
       setError(err.message);
     }
@@ -208,7 +208,9 @@ function ContiEdit() {
 
   return (
     <div>
-      <Link to={isNew ? "/" : `/conti/${contiId}`}>{isNew ? "← 메인으로" : "← 상세로"}</Link>
+      <Link to={isNew ? "/conti" : `/conti/${contiId}`}>
+        {isNew ? "← 콘티 목록으로" : "← 상세로"}
+      </Link>
 
       <h1>{isNew ? "콘티 만들기" : "콘티 편집"}</h1>
 
