@@ -12,6 +12,24 @@ class ScheduleWeekSpecial(BaseModel):
     memo: str | None = None
 
 
+class InstrumentAssignment(BaseModel):
+    key1: str | None = None
+    key2: str | None = None
+    drum: str | None = None
+    bass: str | None = None
+    electric: str | None = None
+    singer_helper: str | None = None
+    score: str | None = None
+
+
+class SingerAssignment(BaseModel):
+    # 마이크 1~8은 무대 좌표가 고정이라(Phase 3 배치도) 값이 없어도 키 자체는 항상 유지한다.
+    mic: dict[str, str | None] = {str(i): None for i in range(1, 9)}
+    choir: list[str] = []
+    caption: str | None = None
+    score: str | None = None
+
+
 class ScheduleWeekItem(BaseModel):
     id: int
     week_label: str
@@ -19,6 +37,19 @@ class ScheduleWeekItem(BaseModel):
     remark: str | None = None
     absence_note: str | None = None
     special: ScheduleWeekSpecial | None = None
+    instrument: InstrumentAssignment = InstrumentAssignment()
+    singer: SingerAssignment = SingerAssignment()
+
+
+class ScheduleAssignmentInput(BaseModel):
+    position_code: str
+    member_id: int | None = None
+    name_snapshot: str | None = None
+    slot_order: int = 0
+
+
+class ScheduleAssignmentsPutRequest(BaseModel):
+    assignments: list[ScheduleAssignmentInput]
 
 
 class MonthlyScheduleResponse(BaseModel):

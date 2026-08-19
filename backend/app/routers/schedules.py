@@ -4,6 +4,7 @@ from app.dependencies import verify_edit_password
 from app.schemas.schedule import (
     MonthlyScheduleCreate,
     MonthlyScheduleResponse,
+    ScheduleAssignmentsPutRequest,
     ScheduleWeekCreate,
     ScheduleWeekItem,
     ScheduleWeekUpdate,
@@ -63,3 +64,12 @@ def update_week(schedule_id: int, week_id: int, payload: ScheduleWeekUpdate):
 )
 def delete_week(schedule_id: int, week_id: int):
     schedule_service.delete_week(week_id)
+
+
+@router.put(
+    "/{schedule_id}/weeks/{week_id}/assignments",
+    response_model=ScheduleWeekItem,
+    dependencies=[Depends(verify_edit_password)],
+)
+def put_assignments(schedule_id: int, week_id: int, payload: ScheduleAssignmentsPutRequest):
+    return schedule_service.put_assignments(week_id, payload)
