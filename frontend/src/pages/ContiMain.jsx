@@ -30,7 +30,8 @@ function ContiMain() {
   return (
     <div>
       <Link to="/conti/new">새 콘티 만들기</Link>{" "}
-      <Link to={`/conti/${conti.id}/edit`}>편집</Link>
+      <Link to={`/conti/${conti.id}/edit`}>편집</Link>{" "}
+      <Link to="/members">인명부</Link>
       <ContiDetailView conti={conti} />
       {olderContis.length > 0 && (
         <div>
