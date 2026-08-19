@@ -1,13 +1,16 @@
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 
-from app.repositories import conti_repository, song_repository
+from app.repositories import conti_repository, sheet_file_repository, song_repository
 from app.schemas.conti import (
     ContiCreate,
     ContiDetail,
     ContiListItem,
     ContiSongsPutRequest,
     ContiUpdate,
+    SheetFileItem,
 )
+
+ALLOWED_FILE_TYPES = {"score_pdf", "conti_image"}
 
 
 def list_contis() -> list[ContiListItem]:
@@ -37,13 +40,23 @@ def get_conti(conti_id: int) -> ContiDetail:
         for cs in row.get("conti_songs", [])
     ]
 
+    sheet_files = [
+        SheetFileItem(
+            id=sf["id"],
+            file_type=sf["file_type"],
+            file_name=sf["file_name"],
+            url=sheet_file_repository.get_signed_url(sf["storage_path"]),
+        )
+        for sf in row.get("sheet_files", [])
+    ]
+
     return ContiDetail(
         id=row["id"],
         service_date=row["service_date"],
         title=row["title"],
         status=row["status"],
         songs=songs,
-        sheet_files=row.get("sheet_files", []),
+        sheet_files=sheet_files,
     )
 
 
@@ -103,3 +116,29 @@ def put_conti_songs(conti_id: int, payload: ContiSongsPutRequest) -> ContiDetail
 def delete_conti_song(conti_id: int, order_no: int) -> None:
     if not conti_repository.delete_song(conti_id, order_no):
         raise HTTPException(status_code=404, detail="해당 순서의 곡을 찾을 수 없습니다.")
+
+
+async def upload_sheet_file(conti_id: int, file_type: str, file: UploadFile) -> SheetFileItem:
+    if conti_repository.find_by_id(conti_id) is None:
+        raise HTTPException(status_code=404, detail="콘티를 찾을 수 없습니다.")
+    if file_type not in ALLOWED_FILE_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"file_type은 {sorted(ALLOWED_FILE_TYPES)} 중 하나여야 합니다.",
+        )
+
+    content = await file.read()
+    row = sheet_file_repository.create(
+        conti_id, file_type, file.filename or "file", content, file.content_type
+    )
+    return SheetFileItem(
+        id=row["id"],
+        file_type=row["file_type"],
+        file_name=row["file_name"],
+        url=sheet_file_repository.get_signed_url(row["storage_path"]),
+    )
+
+
+def delete_sheet_file(file_id: int) -> None:
+    if not sheet_file_repository.delete(file_id):
+        raise HTTPException(status_code=404, detail="파일을 찾을 수 없습니다.")

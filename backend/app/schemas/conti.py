@@ -22,7 +22,7 @@ class SheetFileItem(BaseModel):
     id: int
     file_type: str
     file_name: str | None = None
-    storage_path: str
+    url: str | None = None
 
 
 class ContiListItem(BaseModel):

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from app.dependencies import verify_edit_password
 from app.schemas.conti import (
@@ -7,6 +7,7 @@ from app.schemas.conti import (
     ContiListItem,
     ContiSongsPutRequest,
     ContiUpdate,
+    SheetFileItem,
 )
 from app.services import conti_service
 
@@ -72,3 +73,17 @@ def put_conti_songs(conti_id: int, payload: ContiSongsPutRequest):
 )
 def delete_conti_song(conti_id: int, order_no: int):
     conti_service.delete_conti_song(conti_id, order_no)
+
+
+@router.post(
+    "/{conti_id}/files",
+    response_model=SheetFileItem,
+    status_code=201,
+    dependencies=[Depends(verify_edit_password)],
+)
+async def upload_sheet_file(
+    conti_id: int,
+    file_type: str = Form(...),
+    file: UploadFile = File(...),
+):
+    return await conti_service.upload_sheet_file(conti_id, file_type, file)

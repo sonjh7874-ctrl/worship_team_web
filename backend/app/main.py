@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import calendar, contis, members, notices, schedules, songs
+from app.routers import calendar, contis, files, members, notices, schedules, songs
 
 app = FastAPI(title="청년부 주일찬양팀 웹 API")
 
@@ -18,6 +18,7 @@ app.include_router(schedules.router)
 app.include_router(calendar.router)
 app.include_router(members.router)
 app.include_router(songs.router)
+app.include_router(files.router)
 
 
 @app.get("/")
