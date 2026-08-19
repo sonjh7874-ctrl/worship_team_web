@@ -10,6 +10,8 @@ function ContiDetail() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // 과거 콘티 목록에서 다른 상세 페이지로 이동해도 같은 컴포넌트가 재사용되므로(라우트 파라미터만 변경),
+    // contiId가 바뀔 때마다 로딩/에러 상태를 초기화하고 새로 조회한다.
     setLoading(true);
     setError(null);
     fetchConti(contiId)

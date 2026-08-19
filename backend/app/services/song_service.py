@@ -14,6 +14,7 @@ def create_song(payload: SongCreate) -> SongItem:
 
 
 def update_song(song_id: int, payload: SongUpdate) -> SongItem:
+    # exclude_unset으로 요청에 포함된 필드만 갱신하는 부분 수정(PATCH)을 구현한다.
     fields = payload.model_dump(exclude_unset=True)
     row = song_repository.update(song_id, fields) if fields else song_repository.find_by_id(song_id)
     if row is None:

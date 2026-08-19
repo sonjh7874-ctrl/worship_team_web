@@ -29,6 +29,7 @@ def get_conti(conti_id: int) -> ContiDetail:
     if row is None:
         raise HTTPException(status_code=404, detail="콘티를 찾을 수 없습니다.")
 
+    # Supabase 중첩 select 결과의 "songs" 키(조인된 곡 마스터)를 API 응답 스키마의 "song" 필드로 옮겨 담는다.
     songs = [
         {
             "order_no": cs["order_no"],
@@ -40,6 +41,7 @@ def get_conti(conti_id: int) -> ContiDetail:
         for cs in row.get("conti_songs", [])
     ]
 
+    # 파일마다 매번 새 서명 URL을 발급한다 — Storage 버킷이 Private이라 저장된 고정 URL이 없다.
     sheet_files = [
         SheetFileItem(
             id=sf["id"],
@@ -66,10 +68,12 @@ def create_conti(payload: ContiCreate) -> ContiListItem:
 
 
 def update_conti(conti_id: int, payload: ContiUpdate) -> ContiListItem:
+    # exclude_unset으로 요청에 없는 필드는 그대로 두는 부분 수정(PATCH)을 구현한다.
     fields = payload.model_dump(exclude_unset=True)
     if "service_date" in fields and fields["service_date"] is not None:
         fields["service_date"] = fields["service_date"].isoformat()
 
+    # 바꿀 필드가 하나도 없으면 update를 호출하지 않고 현재 값을 그대로 조회해 반환한다.
     row = conti_repository.update(conti_id, fields) if fields else conti_repository.find_by_id(conti_id)
     if row is None:
         raise HTTPException(status_code=404, detail="콘티를 찾을 수 없습니다.")
@@ -85,9 +89,12 @@ def put_conti_songs(conti_id: int, payload: ContiSongsPutRequest) -> ContiDetail
     if conti_repository.find_by_id(conti_id) is None:
         raise HTTPException(status_code=404, detail="콘티를 찾을 수 없습니다.")
 
+    # 배열 순서를 그대로 order_no(1부터)로 채택한다 — 요청 순서 = 콘티 상의 곡 순서.
     rows = []
     for order_no, item in enumerate(payload.songs, start=1):
         song_id = item.song_id
+        # song_id가 없으면 검수 화면 등에서 "새로 등록"을 선택한 것이므로,
+        # 곡 마스터를 먼저 만들고 그 id로 배치한다 (API명세 1-3 new_song 처리).
         if song_id is None:
             if item.new_song is None:
                 raise HTTPException(
@@ -121,6 +128,8 @@ def delete_conti_song(conti_id: int, order_no: int) -> None:
 async def upload_sheet_file(conti_id: int, file_type: str, file: UploadFile) -> SheetFileItem:
     if conti_repository.find_by_id(conti_id) is None:
         raise HTTPException(status_code=404, detail="콘티를 찾을 수 없습니다.")
+    # file_type은 DB의 check 제약(score_pdf | conti_image)과 동일하게 API 레벨에서도 먼저 걸러
+    # Storage 업로드까지 갔다가 DB insert에서 실패하는 상황을 막는다.
     if file_type not in ALLOWED_FILE_TYPES:
         raise HTTPException(
             status_code=400,

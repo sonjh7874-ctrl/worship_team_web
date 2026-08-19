@@ -5,6 +5,7 @@ TABLE = "songs"
 
 def find_all(q: str | None = None) -> list[dict]:
     query = get_supabase().table(TABLE).select("id, title, artist, default_key")
+    # q가 있으면 제목 부분 일치 검색(대소문자 무시)으로 좁힌다. 콘티 편집 화면의 곡 검색용.
     if q:
         query = query.ilike("title", f"%{q}%")
     res = query.order("title").execute()

@@ -15,6 +15,7 @@ function ContiMain() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
 
+    // 과거 콘티 목록은 있으면 좋은 보조 정보라 실패해도 메인 화면 전체를 에러로 막지 않는다.
     fetchContiList()
       .then(setPastContis)
       .catch(() => {});
@@ -23,6 +24,7 @@ function ContiMain() {
   if (loading) return <p>불러오는 중...</p>;
   if (error) return <p>등록된 콘티가 없습니다.</p>;
 
+  // 전체 목록에는 최신 콘티도 포함돼 있으므로, 위에서 이미 보여준 것과 중복되지 않게 제외한다.
   const olderContis = pastContis.filter((item) => item.id !== conti.id);
 
   return (
