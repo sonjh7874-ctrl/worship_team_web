@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import {
   createConti,
+  deleteConti,
   deleteSheetFile,
   fetchConti,
   putContiSongs,
@@ -18,6 +19,7 @@ function emptyRow() {
 function ContiEdit() {
   const { contiId } = useParams();
   const navigate = useNavigate();
+  // 라우트 파라미터 유무로 생성 화면(/conti/new)과 편집 화면(/conti/:id/edit)을 한 컴포넌트에서 겸용한다.
   const isNew = !contiId;
 
   const [password, setPassword] = useState("");
@@ -41,6 +43,8 @@ function ContiEdit() {
         setServiceDate(conti.service_date);
         setTitle(conti.title);
         setStatus(conti.status);
+        // 서버 응답(song 중첩 객체)을 폼에서 다루기 쉬운 평평한 행(row) 구조로 펼친다.
+        // song_id를 채워두면 "기존 곡"으로 취급해 제목/아티스트 입력을 잠근다 (아래 handleSaveSongs 참고).
         setRows(
           conti.songs.map((item) => ({
             song_id: item.song.id,
@@ -68,6 +72,8 @@ function ContiEdit() {
   }
 
   function removeRow(index) {
+    // 여기서는 화면 상태에서만 지운다. 서버 반영은 "곡 배치 저장"을 눌러 PUT 전체 교체가
+    // 실행될 때 한 번에 이뤄진다(백엔드가 기존 배치를 지우고 새 배열로 다시 채우는 방식).
     setRows((prev) => prev.filter((_, i) => i !== index));
   }
 
@@ -99,12 +105,16 @@ function ContiEdit() {
     setError(null);
     setMessage(null);
 
+    // 새로 추가한 행(song_id 없음)은 제목이 없으면 곡 마스터를 만들 수 없으므로 저장 전에 막는다.
     const invalidRow = rows.find((row) => row.song_id === null && !row.title.trim());
     if (invalidRow) {
       setError("모든 곡에 제목을 입력해주세요.");
       return;
     }
 
+    // 배열 순서 = 콘티 상의 곡 순서(order_no)로 백엔드가 그대로 채택하므로 여기서는 순서만 맞추면 된다.
+    // song_id가 있으면 기존 곡을 그대로 재배치, 없으면 new_song으로 새 곡 생성까지 함께 요청한다
+    // (PUT /contis/{id}/songs, API명세 1-3).
     const payload = {
       songs: rows.map((row) => {
         const base = {
@@ -128,6 +138,8 @@ function ContiEdit() {
 
     try {
       const updated = await putContiSongs(contiId, payload, password);
+      // 새로 생성된 곡들이 서버에서 발급받은 실제 song_id를 응답으로 돌려주므로,
+      // 그 결과로 rows를 다시 채워야 다음 저장부터 "기존 곡"으로 정상 처리된다.
       setRows(
         updated.songs.map((item) => ({
           song_id: item.song.id,
@@ -173,6 +185,20 @@ function ContiEdit() {
       await deleteSheetFile(fileId, password);
       setSheetFiles((prev) => prev.filter((f) => f.id !== fileId));
       setMessage("파일이 삭제되었습니다.");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  // 콘티 삭제는 복구 수단이 없는 완전 삭제이므로, 실수 클릭을 막기 위해 confirm으로 한 번 더 확인한다.
+  async function handleDeleteConti() {
+    if (!window.confirm(`"${title}"(${serviceDate}) 콘티를 삭제할까요? 되돌릴 수 없습니다.`)) {
+      return;
+    }
+    setError(null);
+    try {
+      await deleteConti(contiId, password);
+      navigate("/");
     } catch (err) {
       setError(err.message);
     }
@@ -253,6 +279,10 @@ function ContiEdit() {
             </div>
             <button type="submit">정보 저장</button>
           </form>
+
+          <button type="button" onClick={handleDeleteConti} style={{ color: "red" }}>
+            콘티 삭제
+          </button>
 
           <form onSubmit={handleSaveSongs}>
             <h2>곡 배치</h2>
