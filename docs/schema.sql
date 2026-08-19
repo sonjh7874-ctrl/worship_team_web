@@ -66,7 +66,7 @@ create trigger trg_contis_updated before update on contis
   for each row execute function set_updated_at();
 
 comment on column contis.title is '기본값 주일예배. 수련회 등 예외 콘티는 제목으로 구분';
-comment on column contis.status is 'draft = AI 추출 후 검수 대기, published = 게시됨';
+comment on column contis.status is 'draft = 아직 팀 전체 공개 전(AI 추출 검수 대기 또는 리더십이 잠시 숨겨둔 초안), published = 공개됨. 목록/최신 조회는 published만 노출';
 comment on column contis.ai_raw_result is 'AI 추출 원본 JSON. 정확도 검증/트러블슈팅용';
 
 

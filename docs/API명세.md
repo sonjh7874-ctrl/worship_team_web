@@ -52,12 +52,16 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 
 | Method | Path | 설명 | 인증 |
 |---|---|---|---|
-| GET | `/contis` | 콘티 목록 (날짜 최신순) | 불필요 |
-| GET | `/contis/latest` | 가장 최근/다가오는 콘티 1건 (메인 화면용) | 불필요 |
-| GET | `/contis/{conti_id}` | 콘티 상세 (곡 목록 + 악보 포함) | 불필요 |
-| POST | `/contis` | 콘티 신규 생성 (수동, 빈 콘티) | 필요 |
+| GET | `/contis` | 콘티 목록 (날짜 최신순, **published만**) | 불필요 |
+| GET | `/contis/latest` | 가장 최근/다가오는 콘티 1건 (메인 화면용, **published만**) | 불필요 |
+| GET | `/contis/{conti_id}` | 콘티 상세 (곡 목록 + 악보 포함, **status 무관하게 조회 가능**) | 불필요 |
+| POST | `/contis` | 콘티 신규 생성 (수동, 빈 콘티, **status는 즉시 published**) | 필요 |
 | PATCH | `/contis/{conti_id}` | 콘티 제목/날짜/상태 수정 | 필요 |
 | DELETE | `/contis/{conti_id}` | 콘티 삭제 (곡 배치·악보 CASCADE) | 필요 |
+
+> **draft/published 동작**: 목록·메인 조회는 `published` 콘티만 보여준다. `draft`는 아직 확정 전이라 팀 전체에 노출되면 안 되기 때문 — 리더십이 콘티를 미리 입력해두되 아직 확정이 아니면(예: 목사님이 순서를 바꿀 수 있는 상태) `PATCH`로 `status: "draft"`로 바꿔 잠시 숨겨둘 수 있다. 반대로 수동 생성(`POST /contis`)은 리더십이 직접 입력하는 것 자체가 이미 검수를 거친 콘텐츠라 **기본값이 draft가 아니라 즉시 published**다. `draft` 기본값은 Phase 5(AI 이미지 인식 결과를 사람이 검수하기 전)에서만 실제로 쓰인다.
+>
+> 상세 조회(`GET /contis/{conti_id}`)는 status와 무관하게 열려 있다 — 작성자가 편집 화면(`/conti/{id}/edit`)에서 자신의 draft를 계속 보고 고칠 수 있어야 하기 때문. 다만 로그인이 없어 "내가 만든 draft 목록"을 모아보는 화면은 없으므로, draft로 전환한 콘티는 URL(ID)을 기억해야 다시 찾아갈 수 있다.
 
 **`GET /contis` 응답 예시**
 
