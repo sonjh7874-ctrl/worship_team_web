@@ -125,3 +125,19 @@ def replace_assignments(week_id: int, rows: list[dict]) -> None:
     supabase.table(ASSIGNMENT_TABLE).delete().eq("week_id", week_id).execute()
     if rows:
         supabase.table(ASSIGNMENT_TABLE).insert(rows).execute()
+
+
+def backfill_assignment_names(member_id: int, name: str) -> None:
+    # 팀원 삭제 직전에 호출한다. member_id를 참조하는 배정 행 중 name_snapshot이
+    # 비어있는 것들에 현재 이름을 미리 채워, 삭제로 member_id가 NULL이 돼도
+    # chk_assignment_identity 제약(member_id 또는 name_snapshot 필수)을 위반하지 않게 한다.
+    # ERD 3-3의 "탈퇴자는 name_snapshot만 남긴다" 설계를 실제로 구현하는 부분이라,
+    # 과거 스케줄에는 이 이름이 그대로 남는다.
+    (
+        get_supabase()
+        .table(ASSIGNMENT_TABLE)
+        .update({"name_snapshot": name})
+        .eq("member_id", member_id)
+        .is_("name_snapshot", "null")
+        .execute()
+    )

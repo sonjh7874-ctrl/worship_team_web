@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 
-from app.repositories import member_repository
+from app.repositories import member_repository, schedule_repository
 from app.schemas.member import Member, MemberCreate, MemberUpdate
 
 
@@ -23,5 +23,11 @@ def update_member(member_id: int, payload: MemberUpdate) -> Member:
 
 
 def delete_member(member_id: int) -> None:
-    if not member_repository.delete(member_id):
+    member = member_repository.find_by_id(member_id)
+    if member is None:
         raise HTTPException(status_code=404, detail="팀원을 찾을 수 없습니다.")
+
+    # 삭제로 배정 행의 member_id가 NULL이 되기 전에 이름을 name_snapshot으로 남겨,
+    # 과거 스케줄 기록에서 이름이 사라지지 않게 한다 (ERD 3-3).
+    schedule_repository.backfill_assignment_names(member_id, member["name"])
+    member_repository.delete(member_id)
