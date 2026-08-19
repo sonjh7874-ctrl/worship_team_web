@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
-import { fetchLatestConti } from "../api/contis";
+import { Link } from "react-router-dom";
+import { fetchContiList, fetchLatestConti } from "../api/contis";
+import ContiDetailView from "../components/ContiDetailView";
 
 function ContiMain() {
   const [conti, setConti] = useState(null);
+  const [pastContis, setPastContis] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -11,27 +14,33 @@ function ContiMain() {
       .then(setConti)
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+
+    fetchContiList()
+      .then(setPastContis)
+      .catch(() => {});
   }, []);
 
   if (loading) return <p>불러오는 중...</p>;
   if (error) return <p>등록된 콘티가 없습니다.</p>;
 
+  const olderContis = pastContis.filter((item) => item.id !== conti.id);
+
   return (
     <div>
-      <h1>{conti.title}</h1>
-      <p>{conti.service_date}</p>
-      {conti.songs.length === 0 ? (
-        <p>등록된 곡이 없습니다.</p>
-      ) : (
-        <ol>
-          {conti.songs.map((item) => (
-            <li key={item.order_no}>
-              {item.song.title} ({item.song.artist}) - {item.song_key}
-              <br />
-              {item.song_form}
-            </li>
-          ))}
-        </ol>
+      <ContiDetailView conti={conti} />
+      {olderContis.length > 0 && (
+        <div>
+          <h2>과거 콘티</h2>
+          <ul>
+            {olderContis.map((item) => (
+              <li key={item.id}>
+                <Link to={`/conti/${item.id}`}>
+                  {item.service_date} - {item.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </div>
   );
