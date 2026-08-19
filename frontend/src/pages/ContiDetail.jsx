@@ -21,7 +21,12 @@ function ContiDetail() {
   }, [contiId]);
 
   if (loading) return <p>불러오는 중...</p>;
-  if (error) return <p>콘티를 찾을 수 없습니다.</p>;
+  if (error) return (
+    <div>
+      <Link to="/">← 메인으로</Link>
+      <p>콘티를 찾을 수 없습니다.</p>
+    </div>
+  );
 
   return (
     <div>

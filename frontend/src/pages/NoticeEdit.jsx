@@ -63,7 +63,9 @@ function NoticeEdit() {
 
   return (
     <div>
-      {!isNew && <Link to={`/notices/${noticeId}`}>← 상세로</Link>}
+      <Link to={isNew ? "/notices" : `/notices/${noticeId}`}>
+        {isNew ? "← 공지 목록으로" : "← 상세로"}
+      </Link>
 
       <h1>{isNew ? "공지 작성" : "공지 편집"}</h1>
 

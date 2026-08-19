@@ -30,9 +30,15 @@ function NoticeMain() {
   }, []);
 
   if (loading) return <p>불러오는 중...</p>;
-  if (error) return <p>공지사항을 불러오지 못했습니다.</p>;
+  if (error) return (
+    <div>
+      <Link to="/">← 메인으로</Link>
+      <p>공지사항을 불러오지 못했습니다.</p>
+    </div>
+  );
   if (!notice) return (
     <div>
+      <Link to="/">← 메인으로</Link>{" "}
       <Link to="/notices/new">새 공지 작성</Link>
       <p>등록된 공지사항이 없습니다.</p>
     </div>
@@ -43,6 +49,7 @@ function NoticeMain() {
 
   return (
     <div>
+      <Link to="/">← 메인으로</Link>{" "}
       <Link to="/notices/new">새 공지 작성</Link>{" "}
       <Link to={`/notices/${notice.id}/edit`}>편집</Link>
       <NoticeDetailView notice={notice} />

@@ -21,7 +21,12 @@ function NoticeDetail() {
   }, [noticeId]);
 
   if (loading) return <p>불러오는 중...</p>;
-  if (error) return <p>공지사항을 찾을 수 없습니다.</p>;
+  if (error) return (
+    <div>
+      <Link to="/notices">← 공지 목록으로</Link>
+      <p>공지사항을 찾을 수 없습니다.</p>
+    </div>
+  );
 
   return (
     <div>

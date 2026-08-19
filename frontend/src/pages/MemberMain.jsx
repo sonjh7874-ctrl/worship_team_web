@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { createMember, deleteMember, fetchMembers, updateMember } from "../api/members";
 
 const TEAM_LABELS = { singer: "싱어팀", instrument: "악기팀" };
@@ -76,6 +77,7 @@ function MemberMain() {
 
   return (
     <div>
+      <Link to="/">← 메인으로</Link>
       <h1>인명부</h1>
 
       <div>

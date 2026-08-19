@@ -208,7 +208,7 @@ function ContiEdit() {
 
   return (
     <div>
-      {!isNew && <Link to={`/conti/${contiId}`}>← 상세로</Link>}
+      <Link to={isNew ? "/" : `/conti/${contiId}`}>{isNew ? "← 메인으로" : "← 상세로"}</Link>
 
       <h1>{isNew ? "콘티 만들기" : "콘티 편집"}</h1>
 
