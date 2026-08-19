@@ -4,6 +4,7 @@ from fastapi import HTTPException
 
 from app.repositories import schedule_repository
 from app.schemas.schedule import (
+    AssignedPerson,
     InstrumentAssignment,
     MonthlyScheduleCreate,
     MonthlyScheduleResponse,
@@ -35,32 +36,38 @@ MIC_SLOT_CODES = {f"mic{i}": str(i) for i in range(1, 9)}
 MULTI_SLOT_CODES = {"choir", "special", "singer_score"}
 
 
-def _resolve_assignment_name(row: dict) -> str | None:
-    # 인명부 연결이 있으면 최신 이름을, 없으면(탈퇴자/동명이인 표기) 저장된 스냅샷을 쓴다 (ERD 3-3).
+def _resolve_assignment(row: dict) -> AssignedPerson | None:
+    # 인명부 연결이 있으면 최신 이름 + member_id를, 없으면(탈퇴자/동명이인 표기) 저장된
+    # 스냅샷 이름만 돌려준다 (ERD 3-3). member_id가 있어야 프론트 편집 화면에서 드롭다운을
+    # 미리 채울 수 있다 — name만으로는 어떤 팀원인지 되짚을 수 없기 때문.
     if row.get("member_id") is not None:
         member = row.get("members")
-        if member:
-            return member.get("name")
-    return row.get("name_snapshot")
+        name = member.get("name") if member else None
+        if name:
+            return AssignedPerson(member_id=row["member_id"], name=name)
+    name_snapshot = row.get("name_snapshot")
+    if name_snapshot:
+        return AssignedPerson(member_id=None, name=name_snapshot)
+    return None
 
 
 def _pivot_assignments(rows: list[dict]) -> tuple[InstrumentAssignment, SingerAssignment]:
     instrument = InstrumentAssignment()
     singer = SingerAssignment()
     for row in sorted(rows, key=lambda r: r.get("slot_order") or 0):
-        name = _resolve_assignment_name(row)
-        if name is None:
+        person = _resolve_assignment(row)
+        if person is None:
             continue
         code = row["position_code"]
         if code in MIC_SLOT_CODES:
-            singer.mic[MIC_SLOT_CODES[code]] = name
+            singer.mic[MIC_SLOT_CODES[code]] = person
         elif code == "choir":
-            singer.choir.append(name)
+            singer.choir.append(person)
         elif code == "singer_score":
-            singer.score.append(name)
+            singer.score.append(person)
         elif code in POSITION_FIELD_MAP:
             group, field = POSITION_FIELD_MAP[code]
-            setattr(instrument if group == "instrument" else singer, field, name)
+            setattr(instrument if group == "instrument" else singer, field, person)
         # 'special'(특순 참여자) 배정은 이번 MVP 응답 스펙에 포함하지 않는다 —
         # 특순 자체는 schedule_weeks.special_*(캘린더 동기화용 텍스트)로 별도 관리한다.
     return instrument, singer

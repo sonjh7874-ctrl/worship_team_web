@@ -19,14 +19,16 @@ const INSTRUMENT_LABELS = {
 };
 
 // 마이크 1~8은 항상 8개 키를 유지한 채 내려오므로(백엔드 피벗 응답), 값이 있는 슬롯만 걸러 표시한다.
+// 각 슬롯 값은 {member_id, name} 객체 — 편집 화면에서 드롭다운을 미리 채우려면 member_id가 필요해
+// 이름 문자열이 아니라 객체로 내려온다.
 function MicList({ mic }) {
   const entries = Object.entries(mic)
-    .filter(([, name]) => name)
+    .filter(([, person]) => person)
     .sort(([a], [b]) => Number(a) - Number(b));
   if (entries.length === 0) return null;
   return (
     <p>
-      마이크: {entries.map(([slot, name]) => `${slot}번 ${name}`).join(", ")}
+      마이크: {entries.map(([slot, person]) => `${slot}번 ${person.name}`).join(", ")}
     </p>
   );
 }
@@ -56,14 +58,20 @@ function WeekCard({ week, scheduleId, year, month, onDelete }) {
       {instrumentEntries.length > 0 && (
         <p>
           악기팀:{" "}
-          {instrumentEntries.map(([code, name]) => `${INSTRUMENT_LABELS[code]} ${name}`).join(", ")}
+          {instrumentEntries
+            .map(([code, person]) => `${INSTRUMENT_LABELS[code]} ${person.name}`)
+            .join(", ")}
         </p>
       )}
 
       <MicList mic={week.singer.mic} />
-      {week.singer.choir.length > 0 && <p>콰이어: {week.singer.choir.join(", ")}</p>}
-      {week.singer.caption && <p>싱어 자막: {week.singer.caption}</p>}
-      {week.singer.score.length > 0 && <p>싱어 악보: {week.singer.score.join(", ")}</p>}
+      {week.singer.choir.length > 0 && (
+        <p>콰이어: {week.singer.choir.map((p) => p.name).join(", ")}</p>
+      )}
+      {week.singer.caption && <p>싱어 자막: {week.singer.caption.name}</p>}
+      {week.singer.score.length > 0 && (
+        <p>싱어 악보: {week.singer.score.map((p) => p.name).join(", ")}</p>
+      )}
     </div>
   );
 }
@@ -169,6 +177,7 @@ function ScheduleMain() {
 
   return (
     <div>
+      <Link to="/">← 메인으로</Link>
       <h1>월간 스케줄</h1>
 
       <form onSubmit={handleSearch}>

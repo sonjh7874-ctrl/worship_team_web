@@ -3,31 +3,41 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { fetchMembers } from "../api/members";
 import { fetchSchedule, putAssignments, updateWeek } from "../api/schedules";
 
+// position_code(배정 저장 시 쓰는 값)와 field(GET 응답의 instrument.* 키)가 다른 경우가 있다
+// (inst_score → score) — 응답에서 기존 배정을 읽어올 때 이 매핑으로 되짚는다.
 const INSTRUMENT_POSITIONS = [
-  { code: "key1", label: "Key1" },
-  { code: "key2", label: "Key2" },
-  { code: "drum", label: "드럼" },
-  { code: "bass", label: "베이스" },
-  { code: "electric", label: "일렉" },
-  { code: "singer_helper", label: "싱도/자막" },
-  { code: "inst_score", label: "악보" },
+  { code: "key1", field: "key1", label: "Key1" },
+  { code: "key2", field: "key2", label: "Key2" },
+  { code: "drum", field: "drum", label: "드럼" },
+  { code: "bass", field: "bass", label: "베이스" },
+  { code: "electric", field: "electric", label: "일렉" },
+  { code: "singer_helper", field: "singer_helper", label: "싱도/자막" },
+  { code: "inst_score", field: "score", label: "악보" },
 ];
 
 const MIC_POSITIONS = Array.from({ length: 8 }, (_, i) => ({
   code: `mic${i + 1}`,
+  slot: String(i + 1),
   label: `마이크 ${i + 1}`,
 }));
 
-function MemberSelect({ value, onChange, members }) {
+function MemberSelect({ value, onChange, members, unlinkedName }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)}>
-      <option value="">(미배정)</option>
-      {members.map((m) => (
-        <option key={m.id} value={m.id}>
-          {m.name}
-        </option>
-      ))}
-    </select>
+    <>
+      <select value={value} onChange={(e) => onChange(e.target.value)}>
+        <option value="">(미배정)</option>
+        {members.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.name}
+          </option>
+        ))}
+      </select>
+      {/* 인명부에 없는 인물(name_snapshot만 저장됨)은 드롭다운에 선택지가 없어 미리 채우지 못하므로,
+          누가 배정돼 있었는지만 텍스트로 알려준다. */}
+      {unlinkedName && (
+        <span style={{ color: "#666" }}> (현재: {unlinkedName} — 인명부 미등록)</span>
+      )}
+    </>
   );
 }
 
@@ -44,6 +54,17 @@ function MultiMemberSelect({ values, onChange, members }) {
         </option>
       ))}
     </select>
+  );
+}
+
+// 인명부에 없는 인물은 다중 선택 목록에 넣을 수 없어, 저장 시 자동으로 유지되긴 하지만
+// 화면에서는 이름만 참고용으로 보여준다.
+function UnlinkedList({ label, people }) {
+  if (people.length === 0) return null;
+  return (
+    <p style={{ color: "#666" }}>
+      {label} (인명부 미등록, 저장 시 유지됨): {people.join(", ")}
+    </p>
   );
 }
 
@@ -69,12 +90,15 @@ function ScheduleEdit() {
   const [instrumentMembers, setInstrumentMembers] = useState([]);
   const [singerMembers, setSingerMembers] = useState([]);
 
-  // 배정 폼 상태. 조회 응답(GET /schedules)은 이름만 피벗해서 내려주고 member_id를
-  // 되돌려주지 않으므로, 기존 배정을 드롭다운에 미리 채워 넣을 수 없다 — 편집 시 매번
-  // 이번 주 배정을 새로 입력해서 저장하는 방식(PUT 전체 교체와 동일한 흐름)으로 둔다.
+  // 배정 폼 상태. GET /schedules 응답의 각 슬롯은 {member_id, name} 객체로 오므로,
+  // member_id가 있으면 드롭다운을 그 값으로 미리 채우고(singleAssignments/choirIds/singerScoreIds),
+  // member_id가 없는(인명부 밖 인물) 경우는 이름만 별도로 기억해 힌트 텍스트로 보여준다(unlinkedNames).
   const [singleAssignments, setSingleAssignments] = useState({});
+  const [unlinkedNames, setUnlinkedNames] = useState({});
   const [choirIds, setChoirIds] = useState([]);
   const [singerScoreIds, setSingerScoreIds] = useState([]);
+  const [unlinkedChoir, setUnlinkedChoir] = useState([]);
+  const [unlinkedSingerScore, setUnlinkedSingerScore] = useState([]);
 
   useEffect(() => {
     setLoading(true);
@@ -99,6 +123,33 @@ function ScheduleEdit() {
         setSpecialMemo(week.special?.memo || "");
         setInstrumentMembers(instMembers);
         setSingerMembers(singMembers);
+
+        const singles = {};
+        const unlinked = {};
+        function readSingle(key, person) {
+          if (!person) return;
+          if (person.member_id != null) {
+            singles[key] = String(person.member_id);
+          } else {
+            unlinked[key] = person.name;
+          }
+        }
+        INSTRUMENT_POSITIONS.forEach(({ code, field }) => readSingle(code, week.instrument[field]));
+        MIC_POSITIONS.forEach(({ code, slot }) => readSingle(code, week.singer.mic[slot]));
+        readSingle("singer_caption", week.singer.caption);
+        setSingleAssignments(singles);
+        setUnlinkedNames(unlinked);
+
+        setChoirIds(
+          week.singer.choir.filter((p) => p.member_id != null).map((p) => String(p.member_id))
+        );
+        setUnlinkedChoir(week.singer.choir.filter((p) => p.member_id == null).map((p) => p.name));
+        setSingerScoreIds(
+          week.singer.score.filter((p) => p.member_id != null).map((p) => String(p.member_id))
+        );
+        setUnlinkedSingerScore(
+          week.singer.score.filter((p) => p.member_id == null).map((p) => p.name)
+        );
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -139,25 +190,39 @@ function ScheduleEdit() {
     setMessage(null);
 
     const assignments = [];
-    for (const { code } of [...INSTRUMENT_POSITIONS, ...MIC_POSITIONS]) {
+    // 드롭다운에서 새로 고른 값이 있으면 그걸 쓰고, 없는데 인명부 밖 인물이 배정돼 있었다면
+    // (unlinkedNames) 화면에서 재선택할 방법이 없으니 그 이름을 그대로 name_snapshot으로 넘겨
+    // 저장할 때 조용히 사라지지 않게 한다.
+    for (const { code } of [...INSTRUMENT_POSITIONS, ...MIC_POSITIONS, { code: "singer_caption" }]) {
       if (singleAssignments[code]) {
         assignments.push({ position_code: code, member_id: Number(singleAssignments[code]) });
+      } else if (unlinkedNames[code]) {
+        assignments.push({ position_code: code, name_snapshot: unlinkedNames[code] });
       }
-    }
-    if (singleAssignments.singer_caption) {
-      assignments.push({
-        position_code: "singer_caption",
-        member_id: Number(singleAssignments.singer_caption),
-      });
     }
     choirIds.forEach((id, index) => {
       assignments.push({ position_code: "choir", member_id: Number(id), slot_order: index + 1 });
+    });
+    // 콰이어의 인명부 밖 인물도 마찬가지로 재선택 UI가 없으니 그대로 이어붙여 보존한다.
+    unlinkedChoir.forEach((name, index) => {
+      assignments.push({
+        position_code: "choir",
+        name_snapshot: name,
+        slot_order: choirIds.length + index + 1,
+      });
     });
     singerScoreIds.forEach((id, index) => {
       assignments.push({
         position_code: "singer_score",
         member_id: Number(id),
         slot_order: index + 1,
+      });
+    });
+    unlinkedSingerScore.forEach((name, index) => {
+      assignments.push({
+        position_code: "singer_score",
+        name_snapshot: name,
+        slot_order: singerScoreIds.length + index + 1,
       });
     });
 
@@ -170,7 +235,12 @@ function ScheduleEdit() {
   }
 
   if (loading) return <p>불러오는 중...</p>;
-  if (error) return <p style={{ color: "red" }}>{error}</p>;
+  if (error) return (
+    <div>
+      <Link to="/schedules">← 스케줄로</Link>
+      <p style={{ color: "red" }}>{error}</p>
+    </div>
+  );
 
   return (
     <div>
@@ -251,8 +321,8 @@ function ScheduleEdit() {
       <form onSubmit={handleSaveAssignments}>
         <h2>배정</h2>
         <p style={{ color: "#666" }}>
-          기존 배정 내역은 자동으로 채워지지 않습니다 — 이번 주 배정을 새로 선택해 저장하면
-          전체를 교체합니다.
+          기존 배정은 인명부에 등록된 사람이면 자동으로 채워집니다. 저장하면 이번 주
+          배정 전체가 화면에 입력된 내용으로 교체됩니다.
         </p>
 
         <h3>악기팀</h3>
@@ -264,6 +334,7 @@ function ScheduleEdit() {
                 value={singleAssignments[code] || ""}
                 onChange={(v) => setSingleValue(code, v)}
                 members={instrumentMembers}
+                unlinkedName={unlinkedNames[code]}
               />
             </label>
           </div>
@@ -278,6 +349,7 @@ function ScheduleEdit() {
                 value={singleAssignments[code] || ""}
                 onChange={(v) => setSingleValue(code, v)}
                 members={singerMembers}
+                unlinkedName={unlinkedNames[code]}
               />
             </label>
           </div>
@@ -289,6 +361,7 @@ function ScheduleEdit() {
               value={singleAssignments.singer_caption || ""}
               onChange={(v) => setSingleValue("singer_caption", v)}
               members={singerMembers}
+              unlinkedName={unlinkedNames.singer_caption}
             />
           </label>
         </div>
@@ -298,6 +371,7 @@ function ScheduleEdit() {
           </label>
           <br />
           <MultiMemberSelect values={choirIds} onChange={setChoirIds} members={singerMembers} />
+          <UnlinkedList label="콰이어" people={unlinkedChoir} />
         </div>
         <div>
           <label>악보(보통 2명, 다중 선택)</label>
@@ -307,6 +381,7 @@ function ScheduleEdit() {
             onChange={setSingerScoreIds}
             members={singerMembers}
           />
+          <UnlinkedList label="악보" people={unlinkedSingerScore} />
         </div>
 
         <button type="submit">배정 저장</button>

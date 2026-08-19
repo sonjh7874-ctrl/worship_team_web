@@ -194,16 +194,32 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
       "remark": null, "absence_note": "불참: 노유안(1 청소년부)",
       "special": { "title": "청년부 특별찬양", "date": "2026-08-02", "memo": null },
       "instrument": {
-        "key1": null, "key2": null, "drum": "박시우", "bass": "강태호",
-        "electric": "조민준", "singer_helper": null, "score": null
+        "key1": null, "key2": null,
+        "drum": { "member_id": 4, "name": "박시우" },
+        "bass": { "member_id": 5, "name": "강태호" },
+        "electric": { "member_id": 6, "name": "조민준" },
+        "singer_helper": null, "score": null
       },
       "singer": {
         "mic": {
-          "1": "정승주", "2": "임하늘", "3": "서다은", "4": "최나린",
-          "5": "배현우", "6": "윤소미", "7": "오세진", "8": "한도윤"
+          "1": { "member_id": 21, "name": "정승주" },
+          "2": { "member_id": 22, "name": "임하늘" },
+          "3": { "member_id": 23, "name": "서다은" },
+          "4": { "member_id": 24, "name": "최나린" },
+          "5": { "member_id": 25, "name": "배현우" },
+          "6": { "member_id": 26, "name": "윤소미" },
+          "7": { "member_id": 27, "name": "오세진" },
+          "8": { "member_id": 28, "name": "한도윤" }
         },
-        "choir": ["노유안", "류지원"],
-        "caption": null, "score": ["임하늘", "최나린"]
+        "choir": [
+          { "member_id": 29, "name": "노유안" },
+          { "member_id": null, "name": "류지원" }
+        ],
+        "caption": null,
+        "score": [
+          { "member_id": 22, "name": "임하늘" },
+          { "member_id": 24, "name": "최나린" }
+        ]
       }
     }
   ]
@@ -212,7 +228,9 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 
 > **설계 근거**: ERD의 세로형 `schedule_assignments`를 그대로 노출하면 프론트에서 매번 피벗 로직을 짜야 한다. **서비스 레이어에서 미리 피벗해 응답**하면, 마이크 배치도 컴포넌트는 `singer.mic["1"]`~`["8"]`을 그대로 그리드에 꽂기만 하면 된다. 값이 없는 포지션은 `null`로 내려 프론트가 숨긴다.
 >
-> `singer.score`(싱어 악보)는 `choir`처럼 배열이다 — 보통 2명이 나눠 맡아 `positions.singer_score.is_multi=true`이기 때문. 나머지 단일 슬롯 포지션(`instrument.*`, `singer.caption` 등)은 그대로 문자열 하나 또는 `null`이다.
+> **배정된 사람은 문자열이 아니라 `{ "member_id": number | null, "name": string }` 객체**로 내려온다. `member_id`가 있으면 편집 화면이 인명부 드롭다운을 그 값으로 미리 채워 재선택할 수 있고(수정 시 기존 배정이 사라지지 않게 하기 위함), `member_id`가 `null`이면 인명부에 없는 인물(`name_snapshot`만 저장된 경우)이라 이름만 표시하고 드롭다운엔 미리 채우지 못한다.
+>
+> `singer.score`(싱어 악보)와 `choir`는 배열이다 — 각각 여러 명이 나눠 맡을 수 있어 `positions.is_multi=true`이기 때문. 나머지 단일 슬롯 포지션(`instrument.*`, `singer.mic.*`, `singer.caption`)은 배정이 없으면 `null`, 있으면 위 객체 하나다.
 
 ### 2-3. 배정 저장 요청 형식
 

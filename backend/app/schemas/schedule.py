@@ -12,24 +12,32 @@ class ScheduleWeekSpecial(BaseModel):
     memo: str | None = None
 
 
+class AssignedPerson(BaseModel):
+    # member_id가 있으면 인명부 드롭다운에서 그대로 재선택(편집 시 미리 채우기)할 수 있다.
+    # 인명부에 없는 인물(name_snapshot만 있는 경우)은 member_id가 null이라 이름만 표시하고
+    # 드롭다운에는 미리 채우지 못한다 — 애초에 인명부 밖 인물이라 선택지에 없기 때문.
+    member_id: int | None = None
+    name: str
+
+
 class InstrumentAssignment(BaseModel):
-    key1: str | None = None
-    key2: str | None = None
-    drum: str | None = None
-    bass: str | None = None
-    electric: str | None = None
-    singer_helper: str | None = None
-    score: str | None = None
+    key1: AssignedPerson | None = None
+    key2: AssignedPerson | None = None
+    drum: AssignedPerson | None = None
+    bass: AssignedPerson | None = None
+    electric: AssignedPerson | None = None
+    singer_helper: AssignedPerson | None = None
+    score: AssignedPerson | None = None
 
 
 class SingerAssignment(BaseModel):
     # 마이크 1~8은 무대 좌표가 고정이라(Phase 3 배치도) 값이 없어도 키 자체는 항상 유지한다.
-    mic: dict[str, str | None] = {str(i): None for i in range(1, 9)}
-    choir: list[str] = []
-    caption: str | None = None
+    mic: dict[str, AssignedPerson | None] = {str(i): None for i in range(1, 9)}
+    choir: list[AssignedPerson] = []
+    caption: AssignedPerson | None = None
     # 싱어 악보 담당은 보통 2명이 나눠 맡아 positions.singer_score.is_multi=true로 변경됨.
     # 악기 악보(inst_score)는 그대로 1명이라 InstrumentAssignment.score는 단일 값 유지.
-    score: list[str] = []
+    score: list[AssignedPerson] = []
 
 
 class ScheduleWeekItem(BaseModel):
