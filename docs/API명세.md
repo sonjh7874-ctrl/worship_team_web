@@ -203,7 +203,7 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
           "5": "배현우", "6": "윤소미", "7": "오세진", "8": "한도윤"
         },
         "choir": ["노유안", "류지원"],
-        "caption": null, "score": null
+        "caption": null, "score": ["임하늘", "최나린"]
       }
     }
   ]
@@ -211,6 +211,8 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 ```
 
 > **설계 근거**: ERD의 세로형 `schedule_assignments`를 그대로 노출하면 프론트에서 매번 피벗 로직을 짜야 한다. **서비스 레이어에서 미리 피벗해 응답**하면, 마이크 배치도 컴포넌트는 `singer.mic["1"]`~`["8"]`을 그대로 그리드에 꽂기만 하면 된다. 값이 없는 포지션은 `null`로 내려 프론트가 숨긴다.
+>
+> `singer.score`(싱어 악보)는 `choir`처럼 배열이다 — 보통 2명이 나눠 맡아 `positions.singer_score.is_multi=true`이기 때문. 나머지 단일 슬롯 포지션(`instrument.*`, `singer.caption` 등)은 그대로 문자열 하나 또는 `null`이다.
 
 ### 2-3. 배정 저장 요청 형식
 
@@ -223,13 +225,15 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
     { "position_code": "mic2", "member_id": 22, "name_snapshot": null },
     { "position_code": "choir", "member_id": 29, "name_snapshot": null, "slot_order": 1 },
     { "position_code": "choir", "member_id": 30, "name_snapshot": null, "slot_order": 2 },
+    { "position_code": "singer_score", "member_id": 22, "name_snapshot": null, "slot_order": 1 },
+    { "position_code": "singer_score", "member_id": 23, "name_snapshot": null, "slot_order": 2 },
     { "position_code": "key1", "member_id": null, "name_snapshot": "01우진" }
   ]
 }
 ```
 
 - `member_id`와 `name_snapshot` 중 하나는 필수 (ERD `chk_assignment_identity` 제약과 동일 규칙을 API 레벨에서도 400으로 사전 검증)
-- 단일 슬롯 포지션(콰이어/특순 제외)에 같은 `position_code`가 두 번 들어오면 `400`
+- 단일 슬롯 포지션(콰이어/특순/싱어 악보 제외)에 같은 `position_code`가 두 번 들어오면 `400`
 
 ---
 

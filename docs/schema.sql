@@ -179,10 +179,11 @@ create table schedule_assignments (
 create index idx_assignments_week on schedule_assignments (week_id);
 create index idx_assignments_member on schedule_assignments (member_id);
 
--- 단일 슬롯 포지션(콰이어/특순 제외)은 주차당 1건만 허용
+-- 단일 슬롯 포지션(콰이어/특순/싱어 악보 제외)은 주차당 1건만 허용.
+-- 싱어 악보(singer_score)는 보통 2명이 나눠 맡아 다중 배정 예외에 포함된다.
 create unique index uq_assignment_single_slot
   on schedule_assignments (week_id, position_code)
-  where position_code not in ('choir', 'special');
+  where position_code not in ('choir', 'special', 'singer_score');
 
 comment on table schedule_assignments is '세로형 배정. 한 행 = 한 사람의 한 배정';
 comment on column schedule_assignments.name_snapshot is '인명부에 없는 인물(탈퇴자, 동명이인 구분 표기)용 이름 보관';
@@ -274,7 +275,7 @@ insert into positions (code, team, label, display_order, is_multi) values
   ('mic8',           'singer',     '마이크 8',   18, false),
   ('choir',          'singer',     '콰이어',     19, true),
   ('singer_caption', 'singer',     '자막',       20, false),
-  ('singer_score',   'singer',     '악보',       21, false),
+  ('singer_score',   'singer',     '악보',       21, true),
   ('special',        'common',     '특순',       30, true);
 
 

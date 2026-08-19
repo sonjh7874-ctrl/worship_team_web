@@ -17,6 +17,8 @@ from app.schemas.schedule import (
 
 # position_code -> (배정 그룹, 응답 필드명). positions 마스터의 고정 항목과 1:1 대응한다
 # (API명세 2-2 응답 예시 기준. inst_score/singer_score는 응답 필드명이 둘 다 "score"라 그룹으로 구분).
+# singer_score는 여러 명 배정 가능(is_multi=true)이라 choir처럼 리스트에 append하는 별도 분기로 처리하고,
+# 여기서는 단일 값으로 setattr하는 포지션만 남긴다.
 POSITION_FIELD_MAP = {
     "key1": ("instrument", "key1"),
     "key2": ("instrument", "key2"),
@@ -26,11 +28,11 @@ POSITION_FIELD_MAP = {
     "singer_helper": ("instrument", "singer_helper"),
     "inst_score": ("instrument", "score"),
     "singer_caption": ("singer", "caption"),
-    "singer_score": ("singer", "score"),
 }
 MIC_SLOT_CODES = {f"mic{i}": str(i) for i in range(1, 9)}
-# 콰이어/특순은 한 주차에 여러 명이 들어갈 수 있는 예외 포지션 (positions.is_multi).
-MULTI_SLOT_CODES = {"choir", "special"}
+# 콰이어/특순/싱어 악보는 한 주차에 여러 명이 들어갈 수 있는 예외 포지션 (positions.is_multi).
+# 싱어 악보는 보통 2명이 나눠 맡아 여기 포함됨.
+MULTI_SLOT_CODES = {"choir", "special", "singer_score"}
 
 
 def _resolve_assignment_name(row: dict) -> str | None:
@@ -54,6 +56,8 @@ def _pivot_assignments(rows: list[dict]) -> tuple[InstrumentAssignment, SingerAs
             singer.mic[MIC_SLOT_CODES[code]] = name
         elif code == "choir":
             singer.choir.append(name)
+        elif code == "singer_score":
+            singer.score.append(name)
         elif code in POSITION_FIELD_MAP:
             group, field = POSITION_FIELD_MAP[code]
             setattr(instrument if group == "instrument" else singer, field, name)

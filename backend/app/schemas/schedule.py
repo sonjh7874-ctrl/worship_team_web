@@ -27,7 +27,9 @@ class SingerAssignment(BaseModel):
     mic: dict[str, str | None] = {str(i): None for i in range(1, 9)}
     choir: list[str] = []
     caption: str | None = None
-    score: str | None = None
+    # 싱어 악보 담당은 보통 2명이 나눠 맡아 positions.singer_score.is_multi=true로 변경됨.
+    # 악기 악보(inst_score)는 그대로 1명이라 InstrumentAssignment.score는 단일 값 유지.
+    score: list[str] = []
 
 
 class ScheduleWeekItem(BaseModel):

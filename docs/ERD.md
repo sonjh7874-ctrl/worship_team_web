@@ -227,10 +227,11 @@ erDiagram
 | `mic1` ~ `mic8` | singer | 마이크 1 ~ 8 | 11 ~ 18 | false |
 | `choir` | singer | 콰이어 | 19 | **true** |
 | `singer_caption` | singer | 자막 | 20 | false |
-| `singer_score` | singer | 악보 | 21 | false |
+| `singer_score` | singer | 악보 | 21 | **true** |
 | `special` | common | 특순 | 30 | true |
 
 > `singer_helper`(싱도)는 신디사이저가 아니라 **"싱어팀 도우미"** 를 뜻하는 팀 내부 용어다. 악기팀 컬럼에 위치하지만 사람 역할이다.
+> `singer_score`(싱어 악보)는 보통 2명이 나눠 맡아 `is_multi=true`다. 같은 포지션의 악기 악보(`inst_score`)는 1명이 맡아 `false`로 유지한다.
 
 ### 마이크 무대 좌표 (DB 아님 — 프론트 상수)
 
@@ -255,7 +256,7 @@ erDiagram
 - `conti_songs`: `UNIQUE(conti_id, order_no)` — 곡 순서 중복 방지
 - `songs`: `UNIQUE(title, artist)`
 - `monthly_schedules`: `UNIQUE(year, month)`
-- `schedule_assignments`: `is_multi=false`인 포지션은 주차당 1명만 — **부분 유니크 인덱스**로 처리 (`choir`, `special` 제외)
+- `schedule_assignments`: `is_multi=false`인 포지션은 주차당 1명만 — **부분 유니크 인덱스**로 처리 (`choir`, `special`, `singer_score` 제외)
 - 모든 FK는 부모 삭제 시 `ON DELETE CASCADE` (콘티 삭제 → 곡 배치·악보 함께 삭제)
 
 ### RLS 정책
