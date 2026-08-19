@@ -1,6 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { createConti, fetchConti, putContiSongs, updateConti } from "../api/contis";
+import {
+  createConti,
+  deleteSheetFile,
+  fetchConti,
+  putContiSongs,
+  updateConti,
+  uploadSheetFile,
+} from "../api/contis";
+
+const FILE_TYPE_LABELS = { score_pdf: "악보 PDF", conti_image: "콘티 원본 이미지" };
 
 function emptyRow() {
   return { song_id: null, title: "", artist: "", song_key: "", song_form: "", note: "" };
@@ -16,6 +25,10 @@ function ContiEdit() {
   const [title, setTitle] = useState("주일예배");
   const [status, setStatus] = useState("draft");
   const [rows, setRows] = useState([]);
+  const [sheetFiles, setSheetFiles] = useState([]);
+  const [fileType, setFileType] = useState("score_pdf");
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(!isNew);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
@@ -38,6 +51,7 @@ function ContiEdit() {
             note: item.note || "",
           }))
         );
+        setSheetFiles(conti.sheet_files);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
@@ -125,6 +139,40 @@ function ContiEdit() {
         }))
       );
       setMessage("곡 배치가 저장되었습니다.");
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function handleUploadFile(e) {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    if (!file) {
+      setError("업로드할 파일을 선택해주세요.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const uploaded = await uploadSheetFile(contiId, fileType, file, password);
+      setSheetFiles((prev) => [...prev, uploaded]);
+      setFile(null);
+      e.target.reset();
+      setMessage("파일이 업로드되었습니다.");
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  async function handleDeleteFile(fileId) {
+    setError(null);
+    setMessage(null);
+    try {
+      await deleteSheetFile(fileId, password);
+      setSheetFiles((prev) => prev.filter((f) => f.id !== fileId));
+      setMessage("파일이 삭제되었습니다.");
     } catch (err) {
       setError(err.message);
     }
@@ -271,6 +319,44 @@ function ContiEdit() {
               <button type="submit">곡 배치 저장</button>
             </div>
           </form>
+
+          <div>
+            <h2>악보 / 콘티 원본</h2>
+            {sheetFiles.length === 0 ? (
+              <p>등록된 파일이 없습니다.</p>
+            ) : (
+              <ul>
+                {sheetFiles.map((f) => (
+                  <li key={f.id}>
+                    <a href={f.url} target="_blank" rel="noreferrer">
+                      {f.file_name || FILE_TYPE_LABELS[f.file_type]}
+                    </a>{" "}
+                    ({FILE_TYPE_LABELS[f.file_type] || f.file_type}){" "}
+                    <button type="button" onClick={() => handleDeleteFile(f.id)}>
+                      삭제
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            <form onSubmit={handleUploadFile}>
+              <label>
+                종류{" "}
+                <select value={fileType} onChange={(e) => setFileType(e.target.value)}>
+                  <option value="score_pdf">악보 PDF</option>
+                  <option value="conti_image">콘티 원본 이미지</option>
+                </select>
+              </label>{" "}
+              <input
+                type="file"
+                onChange={(e) => setFile(e.target.files?.[0] || null)}
+              />{" "}
+              <button type="submit" disabled={uploading}>
+                {uploading ? "업로드 중..." : "업로드"}
+              </button>
+            </form>
+          </div>
         </>
       )}
     </div>
