@@ -133,7 +133,7 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | POST | `/contis/ai-parse` | 콘티 이미지를 업로드해 AI로 구조화 데이터 추출 | 필요 |
 
 - **요청**: `multipart/form-data`, 필드 `image` (콘티 이미지 파일)
-- **처리**: 이미지를 **Claude API**(vision 지원 모델)에 전달 → "곡 순서·제목·아티스트·키·송폼을 JSON으로 추출"하는 고정 프롬프트로 1회 호출
+- **처리**: 이미지를 **OpenAI API**(vision 지원 모델)에 전달 → "곡 순서·제목·아티스트·키·송폼을 JSON으로 추출"하는 고정 프롬프트로 1회 호출
 - **응답**: 추출된 JSON을 **그대로 반환만 하고 DB에 저장하지 않는다.** 사람이 검수 화면에서 확인 후 `PUT /contis/{conti_id}/songs`로 별도 저장.
 
 ```json
@@ -148,7 +148,7 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 ```
 
 - `raw_model_output`은 `contis.ai_raw_result`에 검수 완료 후 저장해 트러블슈팅 기록에 활용한다.
-- **환경변수**: `ANTHROPIC_API_KEY` (claude.ai 챗 구독과는 별개로, console.anthropic.com에서 발급)
+- **환경변수**: `OPENAI_API_KEY` (2026-08-20 기준 테스트 기간 제공받은 키 사용, platform.openai.com에서 발급)
 
 ### 1-5. 악보/이미지 파일
 
