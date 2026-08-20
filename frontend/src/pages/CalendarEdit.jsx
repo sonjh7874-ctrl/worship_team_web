@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
   createCalendarEvent,
   deleteCalendarEvent,
@@ -29,12 +29,16 @@ function MultiMemberSelect({ values, onChange, members }) {
 function CalendarEdit() {
   const { eventId } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   // 라우트 파라미터 유무로 작성 화면(/calendar/new)과 편집 화면(/calendar/:id/edit)을 겸용한다.
   const isNew = !eventId;
 
   const [password, setPassword] = useState("");
   const [title, setTitle] = useState("");
-  const [startDate, setStartDate] = useState("");
+  // 캘린더 그리드의 빈 날짜 칸을 클릭해 들어온 경우 ?date=YYYY-MM-DD로 시작일을
+  // 미리 채운다 — 작성 모드에서만 의미가 있고, 편집 모드는 아래 useEffect가
+  // 기존 이벤트 값으로 덮어쓴다.
+  const [startDate, setStartDate] = useState(() => (isNew ? searchParams.get("date") || "" : ""));
   const [endDate, setEndDate] = useState("");
   const [category, setCategory] = useState("수련회");
   const [categoryCustom, setCategoryCustom] = useState("");

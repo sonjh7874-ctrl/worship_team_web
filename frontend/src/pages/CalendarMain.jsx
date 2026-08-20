@@ -5,6 +5,10 @@ import { fetchCalendarEvents } from "../api/calendar";
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
+// 요일 인덱스(0=일 ~ 6=토) 기준 주말 강조색 — 한국 캘린더 관례대로 일요일은 빨강,
+// 토요일은 파랑. 평일은 색을 지정하지 않아 호출 쪽의 기본색을 그대로 쓴다.
+const WEEKDAY_COLORS = { 0: "#dc2626", 6: "#2563eb" };
+
 // 카테고리별 막대 배경색 — 구분만 되면 충분해서 팔레트는 최소화한다.
 const CATEGORY_COLORS = {
   수련회: "#e0f2fe",
@@ -159,22 +163,28 @@ function WeekRow({ weekDates, year, month, events, laneByEventId, todayKey }) {
     >
       {weekDates.map((date, i) => {
         const inMonth = date.getMonth() + 1 === month && date.getFullYear() === year;
+        // 이번 달 안에서만 주말 색을 적용한다 — 그리드 여백(다른 달) 칸까지 색을 넣으면
+        // 흐림 표시(회색)와 뒤섞여 오히려 지저분해진다.
+        const color = inMonth ? WEEKDAY_COLORS[i] || "#555" : "#ccc";
         return (
-          <div
+          <Link
             key={i}
+            to={`/calendar/new?date=${toKey(date)}`}
             className="calendar-cell"
             style={{
+              display: "block",
               gridColumn: i + 1,
               gridRow: 1,
               borderLeft: i > 0 ? "1px solid #eee" : undefined,
               padding: "0.2rem 0.3rem",
               fontSize: "0.8rem",
-              color: inMonth ? "#555" : "#ccc",
+              color,
+              textDecoration: "none",
               background: toKey(date) === todayKey ? "#fff7ed" : undefined,
             }}
           >
             {date.getDate()}
-          </div>
+          </Link>
         );
       })}
       {segments.map((seg, idx) => (
@@ -226,6 +236,14 @@ function CalendarMain() {
     load(y, m);
   }
 
+  function goToToday() {
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    setYear(y);
+    setMonth(m);
+    load(y, m);
+  }
+
   const weeks = buildMonthGrid(Number(year), Number(month));
   const laneByEventId = assignLanesByEventId(events);
   const todayKey = toKey(now);
@@ -242,6 +260,9 @@ function CalendarMain() {
       <form onSubmit={handleSearch} style={{ margin: "0.5rem 0" }}>
         <button type="button" onClick={() => shiftMonth(-1)}>
           ◀
+        </button>{" "}
+        <button type="button" onClick={goToToday}>
+          오늘
         </button>{" "}
         <label>
           연도{" "}
@@ -275,10 +296,15 @@ function CalendarMain() {
       {!loading && !error && (
         <div className="calendar-grid" style={{ border: "1px solid #ccc", borderBottom: "none" }}>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
-            {WEEKDAY_LABELS.map((label) => (
+            {WEEKDAY_LABELS.map((label, i) => (
               <div
                 key={label}
-                style={{ padding: "0.25rem", textAlign: "center", borderBottom: "1px solid #ccc" }}
+                style={{
+                  padding: "0.25rem",
+                  textAlign: "center",
+                  borderBottom: "1px solid #ccc",
+                  color: WEEKDAY_COLORS[i],
+                }}
               >
                 {label}
               </div>
