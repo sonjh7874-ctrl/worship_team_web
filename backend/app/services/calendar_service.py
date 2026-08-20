@@ -69,6 +69,14 @@ def _validate_participants(participants: list[ParticipantInput]) -> list[dict]:
     return rows
 
 
+def _validate_date_order(start_date: str, end_date: str | None) -> None:
+    # end_date가 start_date보다 빠르면 프론트 캘린더 그리드의 막대 렌더링(grid-column
+    # 계산)이 역전돼 깨진다. ISO 형식(YYYY-MM-DD) 문자열은 사전순 비교가 곧 날짜 비교와
+    # 같아서 파싱 없이 그대로 비교한다.
+    if end_date is not None and end_date < start_date:
+        raise HTTPException(status_code=400, detail="종료일은 시작일보다 빠를 수 없습니다.")
+
+
 def _guard_manual_only(row: dict) -> None:
     # 특순 자동 동기화 이벤트는 공지사항(월간 스케줄)이 원본이라 캘린더 API로 직접
     # 수정/삭제할 수 없다 (ERD 3-4, API명세 3절 — 단방향 동기화 강제).
@@ -90,11 +98,14 @@ def get_event(event_id: int) -> CalendarEventDetail:
 def create_event(payload: CalendarEventCreate) -> CalendarEventDetail:
     category_custom = _validate_category(payload.category, payload.category_custom)
     participant_rows = _validate_participants(payload.participants)
+    start_date_iso = payload.start_date.isoformat()
+    end_date_iso = payload.end_date.isoformat() if payload.end_date else None
+    _validate_date_order(start_date_iso, end_date_iso)
 
     fields = {
         "title": payload.title,
-        "start_date": payload.start_date.isoformat(),
-        "end_date": payload.end_date.isoformat() if payload.end_date else None,
+        "start_date": start_date_iso,
+        "end_date": end_date_iso,
         "category": payload.category,
         "category_custom": category_custom,
         "memo": payload.memo,
@@ -130,6 +141,12 @@ def update_event(event_id: int, payload: CalendarEventUpdate) -> CalendarEventDe
         data["start_date"] = data["start_date"].isoformat()
     if "end_date" in data and data["end_date"] is not None:
         data["end_date"] = data["end_date"].isoformat()
+
+    # 이번 요청에서 안 바뀐 값은 기존 행의 값을 그대로 써서, 시작일만 바꾸거나
+    # 종료일만 바꾸는 부분 수정에서도 최종 상태 기준으로 순서를 검증한다.
+    final_start = data.get("start_date", row["start_date"])
+    final_end = data.get("end_date", row.get("end_date"))
+    _validate_date_order(final_start, final_end)
 
     if data:
         calendar_repository.update_event(event_id, data)

@@ -201,7 +201,12 @@ function CalendarEdit() {
         <div>
           <label>
             종료일(선택){" "}
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+            <input
+              type="date"
+              value={endDate}
+              min={startDate || undefined}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
           </label>
         </div>
         <div>
