@@ -263,19 +263,18 @@ comment on table user_profiles is '로그인 계정별 역할(admin/leader/membe
 
 
 -- ============================================================
--- 5. 확장 범위 (MVP 제외) — 자막용 가사 정리
---    필요해질 때 아래 주석을 해제해 실행
+-- 5. 자막용 가사 정리 — 곡별 가사 구간 매핑 (Phase 9, 2026-08-20 실행)
 -- ============================================================
 
--- create table song_sections (
---   id            bigserial primary key,
---   song_id       bigint not null references songs (id) on delete cascade,
---   section_code  text not null,   -- A1, A2, B, C, Tag ...
---   lyrics        text not null,
---   display_order int not null default 0,
---   unique (song_id, section_code)
--- );
--- comment on table song_sections is '곡별 가사 구간 매핑. 한 번 정하면 재사용 (사람이 입력/검수)';
+create table song_sections (
+  id            bigserial primary key,
+  song_id       bigint not null references songs (id) on delete cascade,
+  section_code  text not null,   -- A1, A2, B, C, Tag ...
+  lyrics        text not null,
+  display_order int not null default 0,
+  unique (song_id, section_code)
+);
+comment on table song_sections is '곡별 가사 구간 매핑. 한 번 정하면 재사용 (사람이 입력/검수)';
 
 
 -- ============================================================
@@ -322,6 +321,7 @@ alter table schedule_assignments enable row level security;
 alter table calendar_events     enable row level security;
 alter table event_participants  enable row level security;
 alter table user_profiles       enable row level security;
+alter table song_sections       enable row level security;
 
 -- 정책을 만들지 않으므로 anon / authenticated 키로는 아무 것도 조회되지 않는다.
 -- service_role 키는 RLS를 우회하므로 FastAPI 서버만 정상 접근한다.
