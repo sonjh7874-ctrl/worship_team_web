@@ -12,7 +12,8 @@ from app.schemas.conti import (
     ContiUpdate,
     SheetFileItem,
 )
-from app.services import ai_parse_service, conti_service
+from app.schemas.lyrics import ContiLyricsResponse
+from app.services import ai_parse_service, conti_service, lyrics_service
 
 router = APIRouter(prefix="/api/v1/contis", tags=["contis"])
 
@@ -43,6 +44,16 @@ async def ai_parse_conti(image: UploadFile = File(...)):
 @router.get("/{conti_id}", response_model=ContiDetail)
 def get_conti(conti_id: int):
     return conti_service.get_conti(conti_id)
+
+
+@router.get(
+    "/{conti_id}/lyrics",
+    response_model=ContiLyricsResponse,
+    dependencies=[Depends(require_role("member"))],
+)
+def get_conti_lyrics(conti_id: int):
+    """콘티의 자막용 가사(송폼 순서로 조합된 결과). 저작권 있는 콘텐츠라 로그인이 필요하다."""
+    return lyrics_service.build_conti_lyrics(conti_id)
 
 
 @router.post(

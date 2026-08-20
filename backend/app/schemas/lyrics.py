@@ -1,3 +1,5 @@
+from datetime import date
+
 from pydantic import BaseModel
 
 
@@ -21,7 +23,7 @@ class ContiLyricsSong(BaseModel):
 
 class ContiLyricsResponse(BaseModel):
     conti_id: int
-    service_date: str
+    service_date: date
     title: str
     songs: list[ContiLyricsSong]
     unresolved_total: int = 0
