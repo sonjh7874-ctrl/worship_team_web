@@ -3,8 +3,9 @@ import { Link } from "react-router-dom";
 import { fetchCalendarEvents } from "../api/calendar";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
+const DAY_MS = 24 * 60 * 60 * 1000;
 
-// 카테고리별 칩 배경색 — 구분만 되면 충분해서 팔레트는 최소화한다.
+// 카테고리별 막대 배경색 — 구분만 되면 충분해서 팔레트는 최소화한다.
 const CATEGORY_COLORS = {
   수련회: "#e0f2fe",
   엠티: "#fef3c7",
@@ -12,66 +13,160 @@ const CATEGORY_COLORS = {
   기타: "#f3f4f6",
 };
 
-// 무대 좌표(MicStageLayout)처럼 무대가 아니라 달력이라 하드코딩할 상수는 없지만,
-// "몇 칸짜리 그리드인지"는 요청받은 연/월에서 매번 계산해야 한다 — 매달 시작 요일과
-// 날짜 수가 다르기 때문. 앞뒤 빈 칸을 채워 7의 배수로 맞춰 그리드가 항상 완전한
-// 사각형이 되게 한다.
-function buildMonthGrid(year, month) {
-  const firstWeekday = new Date(year, month - 1, 1).getDay();
-  const daysInMonth = new Date(year, month, 0).getDate();
+function pad2(n) {
+  return String(n).padStart(2, "0");
+}
 
-  const cells = [];
-  for (let i = 0; i < firstWeekday; i++) cells.push(null);
-  for (let day = 1; day <= daysInMonth; day++) cells.push(day);
-  while (cells.length % 7 !== 0) cells.push(null);
+function toKey(date) {
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
+}
+
+function parseDateKey(key) {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// 달력 그리드는 해당 월의 1일이 속한 주의 일요일부터, 말일이 속한 주의 토요일까지
+// 채운다 — 그래야 이전/다음 달로 걸치는 멀티데이 이벤트 막대가 첫/마지막 주에서도
+// 잘리지 않고 이어져 보인다. 앞뒤로 삐져나온 날짜는 옅은 색으로만 구분한다.
+function buildMonthGrid(year, month) {
+  const firstOfMonth = new Date(year, month - 1, 1);
+  const lastOfMonth = new Date(year, month, 0);
+
+  const gridStart = new Date(firstOfMonth);
+  gridStart.setDate(firstOfMonth.getDate() - firstOfMonth.getDay());
+  const gridEnd = new Date(lastOfMonth);
+  gridEnd.setDate(lastOfMonth.getDate() + (6 - lastOfMonth.getDay()));
 
   const weeks = [];
-  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  const cursor = new Date(gridStart);
+  while (cursor <= gridEnd) {
+    const week = [];
+    for (let i = 0; i < 7; i++) {
+      week.push(new Date(cursor));
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    weeks.push(week);
+  }
   return weeks;
 }
 
-// 이벤트를 시작일(day-of-month) 기준으로만 묶는다. 멀티데이 이벤트도 시작일 칸에만
-// 칩으로 표시하고 종료일 텍스트를 병기하는 정도로 그친다(SDD에서 셀 스패닝은
-// 범위 밖으로 결정) — start_date가 이 달이 아니면(월 경계를 걸치는 이벤트) 이번
-// 달 그리드에는 표시되지 않는 것이 현재 알려진 한계다.
-function groupEventsByDay(events, year, month) {
-  const map = {};
+// 한 주(7일) 안에서 이 주와 겹치는 이벤트 구간들을 뽑고, 겹치는 구간끼리는
+// 서로 다른 레인(세로줄)에 쌓이도록 배정한다 — 그리드가 주 단위로 끊기기 때문에
+// 레인 배정도 주마다 독립적으로 계산한다. 같은 이벤트가 여러 주에 걸치면 주가
+// 바뀔 때 레인 번호(세로 위치)가 달라질 수 있는 것이 이 방식의 알려진 한계다.
+function computeWeekSegments(weekDates, events) {
+  const weekStart = weekDates[0];
+  const weekEnd = weekDates[6];
+
+  const segments = [];
   for (const event of events) {
-    const [y, m, d] = event.start_date.split("-").map(Number);
-    if (y !== year || m !== month) continue;
-    if (!map[d]) map[d] = [];
-    map[d].push(event);
+    const startDate = parseDateKey(event.start_date);
+    const endDate = event.end_date ? parseDateKey(event.end_date) : startDate;
+    if (endDate < weekStart || startDate > weekEnd) continue;
+
+    const segStart = startDate < weekStart ? weekStart : startDate;
+    const segEnd = endDate > weekEnd ? weekEnd : endDate;
+    segments.push({
+      event,
+      startCol: Math.round((segStart - weekStart) / DAY_MS),
+      endCol: Math.round((segEnd - weekStart) / DAY_MS),
+      isStart: segStart.getTime() === startDate.getTime(),
+      isEnd: segEnd.getTime() === endDate.getTime(),
+    });
   }
-  return map;
+
+  segments.sort((a, b) => a.startCol - b.startCol || a.endCol - b.endCol);
+  const laneEnds = [];
+  for (const seg of segments) {
+    let lane = laneEnds.findIndex((end) => end < seg.startCol);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(seg.endCol);
+    } else {
+      laneEnds[lane] = seg.endCol;
+    }
+    seg.lane = lane;
+  }
+  return segments;
 }
 
-function EventChip({ event }) {
+function EventBar({ seg }) {
+  const { event, startCol, endCol, lane, isStart, isEnd } = seg;
   const isAuto = event.source_type === "auto_from_schedule";
   const label = event.category === "기타" ? event.category_custom : event.category;
   const background = CATEGORY_COLORS[event.category] || "#f3f4f6";
 
+  // 이 주에서 시작/끝이 실제 이벤트의 시작/끝과 일치할 때만 그쪽 모서리를 둥글게
+  // 만들어, 다음 주로 계속 이어지는 막대는 각지게 표시해 "계속됨"을 암시한다.
+  const radius = `${isStart ? "4px" : "0"} ${isEnd ? "4px" : "0"} ${isEnd ? "4px" : "0"} ${
+    isStart ? "4px" : "0"
+  }`;
+
   return (
     <Link
       to={`/calendar/${event.id}`}
+      className="calendar-event-bar"
+      title={`${event.title}${label ? ` (${label})` : ""}`}
       style={{
-        display: "block",
+        gridColumn: `${startCol + 1} / ${endCol + 2}`,
+        gridRow: lane + 2,
         background,
-        borderRadius: "4px",
-        padding: "0.1rem 0.3rem",
-        marginTop: "0.15rem",
+        margin: "1px 2px",
+        borderRadius: radius,
+        padding: "0.1rem 0.4rem",
         fontSize: "0.75rem",
         color: "#111",
         textDecoration: "none",
         overflow: "hidden",
         textOverflow: "ellipsis",
         whiteSpace: "nowrap",
+        display: "block",
       }}
-      title={`${event.title}${label ? ` (${label})` : ""}`}
     >
       {isAuto && "🔗 "}
       {event.title}
-      {event.end_date && ` ~${event.end_date.slice(5)}`}
     </Link>
+  );
+}
+
+function WeekRow({ weekDates, year, month, events, todayKey }) {
+  const segments = computeWeekSegments(weekDates, events);
+
+  return (
+    <div
+      className="calendar-week"
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(7, 1fr)",
+        gridAutoRows: "min-content",
+        borderTop: "1px solid #ccc",
+      }}
+    >
+      {weekDates.map((date, i) => {
+        const inMonth = date.getMonth() + 1 === month && date.getFullYear() === year;
+        return (
+          <div
+            key={i}
+            className="calendar-cell"
+            style={{
+              gridColumn: i + 1,
+              gridRow: 1,
+              borderLeft: i > 0 ? "1px solid #eee" : undefined,
+              padding: "0.2rem 0.3rem",
+              fontSize: "0.8rem",
+              color: inMonth ? "#555" : "#ccc",
+              background: toKey(date) === todayKey ? "#fff7ed" : undefined,
+            }}
+          >
+            {date.getDate()}
+          </div>
+        );
+      })}
+      {segments.map((seg, idx) => (
+        <EventBar key={`${seg.event.id}-${idx}`} seg={seg} />
+      ))}
+    </div>
   );
 }
 
@@ -118,9 +213,7 @@ function CalendarMain() {
   }
 
   const weeks = buildMonthGrid(Number(year), Number(month));
-  const eventsByDay = groupEventsByDay(events, Number(year), Number(month));
-  const todayKey =
-    now.getFullYear() === Number(year) && now.getMonth() + 1 === Number(month) ? now.getDate() : null;
+  const todayKey = toKey(now);
 
   return (
     <div>
@@ -165,50 +258,28 @@ function CalendarMain() {
       {loading && <p>불러오는 중...</p>}
 
       {!loading && !error && (
-        <table
-          className="calendar-grid"
-          style={{ width: "100%", borderCollapse: "collapse", tableLayout: "fixed" }}
-        >
-          <thead>
-            <tr>
-              {WEEKDAY_LABELS.map((label) => (
-                <th key={label} style={{ border: "1px solid #ccc", padding: "0.25rem" }}>
-                  {label}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {weeks.map((week, weekIdx) => (
-              <tr key={weekIdx}>
-                {week.map((day, dayIdx) => (
-                  <td
-                    key={dayIdx}
-                    className="calendar-cell"
-                    style={{
-                      border: "1px solid #ccc",
-                      verticalAlign: "top",
-                      height: "5rem",
-                      padding: "0.2rem",
-                      // day가 null인 빈 칸(월 시작/끝의 여백)은 다른 달을 보고 있어
-                      // todayKey도 null일 때 `null === null`로 잘못 강조되지 않도록 day를 먼저 확인한다.
-                      background: day && day === todayKey ? "#fff7ed" : undefined,
-                    }}
-                  >
-                    {day && (
-                      <>
-                        <div style={{ fontSize: "0.8rem", color: "#555" }}>{day}</div>
-                        {(eventsByDay[day] || []).map((event) => (
-                          <EventChip key={event.id} event={event} />
-                        ))}
-                      </>
-                    )}
-                  </td>
-                ))}
-              </tr>
+        <div className="calendar-grid" style={{ border: "1px solid #ccc", borderBottom: "none" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
+            {WEEKDAY_LABELS.map((label) => (
+              <div
+                key={label}
+                style={{ padding: "0.25rem", textAlign: "center", borderBottom: "1px solid #ccc" }}
+              >
+                {label}
+              </div>
             ))}
-          </tbody>
-        </table>
+          </div>
+          {weeks.map((weekDates, idx) => (
+            <WeekRow
+              key={idx}
+              weekDates={weekDates}
+              year={Number(year)}
+              month={Number(month)}
+              events={events}
+              todayKey={todayKey}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
