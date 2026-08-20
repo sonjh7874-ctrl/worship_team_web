@@ -201,6 +201,7 @@ create table calendar_events (
   end_date         date,
   category         text not null default '기타',
   category_custom  text,
+  color            text,
   memo             text,
   source_type      text not null default 'manual'
                      check (source_type in ('manual', 'auto_from_schedule')),
@@ -224,6 +225,7 @@ create unique index uq_event_source_week
   where source_week_id is not null;
 
 comment on column calendar_events.source_type is 'auto_from_schedule 인 행은 API에서 수정/삭제 거부. 공지사항이 원본';
+comment on column calendar_events.color is '프리셋 팔레트 색상(hex, 8개 중 하나). null이면 카테고리 기본색 사용. 허용값은 API 서비스 레이어에서 검증(DB 제약 없음)';
 
 
 create table event_participants (

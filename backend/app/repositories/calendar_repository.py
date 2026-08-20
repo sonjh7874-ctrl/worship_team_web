@@ -10,9 +10,11 @@ PARTICIPANT_TABLE = "event_participants"
 # (schedule_assignments와 동일한 ERD 3-3 COALESCE 규칙).
 PARTICIPANTS_SELECT = f"{PARTICIPANT_TABLE}(member_id, name_snapshot, members(name))"
 
-LIST_SELECT = "id, title, start_date, end_date, category, category_custom, source_type, source_week_id"
+LIST_SELECT = (
+    "id, title, start_date, end_date, category, category_custom, color, source_type, source_week_id"
+)
 DETAIL_SELECT = (
-    "id, title, start_date, end_date, category, category_custom, memo,"
+    "id, title, start_date, end_date, category, category_custom, color, memo,"
     f" source_type, source_week_id, {PARTICIPANTS_SELECT}"
 )
 

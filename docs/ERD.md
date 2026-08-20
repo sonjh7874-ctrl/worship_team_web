@@ -146,6 +146,7 @@ erDiagram
         date end_date
         text category "수련회 | 엠티 | 특순 | 기타"
         text category_custom
+        text color "프리셋 8색 hex, nullable"
         text memo
         text source_type "manual | auto_from_schedule"
         bigint source_week_id FK "nullable"

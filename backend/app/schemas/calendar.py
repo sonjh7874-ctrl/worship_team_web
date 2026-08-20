@@ -7,6 +7,20 @@ from pydantic import BaseModel
 # (서비스 레이어에서 검증).
 FIXED_CATEGORIES = {"수련회", "엠티", "특순", "기타"}
 
+# 이벤트 막대 색상은 자유 컬러피커 대신 프리셋 8개 중 하나만 고르게 한다 — 검증이
+# "이 목록에 있는가"로 단순해지고, 프론트 UI도 스와치 8개만 그리면 되어 가볍다.
+# null이면 카테고리 기본색(CATEGORY_COLORS)을 그대로 쓴다.
+PRESET_COLORS = [
+    "#fecaca",  # red
+    "#fed7aa",  # orange
+    "#fef08a",  # yellow
+    "#bbf7d0",  # green
+    "#99f6e4",  # teal
+    "#bfdbfe",  # blue
+    "#ddd6fe",  # purple
+    "#fbcfe8",  # pink
+]
+
 
 class ParticipantItem(BaseModel):
     # 인명부 연결이 있으면 member_id를, 탈퇴자/인명부 밖 인물은 name만 내려준다
@@ -27,6 +41,8 @@ class CalendarEventListItem(BaseModel):
     end_date: date | None = None
     category: str
     category_custom: str | None = None
+    # 프리셋 8색 중 하나(hex) 또는 null(카테고리 기본색 사용). 그리드 막대 색상에 쓰인다.
+    color: str | None = None
     # 자동 생성된 특순 이벤트인지 여부 — 프론트가 그리드 칩에 배지를 붙이고
     # 상세 화면에서 수정/삭제 버튼 대신 안내문을 보여줄지 판단하는 데 쓴다 (ERD 3-4).
     source_type: str
@@ -46,6 +62,7 @@ class CalendarEventCreate(BaseModel):
     end_date: date | None = None
     category: str
     category_custom: str | None = None
+    color: str | None = None
     memo: str | None = None
     participants: list[ParticipantInput] = []
 
@@ -56,6 +73,7 @@ class CalendarEventUpdate(BaseModel):
     end_date: date | None = None
     category: str | None = None
     category_custom: str | None = None
+    color: str | None = None
     memo: str | None = None
     # None이면 "참여 인원 변경 없음", 빈 리스트면 "전원 삭제"를 의미한다
     # (exclude_unset으로 구분하므로 필드 생략과는 다른 의미).

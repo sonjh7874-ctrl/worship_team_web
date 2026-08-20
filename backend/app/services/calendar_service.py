@@ -3,6 +3,7 @@ from fastapi import HTTPException
 from app.repositories import calendar_repository
 from app.schemas.calendar import (
     FIXED_CATEGORIES,
+    PRESET_COLORS,
     CalendarEventCreate,
     CalendarEventDetail,
     CalendarEventListItem,
@@ -39,6 +40,7 @@ def _to_detail(row: dict) -> CalendarEventDetail:
         end_date=row.get("end_date"),
         category=row["category"],
         category_custom=row.get("category_custom"),
+        color=row.get("color"),
         memo=row.get("memo"),
         source_type=row["source_type"],
         source_week_id=row.get("source_week_id"),
@@ -56,6 +58,12 @@ def _validate_category(category: str, category_custom: str | None) -> str | None
             raise HTTPException(status_code=400, detail="'기타' 카테고리는 category_custom이 필요합니다.")
         return category_custom
     return None
+
+
+def _validate_color(color: str | None) -> None:
+    # 자유 컬러피커 대신 프리셋 8개 중 하나만 허용한다 — null은 "카테고리 기본색 사용".
+    if color is not None and color not in PRESET_COLORS:
+        raise HTTPException(status_code=400, detail=f"color는 {PRESET_COLORS} 중 하나이거나 null이어야 합니다.")
 
 
 def _validate_participants(participants: list[ParticipantInput]) -> list[dict]:
@@ -97,6 +105,7 @@ def get_event(event_id: int) -> CalendarEventDetail:
 
 def create_event(payload: CalendarEventCreate) -> CalendarEventDetail:
     category_custom = _validate_category(payload.category, payload.category_custom)
+    _validate_color(payload.color)
     participant_rows = _validate_participants(payload.participants)
     start_date_iso = payload.start_date.isoformat()
     end_date_iso = payload.end_date.isoformat() if payload.end_date else None
@@ -108,6 +117,7 @@ def create_event(payload: CalendarEventCreate) -> CalendarEventDetail:
         "end_date": end_date_iso,
         "category": payload.category,
         "category_custom": category_custom,
+        "color": payload.color,
         "memo": payload.memo,
         # 직접 API로 생성하는 이벤트는 항상 manual로 강제한다 — auto 이벤트는
         # 스케줄 저장 로직(schedule_service)만 만들 수 있다.
@@ -136,6 +146,9 @@ def update_event(event_id: int, payload: CalendarEventUpdate) -> CalendarEventDe
         category = data.get("category", row["category"])
         category_custom = data.get("category_custom", row.get("category_custom"))
         data["category_custom"] = _validate_category(category, category_custom)
+
+    if "color" in data:
+        _validate_color(data["color"])
 
     if "start_date" in data and data["start_date"] is not None:
         data["start_date"] = data["start_date"].isoformat()
