@@ -4,3 +4,4 @@ python-dotenv
 supabase
 python-multipart
 openai
+pytest
