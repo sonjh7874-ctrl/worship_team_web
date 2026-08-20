@@ -51,11 +51,37 @@ function buildMonthGrid(year, month) {
   return weeks;
 }
 
-// 한 주(7일) 안에서 이 주와 겹치는 이벤트 구간들을 뽑고, 겹치는 구간끼리는
-// 서로 다른 레인(세로줄)에 쌓이도록 배정한다 — 그리드가 주 단위로 끊기기 때문에
-// 레인 배정도 주마다 독립적으로 계산한다. 같은 이벤트가 여러 주에 걸치면 주가
-// 바뀔 때 레인 번호(세로 위치)가 달라질 수 있는 것이 이 방식의 알려진 한계다.
-function computeWeekSegments(weekDates, events) {
+// 이벤트마다 달력 전체 기준으로 레인(세로줄)을 한 번만 배정한다 — 실제 날짜 구간으로
+// 겹치는지를 판단하는 고전적인 구간 스케줄링(interval scheduling) 그리디 알고리즘이라,
+// 겹치지 않는 두 이벤트는 서로 다른 주에 나타나더라도 같은 레인을 재사용할 수 있고,
+// 여러 주에 걸치는 이벤트는 모든 주에서 항상 같은 레인(같은 세로 위치)을 유지한다.
+function assignLanesByEventId(events) {
+  const items = events
+    .map((event) => ({
+      event,
+      start: parseDateKey(event.start_date),
+      end: event.end_date ? parseDateKey(event.end_date) : parseDateKey(event.start_date),
+    }))
+    .sort((a, b) => a.start - b.start || a.end - b.end);
+
+  const laneEnds = []; // 레인별로 마지막까지 채운 종료일
+  const laneByEventId = {};
+  for (const item of items) {
+    let lane = laneEnds.findIndex((end) => end < item.start);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(item.end);
+    } else {
+      laneEnds[lane] = item.end;
+    }
+    laneByEventId[item.event.id] = lane;
+  }
+  return laneByEventId;
+}
+
+// 한 주(7일) 안에서 이 주와 겹치는 이벤트 구간만 뽑아 그 주의 칸 범위(startCol/endCol)를
+// 계산한다. 레인은 이미 assignLanesByEventId가 달력 전체 기준으로 정해둔 값을 그대로 쓴다.
+function computeWeekSegments(weekDates, events, laneByEventId) {
   const weekStart = weekDates[0];
   const weekEnd = weekDates[6];
 
@@ -73,20 +99,8 @@ function computeWeekSegments(weekDates, events) {
       endCol: Math.round((segEnd - weekStart) / DAY_MS),
       isStart: segStart.getTime() === startDate.getTime(),
       isEnd: segEnd.getTime() === endDate.getTime(),
+      lane: laneByEventId[event.id],
     });
-  }
-
-  segments.sort((a, b) => a.startCol - b.startCol || a.endCol - b.endCol);
-  const laneEnds = [];
-  for (const seg of segments) {
-    let lane = laneEnds.findIndex((end) => end < seg.startCol);
-    if (lane === -1) {
-      lane = laneEnds.length;
-      laneEnds.push(seg.endCol);
-    } else {
-      laneEnds[lane] = seg.endCol;
-    }
-    seg.lane = lane;
   }
   return segments;
 }
@@ -130,8 +144,8 @@ function EventBar({ seg }) {
   );
 }
 
-function WeekRow({ weekDates, year, month, events, todayKey }) {
-  const segments = computeWeekSegments(weekDates, events);
+function WeekRow({ weekDates, year, month, events, laneByEventId, todayKey }) {
+  const segments = computeWeekSegments(weekDates, events, laneByEventId);
 
   return (
     <div
@@ -213,6 +227,7 @@ function CalendarMain() {
   }
 
   const weeks = buildMonthGrid(Number(year), Number(month));
+  const laneByEventId = assignLanesByEventId(events);
   const todayKey = toKey(now);
 
   return (
@@ -276,6 +291,7 @@ function CalendarMain() {
               year={Number(year)}
               month={Number(month)}
               events={events}
+              laneByEventId={laneByEventId}
               todayKey={todayKey}
             />
           ))}
