@@ -36,6 +36,7 @@ PROMPT = """당신은 교회 찬양팀의 주간 콘티(송폼) 이미지를 읽
 
 다음 JSON 형식으로만 응답하세요:
 {
+  "service_date_raw": "헤더에 적힌 날짜 숫자 원문 그대로 (예: 260809). 없으면 null",
   "service_date": "YYYY-MM-DD 또는 null",
   "title": "날짜를 제외한 예배 이름 또는 null",
   "songs": [
@@ -56,9 +57,22 @@ PROMPT = """당신은 교회 찬양팀의 주간 콘티(송폼) 이미지를 읽
 2. 곡 순서는 이미지에 적힌 번호 순서를 그대로 유지합니다.
 3. `<축복송>`, `<퇴장송>` 같은 꼬리표는 `note`로 분리하고 `title`에는 넣지 않습니다.
    꺾쇠 괄호는 빼고 내용만 담습니다.
-4. 날짜는 `260809`처럼 YYMMDD 형식이면 20YY-MM-DD로 변환합니다. 판단이 안 되면 null.
+4. 날짜 6자리는 **앞에서부터 YY MM DD 순서**입니다. `260816`은 2026년 08월 16일이며,
+   2016년이나 26일로 바꿔 읽지 마세요. `service_date_raw`에는 숫자 6자리를 그대로 옮깁니다.
 5. 읽을 수 없거나 없는 값은 추측하지 말고 null로 둡니다.
 6. 곡이 하나도 보이지 않으면 `songs`를 빈 배열로 두세요.
+7. **이미지에 없는 글자·기호를 만들어 넣지 마세요.** 익숙한 단어로 고쳐 읽지 말고 보이는 그대로 옮깁니다.
+"""
+
+# 기존 곡 목록을 프롬프트에 함께 넣어 오인식을 줄인다. 이 팀은 같은 곡을 반복해서 쓰기 때문에
+# "아는 곡이면 그 표기를 그대로 쓰라"고 알려주는 것만으로 위러브->워리브 같은 오독이 크게 준다.
+# 다만 **송폼은 절대 넣지 않는다** — 송폼은 매주 바뀔 수 있고, 힌트로 주면 모델이 지난주 송폼을
+# 그대로 베낄 위험이 있다. 그건 이 프로젝트가 없애려는 문제(옛 송폼을 최신인 줄 알고 보는 것) 그 자체다.
+KNOWN_SONGS_HINT = """
+참고: 이 팀이 지금까지 사용한 곡 목록입니다. 이미지의 곡이 아래 중 하나로 보이면 **아래 표기를 그대로** 사용하세요.
+목록에 없는 곡이면 목록에 억지로 맞추지 말고 이미지에 보이는 대로 옮깁니다.
+
+{songs}
 """
 
 
@@ -71,18 +85,29 @@ def _normalize_title(title: str) -> str:
     return re.sub(r"[^0-9a-z가-힣]", "", title.lower())
 
 
-def _build_title_index() -> dict[str, int]:
-    """기존 곡 마스터를 {정규화 제목: song_id}로 만든다.
+def _build_title_index(songs: list[dict]) -> dict[str, int]:
+    """곡 마스터를 {정규화 제목: song_id}로 만든다.
 
     같은 정규화 제목이 여러 건이면(아티스트만 다른 동명 곡 등) 먼저 나온 것을 후보로 쓴다 —
     어차피 검수 화면에서 사람이 최종 확정하므로 여기서 더 정교하게 고르지 않는다.
     """
     index: dict[str, int] = {}
-    for row in song_repository.find_all():
+    for row in songs:
         key = _normalize_title(row["title"])
         if key and key not in index:
             index[key] = row["id"]
     return index
+
+
+def _build_prompt(songs: list[dict]) -> str:
+    """고정 프롬프트 + 기존 곡 목록 힌트."""
+    if not songs:
+        return PROMPT
+    lines = []
+    for row in songs:
+        artist = row.get("artist")
+        lines.append(f"- {row['title']}" + (f" _ {artist}" if artist else ""))
+    return PROMPT + KNOWN_SONGS_HINT.format(songs="\n".join(lines))
 
 
 def _parse_date(value) -> date | None:
@@ -99,6 +124,23 @@ def _parse_date(value) -> date | None:
         return None
 
 
+def _date_from_raw(value) -> date | None:
+    """헤더의 6자리 원문(예: 260816)을 YY-MM-DD로 직접 계산한다.
+
+    모델에게 변환까지 맡기면 `260816`을 `2016-08-26`처럼 자리를 바꿔 읽는 일이 실제로 있었다.
+    숫자를 옮겨 적는 것까지만 모델에 맡기고 해석은 서버에서 하면 이 오류가 사라진다.
+    """
+    if not isinstance(value, str):
+        return None
+    digits = re.sub(r"[^0-9]", "", value)
+    if len(digits) != 6:
+        return None
+    try:
+        return date(2000 + int(digits[:2]), int(digits[2:4]), int(digits[4:6]))
+    except ValueError:
+        return None
+
+
 def _clean(value) -> str | None:
     """모델 응답의 문자열 필드를 정리한다. 빈 문자열·"null" 문자열도 None으로 취급."""
     if not isinstance(value, str):
@@ -109,7 +151,7 @@ def _clean(value) -> str | None:
     return text
 
 
-def _call_openai(image_bytes: bytes, content_type: str) -> str:
+def _call_openai(image_bytes: bytes, content_type: str, prompt: str) -> str:
     """OpenAI vision 모델을 1회 호출하고 원본 응답 문자열을 돌려준다."""
     if not OPENAI_API_KEY:
         raise HTTPException(
@@ -124,13 +166,18 @@ def _call_openai(image_bytes: bytes, content_type: str) -> str:
     try:
         response = client.chat.completions.create(
             model=OPENAI_VISION_MODEL,
+            # 이미지를 그대로 옮겨 적는 작업이라 창의성이 필요 없다. 기본값(1.0)으로 두면 같은 이미지를
+            # 다시 넣어도 결과가 흔들리고, 없는 글자를 지어내는 빈도도 올라간다.
+            temperature=0,
             # JSON 외의 설명 문장이 섞이면 파싱이 깨지므로 JSON 모드를 강제한다.
             response_format={"type": "json_object"},
             messages=[
                 {
                     "role": "user",
                     "content": [
-                        {"type": "text", "text": PROMPT},
+                        {"type": "text", "text": prompt},
+                        # detail은 기본값(auto)을 쓴다. high로 올려 측정해봤으나 정확도가 오르지 않고
+                        # (94.8% -> 94.1%, 측정 편차 범위) 토큰만 더 썼다. tests/ai_parse_baseline.py 참고.
                         {"type": "image_url", "image_url": {"url": data_url}},
                     ],
                 }
@@ -158,7 +205,7 @@ def _call_openai(image_bytes: bytes, content_type: str) -> str:
     return content
 
 
-async def parse_conti_image(image: UploadFile) -> AiParseResult:
+async def parse_conti_image(image: UploadFile, known_songs: list[dict] | None = None) -> AiParseResult:
     """콘티 이미지 → 구조화된 곡 목록. DB 저장 없이 검수용 결과만 반환한다."""
     # 일부 클라이언트가 "image/png; charset=..." 처럼 파라미터를 붙여 보내므로 앞부분만 떼어 비교한다.
     # 이 값은 아래 data URL에도 그대로 들어가므로 정규화해두지 않으면 호출까지 깨진다.
@@ -178,7 +225,9 @@ async def parse_conti_image(image: UploadFile) -> AiParseResult:
             detail=f"이미지 크기는 {MAX_IMAGE_BYTES // (1024 * 1024)}MB 이하여야 합니다.",
         )
 
-    raw_output = _call_openai(image_bytes, content_type)
+    # known_songs를 넘기지 않으면 곡 마스터 전체를 쓴다(테스트에서 시점별 목록을 주입하려고 열어둔 인자).
+    songs_master = song_repository.find_all() if known_songs is None else known_songs
+    raw_output = _call_openai(image_bytes, content_type, _build_prompt(songs_master))
 
     try:
         parsed = json.loads(raw_output)
@@ -191,7 +240,7 @@ async def parse_conti_image(image: UploadFile) -> AiParseResult:
     if not isinstance(parsed, dict):
         raise HTTPException(status_code=502, detail="AI 응답 형식이 올바르지 않습니다.")
 
-    title_index = _build_title_index()
+    title_index = _build_title_index(songs_master)
     songs: list[AiParsedSong] = []
     for item in parsed.get("songs") or []:
         if not isinstance(item, dict):
@@ -215,8 +264,11 @@ async def parse_conti_image(image: UploadFile) -> AiParseResult:
 
     # 곡이 0건이어도 에러로 처리하지 않는다 — 사람 검수가 필수 단계라 빈 결과도 그대로 넘겨
     # "직접 입력"으로 이어갈 수 있게 하는 편이 낫다.
+    # 원문 6자리 계산을 우선하고, 없으면 모델이 변환한 값으로 폴백한다.
+    service_date = _date_from_raw(parsed.get("service_date_raw")) or _parse_date(parsed.get("service_date"))
+
     return AiParseResult(
-        service_date_guess=_parse_date(parsed.get("service_date")),
+        service_date_guess=service_date,
         title_guess=_clean(parsed.get("title")),
         songs=songs,
         raw_model_output=raw_output,
