@@ -38,6 +38,34 @@ def create(title: str, artist: str | None, default_key: str | None) -> dict:
     return res.data[0]
 
 
+def find_last_song_forms(song_ids: list[int]) -> dict[int, str]:
+    """곡별로 '가장 최근 콘티에서 쓰인 송폼'을 돌려준다.
+
+    AI 검수 화면에서 "지난번과 송폼이 다릅니다"를 보여주기 위한 값이다. 곡마다 쿼리를 날리면
+    한 콘티에 6곡이면 6번이 되므로, in_ 필터로 한 번에 가져와 파이썬에서 최신 것만 고른다.
+    """
+    if not song_ids:
+        return {}
+    rows = (
+        get_supabase()
+        .table("conti_songs")
+        .select("song_id, song_form, contis(service_date)")
+        .in_("song_id", song_ids)
+        .execute()
+        .data
+    )
+    latest: dict[int, tuple[str, str]] = {}  # song_id -> (service_date, song_form)
+    for row in rows:
+        service_date = (row.get("contis") or {}).get("service_date") or ""
+        song_form = row.get("song_form")
+        if not song_form:
+            continue
+        current = latest.get(row["song_id"])
+        if current is None or service_date > current[0]:
+            latest[row["song_id"]] = (service_date, song_form)
+    return {song_id: form for song_id, (_, form) in latest.items()}
+
+
 def count_usage(song_id: int) -> int:
     """이 곡이 배치된 콘티 수. conti_songs FK가 on delete restrict라 삭제 전에 먼저 확인한다."""
     res = (

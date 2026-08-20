@@ -8,8 +8,10 @@
 """
 
 import base64
+import difflib
 import json
 import re
+import unicodedata
 from datetime import date
 
 import openai
@@ -17,7 +19,7 @@ from fastapi import HTTPException, UploadFile
 
 from app.config import OPENAI_API_KEY, OPENAI_TIMEOUT_SECONDS, OPENAI_VISION_MODEL
 from app.repositories import song_repository
-from app.schemas.conti import AiParsedSong, AiParseResult
+from app.schemas.conti import AiParsedSong, AiParseResult, SongCandidate
 
 # 목사님이 올리는 콘티는 인쇄 텍스트를 캡처한 이미지라 아래 3종이면 충분하다.
 ALLOWED_IMAGE_TYPES = {"image/png", "image/jpeg", "image/webp"}
@@ -97,6 +99,44 @@ def _build_title_index(songs: list[dict]) -> dict[str, int]:
         if key and key not in index:
             index[key] = row["id"]
     return index
+
+
+# 유사 곡 후보로 제안할 최소 유사도와 최대 개수.
+# 0.6은 실측 기준으로 잡았다 — 실제 오인식(전심감주↔전신갑주 0.82, 워리브↔위러브 0.67)은 위에 있고,
+# 무관한 곡(전심감주↔우리가 주를 더욱 사랑하고 0.28)은 아래에 있어 둘이 깨끗하게 갈린다.
+CANDIDATE_THRESHOLD = 0.6
+CANDIDATE_LIMIT = 3
+
+
+def _to_jamo(title: str) -> str:
+    """제목을 자모 단위로 분해한다.
+
+    한글 음절 그대로 비교하면 '전심감주'와 '전신갑주'가 4글자 중 2글자 차이(0.5)로 멀어 보이지만,
+    자모로 풀면 12자 중 2자 차이(0.82)라 실제 오인식을 훨씬 잘 잡는다. 오인식은 대개 음절 전체가
+    아니라 그 안의 자음 하나가 틀리는 식이기 때문이다.
+    """
+    return unicodedata.normalize("NFD", _normalize_title(title))
+
+
+def _find_candidates(title: str, songs: list[dict], exclude_id: int | None = None) -> list[dict]:
+    """제목이 비슷한 기존 곡 후보를 유사도 높은 순으로 돌려준다.
+
+    자동으로 골라주지 않는 이유는 ERD 3-1 그대로다 — 유사도 매칭이 조용히 틀리면 사람이 알아채기
+    어렵다. 여기서는 후보만 제안하고 확정은 검수 화면에서 사람이 한다.
+    """
+    target = _to_jamo(title)
+    if not target:
+        return []
+
+    scored = []
+    for row in songs:
+        if exclude_id is not None and row["id"] == exclude_id:
+            continue
+        score = difflib.SequenceMatcher(None, target, _to_jamo(row["title"])).ratio()
+        if score >= CANDIDATE_THRESHOLD:
+            scored.append({**row, "score": round(score, 3)})
+    scored.sort(key=lambda r: r["score"], reverse=True)
+    return scored[:CANDIDATE_LIMIT]
 
 
 def _build_prompt(songs: list[dict]) -> str:
@@ -205,6 +245,24 @@ def _call_openai(image_bytes: bytes, content_type: str, prompt: str) -> str:
     return content
 
 
+def _attach_last_song_forms(songs: list[AiParsedSong]) -> None:
+    """매칭된 곡·후보 곡의 '지난번 송폼'을 채운다(있는 것만)."""
+    song_ids = set()
+    for song in songs:
+        if song.matched_song_id:
+            song_ids.add(song.matched_song_id)
+        song_ids.update(c.song_id for c in song.candidates)
+    if not song_ids:
+        return
+
+    last_forms = song_repository.find_last_song_forms(sorted(song_ids))
+    for song in songs:
+        if song.matched_song_id:
+            song.last_song_form = last_forms.get(song.matched_song_id)
+        for candidate in song.candidates:
+            candidate.last_song_form = last_forms.get(candidate.song_id)
+
+
 async def parse_conti_image(image: UploadFile, known_songs: list[dict] | None = None) -> AiParseResult:
     """콘티 이미지 → 구조화된 곡 목록. DB 저장 없이 검수용 결과만 반환한다."""
     # 일부 클라이언트가 "image/png; charset=..." 처럼 파라미터를 붙여 보내므로 앞부분만 떼어 비교한다.
@@ -250,6 +308,8 @@ async def parse_conti_image(image: UploadFile, known_songs: list[dict] | None = 
         if not title:
             continue
         matched_song_id = title_index.get(_normalize_title(title))
+        # 완전 일치하는 곡을 이미 찾았으면 후보를 더 제안하지 않는다 — 화면만 복잡해진다.
+        candidates = [] if matched_song_id else _find_candidates(title, songs_master)
         songs.append(
             AiParsedSong(
                 title=title,
@@ -259,8 +319,18 @@ async def parse_conti_image(image: UploadFile, known_songs: list[dict] | None = 
                 note=_clean(item.get("note")),
                 matched_song_id=matched_song_id,
                 match_status="matched" if matched_song_id else "new",
+                candidates=[
+                    SongCandidate(
+                        song_id=c["id"], title=c["title"], artist=c.get("artist"), score=c["score"]
+                    )
+                    for c in candidates
+                ],
             )
         )
+
+    # 매칭된 곡과 후보 곡이 지난번에 쓴 송폼을 한 번의 쿼리로 붙인다.
+    # 이번 인식 결과와 나란히 보여주면 (8) 누락이나 글자 오독을 사람이 바로 알아챌 수 있다.
+    _attach_last_song_forms(songs)
 
     # 곡이 0건이어도 에러로 처리하지 않는다 — 사람 검수가 필수 단계라 빈 결과도 그대로 넘겨
     # "직접 입력"으로 이어갈 수 있게 하는 편이 낫다.

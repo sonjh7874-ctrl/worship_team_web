@@ -77,6 +77,8 @@ async def main():
     meta = {"service_date": [0, 0], "title": [0, 0], "song_count": [0, 0]}
     mismatches = []
     lenient_notes = []
+    # 제목을 틀렸을 때 유사도 후보가 정답을 건져내는지 따로 집계한다(검수 화면의 실질적 가치).
+    rescue = {"틀린 제목": 0, "후보 1순위가 정답": 0, "후보 안에 정답": 0, "후보가 못 건짐": 0}
 
     for file_name, expected in expected_all.items():
         image_path = IMAGE_DIR / file_name
@@ -121,6 +123,19 @@ async def main():
             if want_song.get("lenient"):
                 lenient_notes.append(f"{file_name} #{i + 1}: {got_song}")
                 continue
+            # 제목 오인식 구제율 집계
+            if got_song and normalize(want_song.get("title")) != normalize(got_song.get("title")):
+                rescue["틀린 제목"] += 1
+                cand_titles = [normalize(c["title"]) for c in got_song.get("candidates") or []]
+                want_title = normalize(want_song.get("title"))
+                if cand_titles and cand_titles[0] == want_title:
+                    rescue["후보 1순위가 정답"] += 1
+                    rescue["후보 안에 정답"] += 1
+                elif want_title in cand_titles:
+                    rescue["후보 안에 정답"] += 1
+                else:
+                    rescue["후보가 못 건짐"] += 1
+
             for field, ok in compare_song(want_song, got_song).items():
                 totals[field][1] += 1
                 if ok:
@@ -142,6 +157,11 @@ async def main():
         rate = f"{ok / total * 100:.0f}%" if total else "-"
         print(f"  {field:14} {ok}/{total}  ({rate})")
     print(f"  {'합계':14} {grand_ok}/{grand_total}  ({grand_ok / grand_total * 100:.1f}%)")
+
+    print("")
+    print("  --- 제목 오인식 구제(유사도 후보) ---")
+    for key, value in rescue.items():
+        print(f"  {key:18} {value}")
 
     if mismatches:
         print("\n--- 틀린 항목 ---")

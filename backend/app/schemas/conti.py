@@ -72,6 +72,17 @@ class ContiUpdate(BaseModel):
     ai_raw_result: dict | str | None = None
 
 
+class SongCandidate(BaseModel):
+    """AI가 읽은 제목과 비슷한 기존 곡 후보. 자동 적용하지 않고 검수 화면에서 사람이 고른다."""
+
+    song_id: int
+    title: str
+    artist: str | None = None
+    # 0~1 유사도. 한글을 자모로 분해해 비교하므로 '전심감주'와 '전신갑주'처럼 한 글자 오독도 잡힌다.
+    score: float
+    last_song_form: str | None = None
+
+
 class AiParsedSong(BaseModel):
     """AI가 콘티 이미지에서 추출한 곡 1건 + 곡 마스터 매칭 결과."""
 
@@ -84,6 +95,11 @@ class AiParsedSong(BaseModel):
     matched_song_id: int | None = None
     # matched = 기존 곡 후보를 찾음 / new = 신규 곡으로 제안. 최종 확정은 검수 화면에서 사람이 한다.
     match_status: Literal["matched", "new"] = "new"
+    # 매칭된 곡이 지난번 콘티에서 쓴 송폼. 이번 인식 결과와 비교해 오독을 눈으로 잡으라고 함께 내려준다.
+    # 송폼은 매주 바뀔 수 있으므로 이 값으로 덮어쓰지 않는다 — 비교용 표시일 뿐이다.
+    last_song_form: str | None = None
+    # 제목이 정확히 일치하지 않을 때의 유사 곡 후보(최대 3개, 유사도 높은 순).
+    candidates: list[SongCandidate] = []
 
 
 class AiParseResult(BaseModel):
