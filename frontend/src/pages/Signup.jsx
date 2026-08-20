@@ -9,12 +9,17 @@ function Signup() {
   const [displayName, setDisplayName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError(null);
+    if (password !== confirmPassword) {
+      setError("비밀번호가 서로 일치하지 않습니다.");
+      return;
+    }
     setSubmitting(true);
     try {
       // 가입은 항상 member 권한으로 시작한다 — 편집 권한(leader)은 관리자가 /admin/users에서 부여한다.
@@ -69,6 +74,18 @@ function Signup() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+            />
+          </label>
+        </div>
+        <div>
+          <label>
+            비밀번호 확인{" "}
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
               required
               minLength={6}
             />

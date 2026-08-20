@@ -53,3 +53,7 @@ class PasswordResetResponse(BaseModel):
 class ChangePasswordRequest(BaseModel):
     new_password: str
 
+
+class UpdateProfileRequest(BaseModel):
+    display_name: str
+

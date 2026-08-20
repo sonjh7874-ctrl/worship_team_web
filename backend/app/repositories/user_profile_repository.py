@@ -51,6 +51,17 @@ def update_role(user_id: str, role: str) -> dict | None:
     return res.data[0] if res.data else None
 
 
+def update_display_name(user_id: str, display_name: str) -> dict | None:
+    res = (
+        get_supabase()
+        .table(TABLE)
+        .update({"display_name": display_name})
+        .eq("id", user_id)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
 def set_force_password_change(user_id: str, value: bool) -> dict | None:
     res = (
         get_supabase()

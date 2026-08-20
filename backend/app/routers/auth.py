@@ -9,6 +9,7 @@ from app.schemas.auth import (
     RoleUpdate,
     SignupRequest,
     TokenResponse,
+    UpdateProfileRequest,
     UserProfile,
 )
 from app.services import auth_service
@@ -34,6 +35,14 @@ def refresh(payload: RefreshRequest):
 @router.get("/me", response_model=UserProfile)
 def get_me(current_user: UserProfile = Depends(require_role("member"))):
     return current_user
+
+
+@router.patch("/me", response_model=UserProfile)
+def update_me(
+    payload: UpdateProfileRequest,
+    current_user: UserProfile = Depends(require_role("member")),
+):
+    return auth_service.update_display_name(current_user.id, current_user.email, payload.display_name)
 
 
 @router.get("/users", response_model=list[UserProfile], dependencies=[Depends(require_role("admin"))])

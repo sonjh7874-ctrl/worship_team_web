@@ -332,6 +332,7 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | POST | `/auth/login` | 로그인 | 불필요 |
 | POST | `/auth/refresh` | 리프레시 토큰으로 액세스 토큰 재발급 | 불필요(refresh_token 자체가 자격) |
 | GET | `/auth/me` | 내 프로필(이메일·이름·role) 조회 | 필요(로그인만 하면 됨) |
+| PATCH | `/auth/me` | 내 표시 이름(`display_name`) 수정. 가입 시 정한 이름을 본인이 직접 바꿀 수 있다(`/profile` 화면) | 필요(로그인만 하면 됨) |
 | GET | `/auth/users` | 전체 사용자 목록 (`/admin/users` 화면용) | 필요(admin) |
 | PATCH | `/auth/users/{user_id}/role` | 역할 변경. `leader`↔`member`만 가능(admin 부여는 API로 불가) | 필요(admin) |
 | POST | `/auth/users/{user_id}/password` | 비밀번호 초기화. 서버가 무작위 임시 비밀번호를 생성해 `{ "temp_password": "..." }`로 1회 반환하고, 해당 사용자의 `force_password_change`를 `true`로 켠다 | 필요(admin) |
@@ -353,8 +354,8 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | 공지사항/스케줄 | 12 | 공지 5 + 스케줄 7 |
 | 캘린더 | 5 | |
 | 인명부 | 4 | |
-| 인증/사용자 | 8 | Phase 7 신설(비밀번호 초기화·변경 2개 추가) |
-| **합계** | **44** | |
+| 인증/사용자 | 9 | Phase 7 신설(비밀번호 초기화·변경·내 정보 수정 3개 추가) |
+| **합계** | **45** | |
 
 ---
 

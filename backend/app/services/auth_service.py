@@ -127,6 +127,17 @@ def change_own_password(user_id: str, new_password: str) -> UserProfile:
     return _to_profile(user_id, res.user.email if res.user else None, row)
 
 
+def update_display_name(user_id: str, email: str | None, display_name: str) -> UserProfile:
+    display_name = display_name.strip()
+    if not display_name:
+        raise HTTPException(status_code=400, detail="이름을 입력해주세요.")
+
+    row = user_profile_repository.update_display_name(user_id, display_name)
+    if row is None:
+        raise HTTPException(status_code=404, detail="사용자 프로필을 찾을 수 없습니다.")
+    return _to_profile(user_id, email, row)
+
+
 def _to_profile(user_id: str, email: str | None, row: dict) -> UserProfile:
     return UserProfile(
         id=user_id,

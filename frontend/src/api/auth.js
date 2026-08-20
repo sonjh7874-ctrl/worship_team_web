@@ -32,3 +32,8 @@ export function resetUserPassword(userId) {
 export function changeMyPassword(newPassword) {
   return apiPost("/api/v1/auth/me/password", { new_password: newPassword });
 }
+
+// 본인 표시 이름을 수정한다(/me 화면). 가입 시 정한 이름을 본인이 직접 바꿀 방법이 없어서 추가.
+export function updateMyProfile(displayName) {
+  return apiPatch("/api/v1/auth/me", { display_name: displayName });
+}

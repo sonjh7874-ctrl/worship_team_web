@@ -13,6 +13,7 @@ import MemberMain from "./pages/MemberMain";
 import NoticeDetail from "./pages/NoticeDetail";
 import NoticeEdit from "./pages/NoticeEdit";
 import NoticeMain from "./pages/NoticeMain";
+import Profile from "./pages/Profile";
 import ScheduleEdit from "./pages/ScheduleEdit";
 import Signup from "./pages/Signup";
 import SongMain from "./pages/SongMain";
@@ -31,7 +32,7 @@ function Header() {
             {user.display_name} ({role})
           </span>
           {role === "admin" && <Link to="/admin/users">사용자 관리</Link>}
-          <Link to="/change-password">비밀번호 변경</Link>
+          <Link to="/profile">내 정보</Link>
           <button type="button" onClick={logout}>
             로그아웃
           </button>
@@ -66,6 +67,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/change-password" element={<ChangePassword />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/conti" element={<ContiMain />} />
         <Route
           path="/conti/new"
