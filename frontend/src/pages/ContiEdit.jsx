@@ -11,6 +11,7 @@ import {
   uploadSheetFile,
 } from "../api/contis";
 import { fetchSongs } from "../api/songs";
+import SongFormDiff from "../components/SongFormDiff";
 import SongPicker from "../components/SongPicker";
 
 const FILE_TYPE_LABELS = { score_pdf: "악보 PDF", conti_image: "콘티 원본 이미지" };
@@ -35,6 +36,9 @@ function aiSongToRow(song) {
     song_form: song.song_form || "",
     note: song.note || "",
     match_status: song.match_status,
+    // 검수 보조 정보 — 저장 요청에는 실리지 않고 화면에서만 쓴다.
+    last_song_form: song.last_song_form || "",
+    candidates: song.candidates || [],
   };
 }
 
@@ -131,7 +135,19 @@ function ContiEdit() {
       prev.map((row, i) => {
         if (i !== index) return row;
         if (!song) return { ...row, song_id: null };
-        return { ...row, song_id: song.id, title: song.title, artist: song.artist || "" };
+        // 유사 곡 후보는 song_id, 검색 결과는 id로 내려와 키 이름이 다르다.
+        return {
+          ...row,
+          song_id: song.song_id ?? song.id,
+          title: song.title,
+          artist: song.artist || "",
+          // 후보를 고르면 그 곡의 지난 송폼을 비교 기준으로 삼는다. 검색으로 고른 곡은
+          // 지난 송폼을 모르므로(별도 조회가 필요) 비교를 끈다.
+          last_song_form: song.last_song_form || "",
+          candidates: [],
+          // 사람이 곡을 확정한 순간 AI 추정 배지는 의미가 없어지므로 지운다.
+          match_status: undefined,
+        };
       })
     );
   }
@@ -488,6 +504,23 @@ function ContiEdit() {
                   {row.match_status === "new" && (
                     <span style={{ fontSize: 12, color: "#a06000" }}>AI: 새 곡으로 제안</span>
                   )}
+                  {/* 제목을 조금 잘못 읽었을 때를 대비한 유사 곡 후보(서버가 자모 유사도로 계산).
+                      자동으로 바꾸지 않고 사람이 눌러서 확정한다(ERD 3-1). */}
+                  {row.candidates?.length > 0 && (
+                    <div style={{ fontSize: 12 }}>
+                      혹시 이 곡인가요?{" "}
+                      {row.candidates.map((candidate) => (
+                        <button
+                          key={candidate.song_id}
+                          type="button"
+                          onClick={() => selectSong(index, candidate)}
+                        >
+                          {candidate.title}
+                          {candidate.artist ? ` _ ${candidate.artist}` : ""}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label>
@@ -527,6 +560,11 @@ function ContiEdit() {
                       onChange={(e) => updateRow(index, "song_form", e.target.value)}
                     />
                   </label>
+                  <SongFormDiff
+                    previous={row.last_song_form}
+                    current={row.song_form}
+                    onUsePrevious={() => updateRow(index, "song_form", row.last_song_form)}
+                  />
                 </div>
                 <div>
                   <label>
