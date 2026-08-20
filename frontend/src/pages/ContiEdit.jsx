@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
 import {
+  aiParseConti,
   createConti,
   deleteConti,
   deleteSheetFile,
@@ -9,6 +10,7 @@ import {
   updateConti,
   uploadSheetFile,
 } from "../api/contis";
+import { fetchSongs } from "../api/songs";
 
 const FILE_TYPE_LABELS = { score_pdf: "악보 PDF", conti_image: "콘티 원본 이미지" };
 
@@ -16,9 +18,29 @@ function emptyRow() {
   return { song_id: null, title: "", artist: "", song_key: "", song_form: "", note: "" };
 }
 
+function todayIso() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// AI 인식 결과(AiParsedSong)를 곡 배치 폼이 쓰는 행(row) 구조로 변환한다.
+// matched면 matched_song_id를 song_id로 채워 기존 곡 마스터를 그대로 재사용하고,
+// new면 song_id를 비워 "새로 등록" 상태로 둔다 — 어느 쪽이든 검수 화면에서 사람이 바꿀 수 있다.
+function aiSongToRow(song) {
+  return {
+    song_id: song.matched_song_id,
+    title: song.title,
+    artist: song.artist || "",
+    song_key: song.song_key || "",
+    song_form: song.song_form || "",
+    note: song.note || "",
+    match_status: song.match_status,
+  };
+}
+
 function ContiEdit() {
   const { contiId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   // 라우트 파라미터 유무로 생성 화면(/conti/new)과 편집 화면(/conti/:id/edit)을 한 컴포넌트에서 겸용한다.
   const isNew = !contiId;
 
@@ -31,9 +53,23 @@ function ContiEdit() {
   const [fileType, setFileType] = useState("score_pdf");
   const [file, setFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  // AI 콘티 인식용 상태 (Phase 6)
+  const [aiImage, setAiImage] = useState(null);
+  const [keepAiImage, setKeepAiImage] = useState(true);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [songOptions, setSongOptions] = useState([]);
   const [loading, setLoading] = useState(!isNew);
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
+
+  // 곡 마스터 목록은 검수 화면의 "기존 곡 선택" 드롭다운에 쓴다. 실패해도 화면 자체는 동작해야 하므로
+  // (드롭다운만 비게 됨) 에러를 화면에 띄우지 않는다.
+  useEffect(() => {
+    if (isNew) return;
+    fetchSongs()
+      .then(setSongOptions)
+      .catch(() => setSongOptions([]));
+  }, [isNew]);
 
   useEffect(() => {
     if (isNew) return;
@@ -56,10 +92,20 @@ function ContiEdit() {
           }))
         );
         setSheetFiles(conti.sheet_files);
+        // /conti/new에서 AI 인식 직후 넘어온 경우, 아직 저장하지 않은 인식 결과를 서버 값 대신 채운다.
+        // 인식 결과를 곧바로 저장하지 않는 이유는 "기존 곡 / 새로 등록" 확정을 사람이 해야 하기 때문(ERD 3-1) —
+        // 곡 제목을 잘못 읽은 채로 저장하면 곡 마스터에 잘못된 행이 영구히 쌓인다.
+        if (location.state?.aiRows) {
+          setRows(location.state.aiRows);
+          setMessage("AI 인식 결과입니다. 곡을 확인·수정한 뒤 '곡 배치 저장'을 눌러주세요.");
+          // 한 번 쓰고 히스토리에서 지운다. 남겨두면 저장 후 새로고침했을 때 저장된 값 대신
+          // 예전 인식 결과가 다시 덮어써진다.
+          window.history.replaceState({}, "");
+        }
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
-  }, [contiId, isNew]);
+  }, [contiId, isNew, location.state]);
 
   function updateRow(index, field, value) {
     setRows((prev) =>
@@ -75,6 +121,95 @@ function ContiEdit() {
     // 여기서는 화면 상태에서만 지운다. 서버 반영은 "곡 배치 저장"을 눌러 PUT 전체 교체가
     // 실행될 때 한 번에 이뤄진다(백엔드가 기존 배치를 지우고 새 배열로 다시 채우는 방식).
     setRows((prev) => prev.filter((_, i) => i !== index));
+  }
+
+  // 검수 화면에서 "기존 곡 선택 / 새로 등록"을 사람이 확정하는 지점(ERD 3-1).
+  // 기존 곡을 고르면 제목·아티스트를 곡 마스터 값으로 덮어써 표시하고 입력을 잠근다.
+  function selectSong(index, value) {
+    const song = songOptions.find((s) => String(s.id) === value);
+    setRows((prev) =>
+      prev.map((row, i) => {
+        if (i !== index) return row;
+        if (!song) return { ...row, song_id: null };
+        return { ...row, song_id: song.id, title: song.title, artist: song.artist || "" };
+      })
+    );
+  }
+
+  // 콘티 이미지를 AI로 인식한다. 생성 화면이면 검수용 draft 콘티를 만들어 편집 화면으로 넘기고,
+  // 편집 화면이면 현재 곡 목록을 인식 결과로 갈아끼운다(저장은 사람이 확인 후 별도로).
+  async function handleAiParse(e) {
+    e.preventDefault();
+    setError(null);
+    setMessage(null);
+    if (!aiImage) {
+      setError("인식할 콘티 이미지를 선택해주세요.");
+      return;
+    }
+    if (!password) {
+      setError("편집 비밀번호를 먼저 입력해주세요.");
+      return;
+    }
+
+    setAiLoading(true);
+    try {
+      const result = await aiParseConti(aiImage, password);
+      const aiRows = result.songs.map(aiSongToRow);
+
+      if (isNew) {
+        // 인식 직후 draft로 만들어 둔다 — 검수 전 콘티가 목록/메인에 노출되면 안 되기 때문(API명세 1-1).
+        // 날짜·제목은 AI 추정값을 쓰되, 못 읽었으면 화면에 입력된 값(없으면 오늘)으로 채운다.
+        const created = await createConti(
+          {
+            service_date: result.service_date_guess || serviceDate || todayIso(),
+            title: result.title_guess || title,
+            status: "draft",
+          },
+          password
+        );
+        if (keepAiImage) {
+          await uploadSheetFile(created.id, "conti_image", aiImage, password, true);
+        }
+        // 추출 원본은 정확도 검증·트러블슈팅 기록용이라 인식 시점에 바로 남긴다.
+        await updateConti(created.id, { ai_raw_result: result.raw_model_output }, password);
+        navigate(`/conti/${created.id}/edit`, { state: { aiRows } });
+        return;
+      }
+
+      setRows(aiRows);
+      if (keepAiImage) {
+        // replace=true라 기존 콘티 원본 이미지는 서버에서 지워진다 — 화면 목록에서도 같이 걷어낸다.
+        const uploaded = await uploadSheetFile(contiId, "conti_image", aiImage, password, true);
+        setSheetFiles((prev) => [
+          ...prev.filter((f) => f.file_type !== "conti_image"),
+          uploaded,
+        ]);
+      }
+      await updateConti(contiId, { ai_raw_result: result.raw_model_output }, password);
+      setMessage(
+        result.songs.length === 0
+          ? "인식된 곡이 없습니다. 아래에서 직접 입력해주세요."
+          : `${result.songs.length}곡을 인식했습니다. 확인·수정 후 '곡 배치 저장'을 눌러주세요.`
+      );
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
+  // 검수 완료 → 게시. 상태 셀렉트 + "정보 저장"으로도 되지만, draft 콘티는 게시가 마지막 단계라
+  // 버튼 하나로 끝낼 수 있게 둔다.
+  async function handlePublish() {
+    setError(null);
+    setMessage(null);
+    try {
+      await updateConti(contiId, { status: "published" }, password);
+      setStatus("published");
+      setMessage("콘티를 게시했습니다.");
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
   async function handleCreate(e) {
@@ -150,6 +285,10 @@ function ContiEdit() {
           note: item.note || "",
         }))
       );
+      // 방금 새로 생성된 곡이 드롭다운에도 보이도록 곡 마스터 목록을 다시 불러온다.
+      fetchSongs()
+        .then(setSongOptions)
+        .catch(() => {});
       setMessage("곡 배치가 저장되었습니다.");
     } catch (err) {
       setError(err.message);
@@ -206,6 +345,38 @@ function ContiEdit() {
 
   if (loading) return <p>불러오는 중...</p>;
 
+  // 생성·편집 양쪽에서 같은 UI를 쓴다. 생성 화면에서는 draft 콘티를 만들어 검수 화면으로 넘기고,
+  // 편집 화면에서는 현재 곡 목록을 인식 결과로 갈아끼운다.
+  const aiSection = (
+    <section style={{ border: "1px solid #ccc", padding: 12, margin: "12px 0" }}>
+      <h2>콘티 이미지로 {isNew ? "시작하기" : "곡 목록 덮어쓰기"}</h2>
+      <p style={{ fontSize: 13 }}>
+        콘티 이미지를 올리면 곡 순서·제목·키·송폼을 자동으로 읽어옵니다. 인식 결과는 그대로 저장되지 않으니
+        반드시 확인·수정한 뒤 저장해주세요. (png/jpeg/webp, 8MB 이하)
+      </p>
+      <form onSubmit={handleAiParse}>
+        <input
+          type="file"
+          accept="image/png,image/jpeg,image/webp"
+          onChange={(e) => setAiImage(e.target.files?.[0] || null)}
+        />{" "}
+        <button type="submit" disabled={aiLoading}>
+          {aiLoading ? "인식 중..." : "AI로 인식"}
+        </button>
+        <div>
+          <label>
+            <input
+              type="checkbox"
+              checked={keepAiImage}
+              onChange={(e) => setKeepAiImage(e.target.checked)}
+            />{" "}
+            원본 이미지도 함께 보관
+          </label>
+        </div>
+      </form>
+    </section>
+  );
+
   return (
     <div>
       <Link to={isNew ? "/conti" : `/conti/${contiId}`}>
@@ -229,6 +400,8 @@ function ContiEdit() {
       {message && <p style={{ color: "green" }}>{message}</p>}
 
       {isNew ? (
+        <>
+        {aiSection}
         <form onSubmit={handleCreate}>
           <div>
             <label>
@@ -249,6 +422,7 @@ function ContiEdit() {
           </div>
           <button type="submit">만들기</button>
         </form>
+        </>
       ) : (
         <>
           <form onSubmit={handleSaveMeta}>
@@ -279,6 +453,14 @@ function ContiEdit() {
                 </select>
               </label>
             </div>
+            {status === "draft" && (
+              <p style={{ color: "#a06000" }}>
+                검수 중이라 콘티 목록·메인 화면에는 보이지 않습니다. 확인이 끝나면 게시해주세요.{" "}
+                <button type="button" onClick={handlePublish}>
+                  지금 게시하기
+                </button>
+              </p>
+            )}
             <button type="submit">정보 저장</button>
           </form>
 
@@ -286,11 +468,36 @@ function ContiEdit() {
             콘티 삭제
           </button>
 
+          {aiSection}
+
           <form onSubmit={handleSaveSongs}>
             <h2>곡 배치</h2>
             {rows.map((row, index) => (
               <fieldset key={index}>
                 <legend>{index + 1}번 곡</legend>
+                <div>
+                  <label>
+                    곡 선택{" "}
+                    <select
+                      value={row.song_id ?? ""}
+                      onChange={(e) => selectSong(index, e.target.value)}
+                    >
+                      <option value="">새로 등록</option>
+                      {songOptions.map((song) => (
+                        <option key={song.id} value={song.id}>
+                          {song.title}
+                          {song.artist ? ` _ ${song.artist}` : ""}
+                        </option>
+                      ))}
+                    </select>
+                  </label>{" "}
+                  {row.match_status === "matched" && (
+                    <span style={{ fontSize: 12, color: "green" }}>AI: 기존 곡과 일치</span>
+                  )}
+                  {row.match_status === "new" && (
+                    <span style={{ fontSize: 12, color: "#a06000" }}>AI: 새 곡으로 제안</span>
+                  )}
+                </div>
                 <div>
                   <label>
                     곡 제목{" "}
