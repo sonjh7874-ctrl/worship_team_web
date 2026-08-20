@@ -52,14 +52,17 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 
 | Method | Path | 설명 | 인증 |
 |---|---|---|---|
-| GET | `/contis` | 콘티 목록 (날짜 최신순, **published만**) | 불필요 |
+| GET | `/contis` | 콘티 목록 (날짜 최신순, 기본 **published만**) | 불필요 |
+| GET | `/contis?status=draft` | 검수 대기 중인 초안 목록 | 불필요 |
 | GET | `/contis/latest` | 가장 최근/다가오는 콘티 1건 (메인 화면용, **published만**) | 불필요 |
 | GET | `/contis/{conti_id}` | 콘티 상세 (곡 목록 + 악보 포함, **status 무관하게 조회 가능**) | 불필요 |
-| POST | `/contis` | 콘티 신규 생성 (수동, 빈 콘티, **status는 즉시 published**) | 필요 |
+| POST | `/contis` | 콘티 신규 생성 (빈 콘티, `status` 기본값 **published**) | 필요 |
 | PATCH | `/contis/{conti_id}` | 콘티 제목/날짜/상태 수정 | 필요 |
 | DELETE | `/contis/{conti_id}` | 콘티 삭제 (곡 배치·악보 CASCADE) | 필요 |
 
-> **draft/published 동작**: 목록·메인 조회는 `published` 콘티만 보여준다. `draft`는 아직 확정 전이라 팀 전체에 노출되면 안 되기 때문 — 리더십이 콘티를 미리 입력해두되 아직 확정이 아니면(예: 목사님이 순서를 바꿀 수 있는 상태) `PATCH`로 `status: "draft"`로 바꿔 잠시 숨겨둘 수 있다. 반대로 수동 생성(`POST /contis`)은 리더십이 직접 입력하는 것 자체가 이미 검수를 거친 콘텐츠라 **기본값이 draft가 아니라 즉시 published**다. `draft` 기본값은 Phase 6(AI 이미지 인식 결과를 사람이 검수하기 전)에서만 실제로 쓰인다.
+> **draft/published 동작**: 목록·메인 조회는 `published` 콘티만 보여준다. `draft`는 아직 확정 전이라 팀 전체에 노출되면 안 되기 때문 — 리더십이 콘티를 미리 입력해두되 아직 확정이 아니면(예: 목사님이 순서를 바꿀 수 있는 상태) `PATCH`로 `status: "draft"`로 바꿔 잠시 숨겨둘 수 있다. 반대로 수동 생성(`POST /contis`)은 리더십이 직접 입력하는 것 자체가 이미 검수를 거친 콘텐츠라 **기본값이 draft가 아니라 즉시 published**다. `draft`는 Phase 6(AI 이미지 인식 결과를 사람이 검수하기 전)에서만 실제로 쓰이며, 이때는 `POST /contis`에 `status: "draft"`를 실어 처음부터 초안으로 만든다 — 생성 후 `PATCH`로 되돌리면 그사이 팀 전체에 잠깐 노출되기 때문이다.
+>
+> **초안을 다시 찾는 방법**: 로그인이 없어 "내 draft"를 구분할 수 없으므로, `GET /contis?status=draft`로 검수 대기 중인 초안을 모두 조회한다. 프론트는 이 목록을 콘티 화면(`/conti`)의 "검수 대기" 섹션에 띄워, 검수를 마치지 못한 초안을 이어서 처리하거나 지울 수 있게 한다.
 >
 > 상세 조회(`GET /contis/{conti_id}`)는 status와 무관하게 열려 있다 — 작성자가 편집 화면(`/conti/{id}/edit`)에서 자신의 draft를 계속 보고 고칠 수 있어야 하기 때문. 다만 로그인이 없어 "내가 만든 draft 목록"을 모아보는 화면은 없으므로, draft로 전환한 콘티는 URL(ID)을 기억해야 다시 찾아갈 수 있다.
 
@@ -102,6 +105,10 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | GET | `/songs` | 곡 마스터 목록 (검색용, `?q=제목검색`) | 불필요 |
 | POST | `/songs` | 곡 신규 등록 | 필요 |
 | PATCH | `/songs/{song_id}` | 곡 정보 수정 (제목/아티스트/기본키) | 필요 |
+| DELETE | `/songs/{song_id}` | 곡 삭제 (**어떤 콘티에도 배치되지 않은 곡만**) | 필요 |
+
+- `GET /songs` 응답의 각 곡에는 `usage_count`(이 곡이 배치된 콘티 수)가 함께 내려간다. 곡 관리 화면이 삭제 가능 여부를 미리 보여주기 위한 값이며, 중첩 count 집계라 조회 횟수는 늘지 않는다.
+- `DELETE`는 `usage_count > 0`이면 **409**로 거부한다. `conti_songs.song_id` FK가 `on delete restrict`라 그냥 지우면 DB 오류가 500으로 새어 나가고, 무엇보다 과거 콘티의 곡 정보가 깨지기 때문이다. AI 인식이 제목을 잘못 읽어 생긴 곡처럼 **아직 어디에도 안 쓰인 찌꺼기만** 지울 수 있다.
 
 ### 1-3. 콘티-곡 배치
 
@@ -132,8 +139,8 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 |---|---|---|---|
 | POST | `/contis/ai-parse` | 콘티 이미지를 업로드해 AI로 구조화 데이터 추출 | 필요 |
 
-- **요청**: `multipart/form-data`, 필드 `image` (콘티 이미지 파일)
-- **처리**: 이미지를 **OpenAI API**(vision 지원 모델)에 전달 → "곡 순서·제목·아티스트·키·송폼을 JSON으로 추출"하는 고정 프롬프트로 1회 호출
+- **요청**: `multipart/form-data`, 필드 `image` (콘티 이미지 파일). 허용 형식 `image/png` · `image/jpeg` · `image/webp`, 최대 8MB — 벗어나면 `400`.
+- **처리**: 이미지를 base64 data URL로 실어 **OpenAI API**(vision 지원 모델)에 전달 → "곡 순서·제목·아티스트·키·송폼을 JSON으로 추출"하는 고정 프롬프트로 1회 호출. JSON 모드(`response_format: json_object`)를 강제해 설명 문장이 섞이지 않게 한다.
 - **응답**: 추출된 JSON을 **그대로 반환만 하고 DB에 저장하지 않는다.** 사람이 검수 화면에서 확인 후 `PUT /contis/{conti_id}/songs`로 별도 저장.
 
 ```json
@@ -141,14 +148,28 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
   "service_date_guess": "2026-08-09",
   "title_guess": "4부예배 콘티",
   "songs": [
-    { "title": "삶의 예배", "artist": "아이자야", "key": "G-A", "song_form": "(4) A1 A2 B ..." }
+    {
+      "title": "삶의 예배",
+      "artist": "아이자야",
+      "song_key": "G-A",
+      "song_form": "(4) A1 A2 B ...",
+      "note": null,
+      "matched_song_id": 3,
+      "match_status": "matched"
+    }
   ],
   "raw_model_output": "{ ... 원본 JSON ... }"
 }
 ```
 
-- `raw_model_output`은 `contis.ai_raw_result`에 검수 완료 후 저장해 트러블슈팅 기록에 활용한다.
-- **환경변수**: `OPENAI_API_KEY` (2026-08-20 기준 테스트 기간 제공받은 키 사용, platform.openai.com에서 발급)
+- 곡의 필드명은 `PUT /contis/{conti_id}/songs`의 요청 스키마와 동일하게 맞췄다(`song_key`/`song_form`/`note`). 검수 화면이 변환 없이 그대로 저장 요청에 실어 보낼 수 있게 하기 위함이다.
+- `matched_song_id` / `match_status`(`matched` | `new`)는 **서버가 수행한 곡 마스터 매칭 결과**다. ERD 3-1대로 정규화된 제목(공백·특수문자 제거, 소문자화) **완전 일치**만 후보로 삼고, 유사도 매칭은 하지 않는다. 최종 확정("기존 곡 선택 / 새로 등록")은 검수 화면에서 사람이 한다. 프론트가 곡 목록 전체를 받아 비교하지 않도록 서버가 미리 판정해 내려준다.
+- `note`에는 `<축복송>` · `<퇴장송>` 같은 꼬리표가 담긴다(꺾쇠 제외). 곡 제목에는 넣지 않는다.
+- **송폼은 해석·정규화하지 않는다.** 프롬프트에서 원문 그대로 옮기도록 못 박았다 — `(맞4)` · `bis(가사~)*2` · `Tag` · `C**` 같은 팀 고유 표기를 모델이 "이해"하려 들면 오히려 틀리기 때문(README 기능 1의 정확도 기대치와 동일).
+- **인식된 곡이 0건이어도 에러가 아니다.** 빈 배열을 그대로 반환하고, 프론트가 "직접 입력" 안내를 띄운다. 사람 검수가 필수 단계라 부분 인식 결과도 그대로 쓸모가 있다.
+- `raw_model_output`은 `contis.ai_raw_result`(jsonb)에 저장해 정확도 검증·트러블슈팅에 활용한다. 저장 시점은 **인식 직후 draft 콘티를 만든 다음**이며, 별도 엔드포인트 없이 `PATCH /contis/{conti_id}`의 `ai_raw_result` 필드로 보낸다.
+- **에러**: 타임아웃(60초) `504` / OpenAI API 오류·레이트리밋·인증 실패 `502` / 응답을 JSON으로 못 읽음 `502` / 키 미설정 `500`.
+- **환경변수**: `OPENAI_API_KEY` (2026-08-20 기준 테스트 기간 제공받은 키 사용, platform.openai.com에서 발급). 모델명은 `OPENAI_VISION_MODEL`로 덮어쓸 수 있다.
 
 ### 1-5. 악보/이미지 파일
 
@@ -157,8 +178,11 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | POST | `/contis/{conti_id}/files` | 악보 PDF 또는 콘티 원본 이미지 업로드 | 필요 |
 | DELETE | `/files/{file_id}` | 파일 삭제 | 필요 |
 
+- 요청은 `multipart/form-data`, 필드는 `file_type`(`score_pdf` | `conti_image`) · `file` · `replace`(선택, 기본 `false`)
 - 서버가 Supabase Storage(`sheet-files` 버킷)에 업로드 후 `sheet_files`에 경로 기록
 - 조회 시(`GET /contis/{conti_id}`) 서버가 **서명된 URL(signed URL, 유효시간 1시간)** 을 발급해 응답에 포함 — 버킷이 Private이므로 필요
+- `replace=true`면 **같은 `file_type`의 기존 파일을 Storage·DB에서 지우고 새로 올린다.** AI 인식을 여러 번 돌려도 콘티 원본 이미지가 1장만 유지되게 하려는 옵션이라 AI 인식 흐름만 사용하고, 악보 PDF 등 수동 업로드는 기본값 `false`라 여러 개 쌓을 수 있다.
+- **콘티를 삭제하면(`DELETE /contis/{conti_id}`) 딸린 Storage 파일도 함께 지운다.** DB의 `sheet_files` 행은 FK CASCADE로 정리되지만 Storage 객체에는 DB 제약이 닿지 않아, 서비스 레이어에서 콘티 삭제 직전에 파일부터 지워야 버킷에 고아 파일이 쌓이지 않는다(무료 티어 용량 보호).
 
 ---
 
@@ -180,6 +204,7 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 |---|---|---|---|
 | GET | `/schedules?year=2026&month=8` | 해당 월 스케줄 전체 (주차별 배정 포함) | 불필요 |
 | POST | `/schedules` | 월 스케줄 생성 (`year`, `month`) | 필요 |
+| DELETE | `/schedules/{schedule_id}` | 월 스케줄 삭제 (주차·배정 CASCADE) | 필요 |
 | POST | `/schedules/{schedule_id}/weeks` | 주차 추가 | 필요 |
 | PATCH | `/schedules/{schedule_id}/weeks/{week_id}` | 주차 정보 수정 (비고/불참사항/특순) | 필요 |
 | DELETE | `/schedules/{schedule_id}/weeks/{week_id}` | 주차 삭제 | 필요 |
@@ -289,13 +314,15 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 
 ## 5. 엔드포인트 전체 요약
 
-| 그룹 | 엔드포인트 수 |
-|---|---|
-| 콘티/곡/악보 | 11 |
-| 공지사항/스케줄 | 11 |
-| 캘린더 | 5 |
-| 인명부 | 4 |
-| **합계** | **31** |
+> 2026-08-20 기준 실제 Swagger(`/docs`)와 대조해 갱신했다. 헬스체크(`GET /`)는 제외한 숫자다.
+
+| 그룹 | 엔드포인트 수 | 내역 |
+|---|---|---|
+| 콘티/곡/악보 | 15 | 콘티 10(AI 인식 포함) + 곡 4 + 파일 삭제 1 |
+| 공지사항/스케줄 | 12 | 공지 5 + 스케줄 7 |
+| 캘린더 | 5 | |
+| 인명부 | 4 | |
+| **합계** | **36** | |
 
 ---
 
