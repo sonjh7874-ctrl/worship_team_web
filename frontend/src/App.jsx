@@ -11,6 +11,7 @@ import NoticeDetail from "./pages/NoticeDetail";
 import NoticeEdit from "./pages/NoticeEdit";
 import NoticeMain from "./pages/NoticeMain";
 import ScheduleEdit from "./pages/ScheduleEdit";
+import SongMain from "./pages/SongMain";
 import ScheduleMain from "./pages/ScheduleMain";
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
       <Route path="/conti/new" element={<ContiEdit />} />
       <Route path="/conti/:contiId" element={<ContiDetail />} />
       <Route path="/conti/:contiId/edit" element={<ContiEdit />} />
+      <Route path="/songs" element={<SongMain />} />
       <Route path="/members" element={<MemberMain />} />
       <Route path="/notices" element={<NoticeMain />} />
       <Route path="/notices/new" element={<NoticeEdit />} />

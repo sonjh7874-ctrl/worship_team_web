@@ -1,3 +1,5 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from app.dependencies import verify_edit_password
@@ -16,8 +18,9 @@ router = APIRouter(prefix="/api/v1/contis", tags=["contis"])
 
 
 @router.get("", response_model=list[ContiListItem])
-def list_contis():
-    return conti_service.list_contis()
+def list_contis(status: Literal["draft", "published"] = "published"):
+    """콘티 목록. 기본은 게시된 콘티만, status=draft면 검수 대기 중인 초안만 반환한다."""
+    return conti_service.list_contis(status)
 
 
 @router.get("/latest", response_model=ContiDetail)

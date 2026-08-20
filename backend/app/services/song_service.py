@@ -5,12 +5,32 @@ from app.schemas.song import SongCreate, SongItem, SongUpdate
 
 
 def list_songs(q: str | None) -> list[SongItem]:
-    return [SongItem(**row) for row in song_repository.find_all(q)]
+    # Supabase가 중첩 집계를 [{"count": n}] 형태로 내려주므로 응답 스키마의 usage_count로 펴서 담는다.
+    items = []
+    for row in song_repository.find_all(q):
+        nested = row.pop("conti_songs", None) or [{}]
+        items.append(SongItem(**row, usage_count=nested[0].get("count", 0)))
+    return items
 
 
 def create_song(payload: SongCreate) -> SongItem:
     row = song_repository.create(payload.title, payload.artist, payload.default_key)
     return SongItem(**row)
+
+
+def delete_song(song_id: int) -> None:
+    if song_repository.find_by_id(song_id) is None:
+        raise HTTPException(status_code=404, detail="곡을 찾을 수 없습니다.")
+
+    # conti_songs FK가 on delete restrict라 그냥 지우면 DB 오류(23503)가 500으로 새어 나간다.
+    # 콘티에 배치된 곡을 지우면 과거 콘티의 곡 정보가 사라지는 문제도 있어, 사용 중이면 막는다.
+    usage = song_repository.count_usage(song_id)
+    if usage > 0:
+        raise HTTPException(
+            status_code=409,
+            detail=f"이 곡은 콘티 {usage}건에 배치돼 있어 삭제할 수 없습니다. 해당 콘티에서 먼저 곡을 빼주세요.",
+        )
+    song_repository.delete(song_id)
 
 
 def update_song(song_id: int, payload: SongUpdate) -> SongItem:

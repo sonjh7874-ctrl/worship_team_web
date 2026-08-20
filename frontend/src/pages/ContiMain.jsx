@@ -6,6 +6,7 @@ import ContiDetailView from "../components/ContiDetailView";
 function ContiMain() {
   const [conti, setConti] = useState(null);
   const [pastContis, setPastContis] = useState([]);
+  const [draftContis, setDraftContis] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -19,6 +20,12 @@ function ContiMain() {
     fetchContiList()
       .then(setPastContis)
       .catch(() => {});
+
+    // 검수 대기(draft) 목록. 로그인이 없어 "내 초안"을 따로 모을 수단이 없으므로,
+    // AI 인식만 해두고 검수를 마치지 못한 콘티를 여기서 찾아 이어가거나 지울 수 있게 한다.
+    fetchContiList("draft")
+      .then(setDraftContis)
+      .catch(() => {});
   }, []);
 
   // 인명부/공지사항/스케줄 링크는 콘티 유무와 무관한 전역 내비게이션이므로, 콘티가
@@ -28,6 +35,7 @@ function ContiMain() {
       <Link to="/">← 메인으로</Link>{" "}
       <Link to="/conti/new">새 콘티 만들기</Link>{" "}
       <Link to="/members">인명부</Link>{" "}
+      <Link to="/songs">곡 관리</Link>{" "}
       <Link to="/notices">공지사항</Link>{" "}
       <Link to="/schedules">월간 스케줄</Link>
     </div>
@@ -42,11 +50,29 @@ function ContiMain() {
     );
   }
 
+  // 게시된 콘티가 하나도 없어도 검수 대기 목록은 보여야 한다 — AI로 인식만 해둔 직후가 딱 그 상태다.
+  const draftSection = draftContis.length > 0 && (
+    <div>
+      <h2>검수 대기</h2>
+      <ul>
+        {draftContis.map((item) => (
+          <li key={item.id}>
+            <Link to={`/conti/${item.id}/edit`}>
+              {item.service_date} - {item.title}
+            </Link>{" "}
+            <span style={{ fontSize: 12, color: "#a06000" }}>검수 후 게시해주세요</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+
   if (error) {
     return (
       <div>
         {nav}
         <p>등록된 콘티가 없습니다.</p>
+        {draftSection}
       </div>
     );
   }
@@ -59,6 +85,7 @@ function ContiMain() {
       {nav}
       <Link to={`/conti/${conti.id}/edit`}>편집</Link>
       <ContiDetailView conti={conti} />
+      {draftSection}
       {olderContis.length > 0 && (
         <div>
           <h2>과거 콘티</h2>

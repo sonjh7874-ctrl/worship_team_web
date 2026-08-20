@@ -13,15 +13,16 @@ DETAIL_SELECT = (
 )
 
 
-def find_all() -> list[dict]:
-    # 공개 목록/최신 조회는 검수·확정된(published) 콘티만 노출한다. draft는 아직 확정 전이라
-    # (직접 입력한 초안이든, Phase 6의 AI 추출 결과든) 팀 전체에 보이면 안 된다.
+def find_all(status: str = "published") -> list[dict]:
+    # 기본값이 published인 이유: 공개 목록/최신 조회에 검수 전 초안이 섞이면 안 되기 때문이다
+    # (직접 입력한 초안이든, Phase 6의 AI 추출 결과든 팀 전체에 보이면 안 된다).
+    # status="draft"는 리더십이 방치된 초안을 찾아 이어서 검수하거나 지우려고 쓰는 별도 목록이다.
     # 상세 조회(find_by_id)는 필터하지 않아 작성자가 편집 화면에서 자기 초안을 계속 볼 수 있다.
     res = (
         get_supabase()
         .table(TABLE)
         .select("id, service_date, title, status")
-        .eq("status", "published")
+        .eq("status", status)
         .order("service_date", desc=True)
         .execute()
     )
