@@ -134,7 +134,12 @@ function ContiEdit() {
     setRows((prev) =>
       prev.map((row, i) => {
         if (i !== index) return row;
-        if (!song) return { ...row, song_id: null };
+        if (!song) {
+          // "새 곡으로 등록"으로 되돌리는 경우다. AI 매칭 배지와 지난 송폼 비교는 이전에
+          // 확정했던(혹은 AI가 제안했던) 다른 곡을 기준으로 한 값이라 그대로 두면
+          // "새로 등록"인데 "기존 곡과 일치"로 보이는 등 화면이 어긋난다 — 함께 지운다.
+          return { ...row, song_id: null, match_status: undefined, last_song_form: "" };
+        }
         // 유사 곡 후보는 song_id, 검색 결과는 id로 내려와 키 이름이 다르다.
         return {
           ...row,
