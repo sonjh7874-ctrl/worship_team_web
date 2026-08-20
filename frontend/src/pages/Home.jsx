@@ -55,6 +55,7 @@ function Home() {
         <Link to="/conti">콘티</Link>{" "}
         <Link to="/schedules">월간 스케줄</Link>{" "}
         <Link to="/notices">공지사항</Link>{" "}
+        <Link to="/calendar">캘린더</Link>{" "}
         <Link to="/members">인명부</Link>
       </div>
 

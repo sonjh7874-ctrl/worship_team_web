@@ -1,4 +1,7 @@
 import { Route, Routes } from "react-router-dom";
+import CalendarDetail from "./pages/CalendarDetail";
+import CalendarEdit from "./pages/CalendarEdit";
+import CalendarMain from "./pages/CalendarMain";
 import ContiDetail from "./pages/ContiDetail";
 import ContiEdit from "./pages/ContiEdit";
 import ContiMain from "./pages/ContiMain";
@@ -25,6 +28,10 @@ function App() {
       <Route path="/notices/:noticeId/edit" element={<NoticeEdit />} />
       <Route path="/schedules" element={<ScheduleMain />} />
       <Route path="/schedules/:scheduleId/weeks/:weekId/edit" element={<ScheduleEdit />} />
+      <Route path="/calendar" element={<CalendarMain />} />
+      <Route path="/calendar/new" element={<CalendarEdit />} />
+      <Route path="/calendar/:eventId" element={<CalendarDetail />} />
+      <Route path="/calendar/:eventId/edit" element={<CalendarEdit />} />
     </Routes>
   );
 }
