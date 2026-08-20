@@ -13,8 +13,8 @@ from app.schemas.conti import (
 ALLOWED_FILE_TYPES = {"score_pdf", "conti_image"}
 
 
-def list_contis() -> list[ContiListItem]:
-    return [ContiListItem(**row) for row in conti_repository.find_all()]
+def list_contis(status: str = "published") -> list[ContiListItem]:
+    return [ContiListItem(**row) for row in conti_repository.find_all(status)]
 
 
 def get_latest_conti() -> ContiDetail:
@@ -81,6 +81,8 @@ def update_conti(conti_id: int, payload: ContiUpdate) -> ContiListItem:
 
 
 def delete_conti(conti_id: int) -> None:
+    # DB row는 CASCADE로 지워지지만 Storage 객체는 남으므로, 콘티를 지우기 전에 실제 파일부터 정리한다.
+    sheet_file_repository.delete_by_conti(conti_id)
     if not conti_repository.delete(conti_id):
         raise HTTPException(status_code=404, detail="콘티를 찾을 수 없습니다.")
 
@@ -125,7 +127,9 @@ def delete_conti_song(conti_id: int, order_no: int) -> None:
         raise HTTPException(status_code=404, detail="해당 순서의 곡을 찾을 수 없습니다.")
 
 
-async def upload_sheet_file(conti_id: int, file_type: str, file: UploadFile) -> SheetFileItem:
+async def upload_sheet_file(
+    conti_id: int, file_type: str, file: UploadFile, replace: bool = False
+) -> SheetFileItem:
     if conti_repository.find_by_id(conti_id) is None:
         raise HTTPException(status_code=404, detail="콘티를 찾을 수 없습니다.")
     # file_type은 DB의 check 제약(score_pdf | conti_image)과 동일하게 API 레벨에서도 먼저 걸러
@@ -135,6 +139,11 @@ async def upload_sheet_file(conti_id: int, file_type: str, file: UploadFile) -> 
             status_code=400,
             detail=f"file_type은 {sorted(ALLOWED_FILE_TYPES)} 중 하나여야 합니다.",
         )
+
+    # replace=True면 같은 종류의 기존 파일을 먼저 지운다. AI 인식을 여러 번 돌려도 콘티 원본 이미지가
+    # 한 장만 유지되도록 하기 위한 옵션이며, 수동 업로드(악보 등)는 기본값 False라 계속 여러 개 쌓을 수 있다.
+    if replace:
+        sheet_file_repository.delete_by_conti_and_type(conti_id, file_type)
 
     content = await file.read()
     row = sheet_file_repository.create(

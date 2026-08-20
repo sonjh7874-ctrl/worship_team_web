@@ -98,5 +98,7 @@ async def upload_sheet_file(
     conti_id: int,
     file_type: str = Form(...),
     file: UploadFile = File(...),
+    # 같은 종류의 기존 파일을 교체할지 여부. AI 인식 흐름만 true로 보낸다(원본 이미지 중복 누적 방지).
+    replace: bool = Form(False),
 ):
-    return await conti_service.upload_sheet_file(conti_id, file_type, file)
+    return await conti_service.upload_sheet_file(conti_id, file_type, file, replace)

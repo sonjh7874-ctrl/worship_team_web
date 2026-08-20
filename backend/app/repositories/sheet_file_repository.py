@@ -57,6 +57,49 @@ def delete(file_id: int) -> bool:
     return True
 
 
+def delete_by_conti(conti_id: int) -> int:
+    """콘티에 딸린 파일을 Storage에서 모두 지운다.
+
+    DB의 sheet_files 행은 콘티 삭제 시 FK CASCADE로 함께 지워지지만, Storage 객체는 DB 제약이
+    닿지 않아 그대로 남는다. 콘티를 지우기 직전에 이 함수로 실제 파일부터 정리해야
+    버킷에 고아 파일이 쌓이지 않는다(무료 티어 용량 보호).
+    """
+    rows = (
+        get_supabase()
+        .table(TABLE)
+        .select("storage_path")
+        .eq("conti_id", conti_id)
+        .execute()
+        .data
+    )
+    paths = [r["storage_path"] for r in rows]
+    if paths:
+        get_supabase().storage.from_(BUCKET).remove(paths)
+    return len(paths)
+
+
+def delete_by_conti_and_type(conti_id: int, file_type: str) -> int:
+    """같은 종류의 기존 파일을 Storage와 DB에서 모두 지운다(교체 업로드용).
+
+    AI 인식을 다시 돌릴 때마다 같은 콘티 원본 이미지가 한 장씩 쌓이는 것을 막는다.
+    """
+    rows = (
+        get_supabase()
+        .table(TABLE)
+        .select("id, storage_path")
+        .eq("conti_id", conti_id)
+        .eq("file_type", file_type)
+        .execute()
+        .data
+    )
+    if not rows:
+        return 0
+    get_supabase().storage.from_(BUCKET).remove([r["storage_path"] for r in rows])
+    for row in rows:
+        get_supabase().table(TABLE).delete().eq("id", row["id"]).execute()
+    return len(rows)
+
+
 def get_signed_url(storage_path: str) -> str | None:
     # 버킷이 Private이므로 조회할 때마다 만료 시간이 있는 서명 URL을 새로 발급한다(1시간).
     res = get_supabase().storage.from_(BUCKET).create_signed_url(
