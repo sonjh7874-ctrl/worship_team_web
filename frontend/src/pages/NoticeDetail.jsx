@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchNotice } from "../api/notices";
 import NoticeDetailView from "../components/NoticeDetailView";
+import { useAuth } from "../contexts/AuthContext";
 
 function NoticeDetail() {
+  const { canEdit } = useAuth();
   const { noticeId } = useParams();
   const [notice, setNotice] = useState(null);
   const [error, setError] = useState(null);
@@ -31,7 +33,7 @@ function NoticeDetail() {
   return (
     <div>
       <Link to="/notices">← 목록으로</Link>{" "}
-      <Link to={`/notices/${noticeId}/edit`}>편집</Link>
+      {canEdit && <Link to={`/notices/${noticeId}/edit`}>편집</Link>}
       <NoticeDetailView notice={notice} />
     </div>
   );

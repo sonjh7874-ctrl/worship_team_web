@@ -8,7 +8,6 @@ function NoticeEdit() {
   // 라우트 파라미터 유무로 작성 화면(/notices/new)과 편집 화면(/notices/:id/edit)을 한 컴포넌트에서 겸용한다.
   const isNew = !noticeId;
 
-  const [password, setPassword] = useState("");
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [isPinned, setIsPinned] = useState(false);
@@ -34,10 +33,10 @@ function NoticeEdit() {
     const payload = { title, content: content || null, is_pinned: isPinned };
     try {
       if (isNew) {
-        const created = await createNotice(payload, password);
+        const created = await createNotice(payload);
         navigate(`/notices/${created.id}`);
       } else {
-        await updateNotice(noticeId, payload, password);
+        await updateNotice(noticeId, payload);
         navigate(`/notices/${noticeId}`);
       }
     } catch (err) {
@@ -52,7 +51,7 @@ function NoticeEdit() {
     }
     setError(null);
     try {
-      await deleteNotice(noticeId, password);
+      await deleteNotice(noticeId);
       navigate("/notices");
     } catch (err) {
       setError(err.message);
@@ -68,17 +67,6 @@ function NoticeEdit() {
       </Link>
 
       <h1>{isNew ? "공지 작성" : "공지 편집"}</h1>
-
-      <div>
-        <label>
-          편집 비밀번호{" "}
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-      </div>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
 

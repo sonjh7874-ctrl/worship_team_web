@@ -8,14 +8,14 @@ export function fetchCalendarEvent(eventId) {
   return apiGet(`/api/v1/calendar/${eventId}`);
 }
 
-export function createCalendarEvent(payload, password) {
-  return apiPost("/api/v1/calendar", payload, password);
+export function createCalendarEvent(payload) {
+  return apiPost("/api/v1/calendar", payload);
 }
 
-export function updateCalendarEvent(eventId, payload, password) {
-  return apiPatch(`/api/v1/calendar/${eventId}`, payload, password);
+export function updateCalendarEvent(eventId, payload) {
+  return apiPatch(`/api/v1/calendar/${eventId}`, payload);
 }
 
-export function deleteCalendarEvent(eventId, password) {
-  return apiDelete(`/api/v1/calendar/${eventId}`, password);
+export function deleteCalendarEvent(eventId) {
+  return apiDelete(`/api/v1/calendar/${eventId}`);
 }

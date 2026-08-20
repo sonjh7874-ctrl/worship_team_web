@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchCalendarEvent } from "../api/calendar";
+import { useAuth } from "../contexts/AuthContext";
 
 function CalendarDetail() {
+  const { canEdit } = useAuth();
   const { eventId } = useParams();
   const [event, setEvent] = useState(null);
   const [error, setError] = useState(null);
@@ -33,7 +35,7 @@ function CalendarDetail() {
   return (
     <div>
       <Link to="/calendar">← 캘린더로</Link>{" "}
-      {isAuto ? null : <Link to={`/calendar/${eventId}/edit`}>편집</Link>}
+      {!isAuto && canEdit && <Link to={`/calendar/${eventId}/edit`}>편집</Link>}
 
       <h1>
         {event.color && (

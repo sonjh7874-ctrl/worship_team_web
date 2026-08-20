@@ -7,11 +7,11 @@ export function fetchSongs() {
 
 // 곡 제목·아티스트 수정. AI 인식 힌트가 곡 마스터를 참고하므로, 잘못 저장된 제목을 여기서 고쳐두면
 // 다음 인식부터 그 오타가 재생산되지 않는다.
-export function updateSong(songId, payload, password) {
-  return apiPatch(`/api/v1/songs/${songId}`, payload, password);
+export function updateSong(songId, payload) {
+  return apiPatch(`/api/v1/songs/${songId}`, payload);
 }
 
 // 어떤 콘티에도 배치되지 않은 곡만 지울 수 있다(사용 중이면 서버가 409).
-export function deleteSong(songId, password) {
-  return apiDelete(`/api/v1/songs/${songId}`, password);
+export function deleteSong(songId) {
+  return apiDelete(`/api/v1/songs/${songId}`);
 }

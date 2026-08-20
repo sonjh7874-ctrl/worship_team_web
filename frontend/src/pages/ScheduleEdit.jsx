@@ -81,7 +81,6 @@ function ScheduleEdit() {
   // 입력 중이던 폼 전체가 사라져 무엇이 실패했는지 알기 어려워진다.
   const [formError, setFormError] = useState(null);
   const [message, setMessage] = useState(null);
-  const [password, setPassword] = useState("");
 
   const [weekLabel, setWeekLabel] = useState("");
   const [serviceDate, setServiceDate] = useState("");
@@ -174,20 +173,15 @@ function ScheduleEdit() {
     setFormError(null);
     setMessage(null);
     try {
-      await updateWeek(
-        scheduleId,
-        weekId,
-        {
-          week_label: weekLabel,
-          service_date: serviceDate || null,
-          remark: remark || null,
-          absence_note: absenceNote || null,
-          special_title: specialTitle || null,
-          special_date: specialDate || null,
-          special_memo: specialMemo || null,
-        },
-        password
-      );
+      await updateWeek(scheduleId, weekId, {
+        week_label: weekLabel,
+        service_date: serviceDate || null,
+        remark: remark || null,
+        absence_note: absenceNote || null,
+        special_title: specialTitle || null,
+        special_date: specialDate || null,
+        special_memo: specialMemo || null,
+      });
       setMessage("주차 정보가 저장되었습니다.");
     } catch (err) {
       setFormError(err.message);
@@ -237,7 +231,7 @@ function ScheduleEdit() {
     });
 
     try {
-      await putAssignments(scheduleId, weekId, { assignments }, password);
+      await putAssignments(scheduleId, weekId, { assignments });
       setMessage("배정이 저장되었습니다.");
     } catch (err) {
       setFormError(err.message);
@@ -257,16 +251,6 @@ function ScheduleEdit() {
       <Link to="/schedules">← 스케줄로</Link>
       <h1>주차 편집: {weekLabel}</h1>
 
-      <div>
-        <label>
-          편집 비밀번호{" "}
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-      </div>
 
       {formError && <p style={{ color: "red" }}>{formError}</p>}
       {message && <p style={{ color: "green" }}>{message}</p>}

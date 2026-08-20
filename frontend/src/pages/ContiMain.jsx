@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchContiList, fetchLatestConti } from "../api/contis";
 import ContiDetailView from "../components/ContiDetailView";
+import { useAuth } from "../contexts/AuthContext";
 
 function ContiMain() {
+  const { canEdit } = useAuth();
   const [conti, setConti] = useState(null);
   const [pastContis, setPastContis] = useState([]);
   const [draftContis, setDraftContis] = useState([]);
@@ -33,7 +35,7 @@ function ContiMain() {
   const nav = (
     <div>
       <Link to="/">← 메인으로</Link>{" "}
-      <Link to="/conti/new">새 콘티 만들기</Link>{" "}
+      {canEdit && <Link to="/conti/new">새 콘티 만들기</Link>}{" "}
       <Link to="/members">인명부</Link>{" "}
       <Link to="/songs">곡 관리</Link>{" "}
       <Link to="/notices">공지사항</Link>{" "}
@@ -50,8 +52,8 @@ function ContiMain() {
     );
   }
 
-  // 게시된 콘티가 하나도 없어도 검수 대기 목록은 보여야 한다 — AI로 인식만 해둔 직후가 딱 그 상태다.
-  const draftSection = draftContis.length > 0 && (
+  // 검수 대기는 편집 권한이 있는 사람만 의미가 있는 작업 목록이라 leader 이상에게만 보여준다.
+  const draftSection = canEdit && draftContis.length > 0 && (
     <div>
       <h2>검수 대기</h2>
       <ul>
@@ -83,7 +85,7 @@ function ContiMain() {
   return (
     <div>
       {nav}
-      <Link to={`/conti/${conti.id}/edit`}>편집</Link>
+      {canEdit && <Link to={`/conti/${conti.id}/edit`}>편집</Link>}
       <ContiDetailView conti={conti} />
       {draftSection}
       {olderContis.length > 0 && (

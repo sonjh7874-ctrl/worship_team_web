@@ -49,7 +49,6 @@ function ContiEdit() {
   // 라우트 파라미터 유무로 생성 화면(/conti/new)과 편집 화면(/conti/:id/edit)을 한 컴포넌트에서 겸용한다.
   const isNew = !contiId;
 
-  const [password, setPassword] = useState("");
   const [serviceDate, setServiceDate] = useState("");
   const [title, setTitle] = useState("주일예배");
   const [status, setStatus] = useState("draft");
@@ -167,32 +166,25 @@ function ContiEdit() {
       setError("인식할 콘티 이미지를 선택해주세요.");
       return;
     }
-    if (!password) {
-      setError("편집 비밀번호를 먼저 입력해주세요.");
-      return;
-    }
 
     setAiLoading(true);
     try {
-      const result = await aiParseConti(aiImage, password);
+      const result = await aiParseConti(aiImage);
       const aiRows = result.songs.map(aiSongToRow);
 
       if (isNew) {
         // 인식 직후 draft로 만들어 둔다 — 검수 전 콘티가 목록/메인에 노출되면 안 되기 때문(API명세 1-1).
         // 날짜·제목은 AI 추정값을 쓰되, 못 읽었으면 화면에 입력된 값(없으면 오늘)으로 채운다.
-        const created = await createConti(
-          {
-            service_date: result.service_date_guess || serviceDate || todayIso(),
-            title: result.title_guess || title,
-            status: "draft",
-          },
-          password
-        );
+        const created = await createConti({
+          service_date: result.service_date_guess || serviceDate || todayIso(),
+          title: result.title_guess || title,
+          status: "draft",
+        });
         if (keepAiImage) {
-          await uploadSheetFile(created.id, "conti_image", aiImage, password, true);
+          await uploadSheetFile(created.id, "conti_image", aiImage, true);
         }
         // 추출 원본은 정확도 검증·트러블슈팅 기록용이라 인식 시점에 바로 남긴다.
-        await updateConti(created.id, { ai_raw_result: result.raw_model_output }, password);
+        await updateConti(created.id, { ai_raw_result: result.raw_model_output });
         navigate(`/conti/${created.id}/edit`, { state: { aiRows } });
         return;
       }
@@ -200,13 +192,13 @@ function ContiEdit() {
       setRows(aiRows);
       if (keepAiImage) {
         // replace=true라 기존 콘티 원본 이미지는 서버에서 지워진다 — 화면 목록에서도 같이 걷어낸다.
-        const uploaded = await uploadSheetFile(contiId, "conti_image", aiImage, password, true);
+        const uploaded = await uploadSheetFile(contiId, "conti_image", aiImage, true);
         setSheetFiles((prev) => [
           ...prev.filter((f) => f.file_type !== "conti_image"),
           uploaded,
         ]);
       }
-      await updateConti(contiId, { ai_raw_result: result.raw_model_output }, password);
+      await updateConti(contiId, { ai_raw_result: result.raw_model_output });
       setMessage(
         result.songs.length === 0
           ? "인식된 곡이 없습니다. 아래에서 직접 입력해주세요."
@@ -225,7 +217,7 @@ function ContiEdit() {
     setError(null);
     setMessage(null);
     try {
-      await updateConti(contiId, { status: "published" }, password);
+      await updateConti(contiId, { status: "published" });
       setStatus("published");
       setMessage("콘티를 게시했습니다.");
     } catch (err) {
@@ -237,7 +229,7 @@ function ContiEdit() {
     e.preventDefault();
     setError(null);
     try {
-      const created = await createConti({ service_date: serviceDate, title }, password);
+      const created = await createConti({ service_date: serviceDate, title });
       navigate(`/conti/${created.id}/edit`);
     } catch (err) {
       setError(err.message);
@@ -249,7 +241,7 @@ function ContiEdit() {
     setError(null);
     setMessage(null);
     try {
-      await updateConti(contiId, { service_date: serviceDate, title, status }, password);
+      await updateConti(contiId, { service_date: serviceDate, title, status });
       setMessage("콘티 정보가 저장되었습니다.");
     } catch (err) {
       setError(err.message);
@@ -293,7 +285,7 @@ function ContiEdit() {
     };
 
     try {
-      const updated = await putContiSongs(contiId, payload, password);
+      const updated = await putContiSongs(contiId, payload);
       // 새로 생성된 곡들이 서버에서 발급받은 실제 song_id를 응답으로 돌려주므로,
       // 그 결과로 rows를 다시 채워야 다음 저장부터 "기존 곡"으로 정상 처리된다.
       setRows(
@@ -326,7 +318,7 @@ function ContiEdit() {
     }
     setUploading(true);
     try {
-      const uploaded = await uploadSheetFile(contiId, fileType, file, password);
+      const uploaded = await uploadSheetFile(contiId, fileType, file);
       setSheetFiles((prev) => [...prev, uploaded]);
       setFile(null);
       e.target.reset();
@@ -342,7 +334,7 @@ function ContiEdit() {
     setError(null);
     setMessage(null);
     try {
-      await deleteSheetFile(fileId, password);
+      await deleteSheetFile(fileId);
       setSheetFiles((prev) => prev.filter((f) => f.id !== fileId));
       setMessage("파일이 삭제되었습니다.");
     } catch (err) {
@@ -357,7 +349,7 @@ function ContiEdit() {
     }
     setError(null);
     try {
-      await deleteConti(contiId, password);
+      await deleteConti(contiId);
       navigate("/conti");
     } catch (err) {
       setError(err.message);
@@ -405,17 +397,6 @@ function ContiEdit() {
       </Link>
 
       <h1>{isNew ? "콘티 만들기" : "콘티 편집"}</h1>
-
-      <div>
-        <label>
-          편집 비밀번호{" "}
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-      </div>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
       {message && <p style={{ color: "green" }}>{message}</p>}

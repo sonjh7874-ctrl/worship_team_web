@@ -9,17 +9,22 @@ import {
 } from "../api/schedules";
 import MicStageLayout from "../components/MicStageLayout";
 import InstrumentPositionGrid from "../components/InstrumentPositionGrid";
+import { useAuth } from "../contexts/AuthContext";
 
-function WeekCard({ week, scheduleId, year, month, onDelete }) {
+function WeekCard({ week, scheduleId, year, month, onDelete, canEdit }) {
   return (
     <div style={{ border: "1px solid #ccc", padding: "0.5rem", marginBottom: "0.5rem" }}>
       <strong>{week.week_label}</strong> {week.service_date}{" "}
-      <Link to={`/schedules/${scheduleId}/weeks/${week.id}/edit?year=${year}&month=${month}`}>
-        편집
-      </Link>{" "}
-      <button type="button" onClick={() => onDelete(week)}>
-        삭제
-      </button>
+      {canEdit && (
+        <>
+          <Link to={`/schedules/${scheduleId}/weeks/${week.id}/edit?year=${year}&month=${month}`}>
+            편집
+          </Link>{" "}
+          <button type="button" onClick={() => onDelete(week)}>
+            삭제
+          </button>
+        </>
+      )}
 
       {week.remark && <p>비고: {week.remark}</p>}
       {week.special && (
@@ -42,6 +47,7 @@ function WeekCard({ week, scheduleId, year, month, onDelete }) {
 }
 
 function ScheduleMain() {
+  const { canEdit } = useAuth();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -50,7 +56,6 @@ function ScheduleMain() {
   const [notFound, setNotFound] = useState(false);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
-  const [password, setPassword] = useState("");
   const [newWeekLabel, setNewWeekLabel] = useState("");
   const [newWeekDate, setNewWeekDate] = useState("");
 
@@ -83,7 +88,7 @@ function ScheduleMain() {
     setError(null);
     setMessage(null);
     try {
-      const created = await createSchedule({ year: Number(year), month: Number(month) }, password);
+      const created = await createSchedule({ year: Number(year), month: Number(month) });
       setSchedule(created);
       setNotFound(false);
       setMessage("월 스케줄이 생성되었습니다.");
@@ -99,7 +104,7 @@ function ScheduleMain() {
     setError(null);
     setMessage(null);
     try {
-      await deleteSchedule(schedule.id, password);
+      await deleteSchedule(schedule.id);
       setSchedule(null);
       setNotFound(true);
       setMessage("월 스케줄이 삭제되었습니다.");
@@ -113,11 +118,10 @@ function ScheduleMain() {
     setError(null);
     setMessage(null);
     try {
-      const week = await createWeek(
-        schedule.id,
-        { week_label: newWeekLabel, service_date: newWeekDate || null },
-        password
-      );
+      const week = await createWeek(schedule.id, {
+        week_label: newWeekLabel,
+        service_date: newWeekDate || null,
+      });
       setSchedule((prev) => ({ ...prev, weeks: [...prev.weeks, week] }));
       setNewWeekLabel("");
       setNewWeekDate("");
@@ -132,7 +136,7 @@ function ScheduleMain() {
     setError(null);
     setMessage(null);
     try {
-      await deleteWeek(schedule.id, week.id, password);
+      await deleteWeek(schedule.id, week.id);
       setSchedule((prev) => ({ ...prev, weeks: prev.weeks.filter((w) => w.id !== week.id) }));
       setMessage("주차가 삭제되었습니다.");
     } catch (err) {
@@ -169,17 +173,6 @@ function ScheduleMain() {
         <button type="submit">조회</button>
       </form>
 
-      <div>
-        <label>
-          편집 비밀번호{" "}
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-          />
-        </label>
-      </div>
-
       {error && <p style={{ color: "red" }}>{error}</p>}
       {message && <p style={{ color: "green" }}>{message}</p>}
 
@@ -190,17 +183,21 @@ function ScheduleMain() {
           <p>
             {year}년 {month}월 스케줄이 없습니다.
           </p>
-          <button type="button" onClick={handleCreateSchedule}>
-            이 달 스케줄 만들기
-          </button>
+          {canEdit && (
+            <button type="button" onClick={handleCreateSchedule}>
+              이 달 스케줄 만들기
+            </button>
+          )}
         </div>
       )}
 
       {!loading && schedule && (
         <div>
-          <button type="button" onClick={handleDeleteSchedule} style={{ color: "red" }}>
-            이 달 스케줄 전체 삭제
-          </button>
+          {canEdit && (
+            <button type="button" onClick={handleDeleteSchedule} style={{ color: "red" }}>
+              이 달 스케줄 전체 삭제
+            </button>
+          )}
 
           {schedule.weeks.length === 0 ? (
             <p>등록된 주차가 없습니다.</p>
@@ -213,30 +210,35 @@ function ScheduleMain() {
                 year={year}
                 month={month}
                 onDelete={handleDeleteWeek}
+                canEdit={canEdit}
               />
             ))
           )}
 
-          <h2>주차 추가</h2>
-          <form onSubmit={handleAddWeek}>
-            <label>
-              주차 라벨(예: 01-02){" "}
-              <input
-                value={newWeekLabel}
-                onChange={(e) => setNewWeekLabel(e.target.value)}
-                required
-              />
-            </label>{" "}
-            <label>
-              날짜{" "}
-              <input
-                type="date"
-                value={newWeekDate}
-                onChange={(e) => setNewWeekDate(e.target.value)}
-              />
-            </label>{" "}
-            <button type="submit">추가</button>
-          </form>
+          {canEdit && (
+            <>
+              <h2>주차 추가</h2>
+              <form onSubmit={handleAddWeek}>
+                <label>
+                  주차 라벨(예: 01-02){" "}
+                  <input
+                    value={newWeekLabel}
+                    onChange={(e) => setNewWeekLabel(e.target.value)}
+                    required
+                  />
+                </label>{" "}
+                <label>
+                  날짜{" "}
+                  <input
+                    type="date"
+                    value={newWeekDate}
+                    onChange={(e) => setNewWeekDate(e.target.value)}
+                  />
+                </label>{" "}
+                <button type="submit">추가</button>
+              </form>
+            </>
+          )}
         </div>
       )}
     </div>

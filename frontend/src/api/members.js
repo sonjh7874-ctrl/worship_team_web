@@ -8,14 +8,14 @@ export function fetchMembers(team, active) {
   return apiGet(`/api/v1/members${query ? `?${query}` : ""}`);
 }
 
-export function createMember(payload, password) {
-  return apiPost("/api/v1/members", payload, password);
+export function createMember(payload) {
+  return apiPost("/api/v1/members", payload);
 }
 
-export function updateMember(memberId, payload, password) {
-  return apiPatch(`/api/v1/members/${memberId}`, payload, password);
+export function updateMember(memberId, payload) {
+  return apiPatch(`/api/v1/members/${memberId}`, payload);
 }
 
-export function deleteMember(memberId, password) {
-  return apiDelete(`/api/v1/members/${memberId}`, password);
+export function deleteMember(memberId) {
+  return apiDelete(`/api/v1/members/${memberId}`);
 }

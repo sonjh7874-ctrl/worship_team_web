@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchConti } from "../api/contis";
 import ContiDetailView from "../components/ContiDetailView";
+import { useAuth } from "../contexts/AuthContext";
 
 function ContiDetail() {
+  const { canEdit } = useAuth();
   const { contiId } = useParams();
   const [conti, setConti] = useState(null);
   const [error, setError] = useState(null);
@@ -31,7 +33,7 @@ function ContiDetail() {
   return (
     <div>
       <Link to="/conti">← 콘티 목록으로</Link>{" "}
-      <Link to={`/conti/${contiId}/edit`}>편집</Link>
+      {canEdit && <Link to={`/conti/${contiId}/edit`}>편집</Link>}
       <ContiDetailView conti={conti} />
     </div>
   );

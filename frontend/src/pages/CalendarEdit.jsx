@@ -83,7 +83,6 @@ function CalendarEdit() {
   // 라우트 파라미터 유무로 작성 화면(/calendar/new)과 편집 화면(/calendar/:id/edit)을 겸용한다.
   const isNew = !eventId;
 
-  const [password, setPassword] = useState("");
   const [title, setTitle] = useState("");
   // 캘린더 그리드의 빈 날짜 칸을 클릭해 들어온 경우 ?date=YYYY-MM-DD로 시작일을
   // 미리 채운다 — 작성 모드에서만 의미가 있고, 편집 모드는 아래 useEffect가
@@ -179,10 +178,10 @@ function CalendarEdit() {
 
     try {
       if (isNew) {
-        const created = await createCalendarEvent(payload, password);
+        const created = await createCalendarEvent(payload);
         navigate(`/calendar/${created.id}`);
       } else {
-        await updateCalendarEvent(eventId, payload, password);
+        await updateCalendarEvent(eventId, payload);
         navigate(`/calendar/${eventId}`);
       }
     } catch (err) {
@@ -194,7 +193,7 @@ function CalendarEdit() {
     if (!window.confirm(`"${title}" 이벤트를 삭제할까요? 되돌릴 수 없습니다.`)) return;
     setFormError(null);
     try {
-      await deleteCalendarEvent(eventId, password);
+      await deleteCalendarEvent(eventId);
       navigate("/calendar");
     } catch (err) {
       setFormError(err.message);
@@ -229,13 +228,6 @@ function CalendarEdit() {
       </Link>
 
       <h1>{isNew ? "이벤트 작성" : "이벤트 편집"}</h1>
-
-      <div>
-        <label>
-          편집 비밀번호{" "}
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </label>
-      </div>
 
       {formError && <p style={{ color: "red" }}>{formError}</p>}
 

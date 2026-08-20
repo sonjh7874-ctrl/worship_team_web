@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchNotice, fetchNoticeList } from "../api/notices";
 import NoticeDetailView from "../components/NoticeDetailView";
+import { useAuth } from "../contexts/AuthContext";
 
 function NoticeMain() {
+  const { canEdit } = useAuth();
   const [notice, setNotice] = useState(null);
   const [pastNotices, setPastNotices] = useState([]);
   const [error, setError] = useState(null);
@@ -39,7 +41,7 @@ function NoticeMain() {
   if (!notice) return (
     <div>
       <Link to="/">← 메인으로</Link>{" "}
-      <Link to="/notices/new">새 공지 작성</Link>
+      {canEdit && <Link to="/notices/new">새 공지 작성</Link>}
       <p>등록된 공지사항이 없습니다.</p>
     </div>
   );
@@ -50,8 +52,12 @@ function NoticeMain() {
   return (
     <div>
       <Link to="/">← 메인으로</Link>{" "}
-      <Link to="/notices/new">새 공지 작성</Link>{" "}
-      <Link to={`/notices/${notice.id}/edit`}>편집</Link>
+      {canEdit && (
+        <>
+          <Link to="/notices/new">새 공지 작성</Link>{" "}
+          <Link to={`/notices/${notice.id}/edit`}>편집</Link>
+        </>
+      )}
       <NoticeDetailView notice={notice} />
       {olderNotices.length > 0 && (
         <div>

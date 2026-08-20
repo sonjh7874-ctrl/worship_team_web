@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchCalendarEvents } from "../api/calendar";
+import { useAuth } from "../contexts/AuthContext";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -149,7 +150,7 @@ function EventBar({ seg }) {
   );
 }
 
-function WeekRow({ weekDates, year, month, events, laneByEventId, todayKey }) {
+function WeekRow({ weekDates, year, month, events, laneByEventId, todayKey, canEdit }) {
   const segments = computeWeekSegments(weekDates, events, laneByEventId);
 
   return (
@@ -167,23 +168,27 @@ function WeekRow({ weekDates, year, month, events, laneByEventId, todayKey }) {
         // 이번 달 안에서만 주말 색을 적용한다 — 그리드 여백(다른 달) 칸까지 색을 넣으면
         // 흐림 표시(회색)와 뒤섞여 오히려 지저분해진다.
         const color = inMonth ? WEEKDAY_COLORS[i] || "#555" : "#ccc";
+        const cellStyle = {
+          display: "block",
+          gridColumn: i + 1,
+          gridRow: 1,
+          borderLeft: i > 0 ? "1px solid #eee" : undefined,
+          padding: "0.2rem 0.3rem",
+          fontSize: "0.8rem",
+          color,
+          textDecoration: "none",
+          background: toKey(date) === todayKey ? "#fff7ed" : undefined,
+        };
+        // 빈 날짜 클릭 → 새 이벤트 작성은 편집 권한이 있을 때만 의미가 있다.
+        if (!canEdit) {
+          return (
+            <span key={i} className="calendar-cell" style={cellStyle}>
+              {date.getDate()}
+            </span>
+          );
+        }
         return (
-          <Link
-            key={i}
-            to={`/calendar/new?date=${toKey(date)}`}
-            className="calendar-cell"
-            style={{
-              display: "block",
-              gridColumn: i + 1,
-              gridRow: 1,
-              borderLeft: i > 0 ? "1px solid #eee" : undefined,
-              padding: "0.2rem 0.3rem",
-              fontSize: "0.8rem",
-              color,
-              textDecoration: "none",
-              background: toKey(date) === todayKey ? "#fff7ed" : undefined,
-            }}
-          >
+          <Link key={i} to={`/calendar/new?date=${toKey(date)}`} className="calendar-cell" style={cellStyle}>
             {date.getDate()}
           </Link>
         );
@@ -196,6 +201,7 @@ function WeekRow({ weekDates, year, month, events, laneByEventId, todayKey }) {
 }
 
 function CalendarMain() {
+  const { canEdit } = useAuth();
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
@@ -254,9 +260,11 @@ function CalendarMain() {
       <Link to="/">← 메인으로</Link>
       <h1>캘린더</h1>
 
-      <div>
-        <Link to="/calendar/new">새 이벤트</Link>
-      </div>
+      {canEdit && (
+        <div>
+          <Link to="/calendar/new">새 이벤트</Link>
+        </div>
+      )}
 
       <form onSubmit={handleSearch} style={{ margin: "0.5rem 0" }}>
         <button type="button" onClick={() => shiftMonth(-1)}>
@@ -320,6 +328,7 @@ function CalendarMain() {
               events={events}
               laneByEventId={laneByEventId}
               todayKey={todayKey}
+              canEdit={canEdit}
             />
           ))}
         </div>
