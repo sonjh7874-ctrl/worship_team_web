@@ -154,13 +154,17 @@ def create_week(schedule_id: int, payload: ScheduleWeekCreate) -> ScheduleWeekIt
         fields["special_date"] = fields["special_date"].isoformat()
 
     row = schedule_repository.create_week(schedule_id, fields)
-    _sync_special_calendar_event(row)
+    # special_title이 없는 새 주차는 캘린더에 지울 이벤트도 없으니 굳이 동기화를
+    # 호출하지 않는다 (어차피 no-op DELETE라 결과는 같지만 불필요한 쓰기를 피한다).
+    if row.get("special_title"):
+        _sync_special_calendar_event(row)
     return _to_week_item(row)
 
 
 def update_week(week_id: int, payload: ScheduleWeekUpdate) -> ScheduleWeekItem:
     # exclude_unset으로 요청에 포함된 필드만 갱신하는 부분 수정(PATCH)을 구현한다.
     fields = payload.model_dump(exclude_unset=True)
+    touched = fields.keys()
     if fields.get("service_date") is not None:
         fields["service_date"] = fields["service_date"].isoformat()
     if fields.get("special_date") is not None:
@@ -169,7 +173,17 @@ def update_week(week_id: int, payload: ScheduleWeekUpdate) -> ScheduleWeekItem:
     row = schedule_repository.update_week(week_id, fields) if fields else schedule_repository.find_week_by_id(week_id)
     if row is None:
         raise HTTPException(status_code=404, detail="주차를 찾을 수 없습니다.")
-    _sync_special_calendar_event(row)
+
+    # 특순 관련 필드가 이번 요청에 직접 포함됐을 때(설정/해제 포함)는 항상 동기화한다.
+    # 그 외에는, 이미 특순이 걸려 있는 주차에서 service_date가 바뀐 경우만 추가로
+    # 동기화한다 — special_date가 비어 service_date를 폴백으로 쓰는 주차는 그 폴백
+    # 값이 바뀌는 셈이라 캘린더 이벤트도 갱신해야 하기 때문. 비고·불참사항처럼
+    # 특순과 무관한 필드만 고친 경우는 건너뛰어 불필요한 DB 쓰기를 피한다.
+    special_touched = bool({"special_title", "special_date", "special_memo"} & touched)
+    if not special_touched and row.get("special_title") and "service_date" in touched:
+        special_touched = True
+    if special_touched:
+        _sync_special_calendar_event(row)
     return _to_week_item(row)
 
 
