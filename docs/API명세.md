@@ -15,7 +15,7 @@
 - 서버는 이 토큰을 Supabase Auth로 검증한 뒤, `user_profiles.role`을 조회해 등급을 비교한다(`app/dependencies.py`의 `require_role(min_role)`). 등급은 `member < leader < admin` — `require_role("leader")`는 leader 이상을, `require_role("admin")`은 admin만 통과시킨다.
   - 헤더가 없거나 토큰이 무효/만료: `401 Unauthorized`
   - 역할이 부족: `403 Forbidden`
-- 콘티/곡/파일/공지사항/스케줄/캘린더/인명부의 **쓰기 엔드포인트는 모두 `require_role("leader")`**. 사용자 역할 관리(`/auth/users`)만 `require_role("admin")`이다.
+- 콘티/곡/파일/공지사항/스케줄/캘린더/인명부의 **쓰기 엔드포인트는 모두 `require_role("leader")`**. 사용자 관리(`/auth/users` — 목록 조회·역할 변경·비밀번호 초기화)만 `require_role("admin")`이고, 내 정보 조회·수정·비밀번호 변경(`/auth/me`)은 로그인만 하면 된다(`require_role("member")`).
 - 액세스 토큰은 기본 1시간 만료다. 만료 시 `POST /auth/refresh`에 `refresh_token`을 보내 재발급받는다(프론트는 401 응답을 받으면 이 과정을 자동으로 1회 재시도한다).
 - **이전 방식이던 `X-Edit-Password` 단일 비밀번호 게이트(`EDIT_PASSWORD`)는 완전히 제거됐다.** 문제가 생기면 Phase 7의 교체 커밋을 git revert해 되돌아간다.
 
