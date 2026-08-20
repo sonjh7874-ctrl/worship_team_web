@@ -63,7 +63,7 @@ def get_conti(conti_id: int) -> ContiDetail:
 
 
 def create_conti(payload: ContiCreate) -> ContiListItem:
-    row = conti_repository.create(payload.service_date, payload.title)
+    row = conti_repository.create(payload.service_date, payload.title, payload.status)
     return ContiListItem(**row)
 
 

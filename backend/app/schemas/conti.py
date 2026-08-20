@@ -40,6 +40,9 @@ class ContiDetail(ContiListItem):
 class ContiCreate(BaseModel):
     service_date: date
     title: str = "주일예배"
+    # 리더십이 직접 입력한 콘티는 그 자체로 검수를 거친 것이라 기본값이 published다(API명세 1-1).
+    # AI 인식 흐름에서만 draft로 만들어, 사람이 검수해 게시하기 전까지 목록/최신 조회에서 숨긴다.
+    status: Literal["draft", "published"] = "published"
 
 
 class NewSongInput(BaseModel):
@@ -64,3 +67,30 @@ class ContiUpdate(BaseModel):
     service_date: date | None = None
     title: str | None = None
     status: Literal["draft", "published"] | None = None
+    # AI 추출 원본(정확도 검증·트러블슈팅용). ai-parse 시점엔 콘티 레코드가 아직 없을 수 있어
+    # 검수 확정 단계에서 이 PATCH로 함께 저장한다. DB 컬럼이 jsonb라 원본 문자열/파싱된 객체 모두 허용한다.
+    ai_raw_result: dict | str | None = None
+
+
+class AiParsedSong(BaseModel):
+    """AI가 콘티 이미지에서 추출한 곡 1건 + 곡 마스터 매칭 결과."""
+
+    title: str
+    artist: str | None = None
+    song_key: str | None = None
+    song_form: str | None = None
+    note: str | None = None
+    # 정규화 제목 완전 일치로 찾은 기존 곡 id (ERD 3-1). 없으면 null.
+    matched_song_id: int | None = None
+    # matched = 기존 곡 후보를 찾음 / new = 신규 곡으로 제안. 최종 확정은 검수 화면에서 사람이 한다.
+    match_status: Literal["matched", "new"] = "new"
+
+
+class AiParseResult(BaseModel):
+    """POST /contis/ai-parse 응답 (API명세 1-4). DB에 저장하지 않고 검수 화면에 그대로 전달한다."""
+
+    service_date_guess: date | None = None
+    title_guess: str | None = None
+    songs: list[AiParsedSong] = []
+    # 모델이 돌려준 원본 JSON 문자열. 검수 확정 시 PATCH로 contis.ai_raw_result에 저장한다.
+    raw_model_output: str

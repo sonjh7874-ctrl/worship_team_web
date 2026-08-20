@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 
 from app.dependencies import verify_edit_password
 from app.schemas.conti import (
+    AiParseResult,
     ContiCreate,
     ContiDetail,
     ContiListItem,
@@ -9,7 +10,7 @@ from app.schemas.conti import (
     ContiUpdate,
     SheetFileItem,
 )
-from app.services import conti_service
+from app.services import ai_parse_service, conti_service
 
 router = APIRouter(prefix="/api/v1/contis", tags=["contis"])
 
@@ -22,6 +23,18 @@ def list_contis():
 @router.get("/latest", response_model=ContiDetail)
 def get_latest_conti():
     return conti_service.get_latest_conti()
+
+
+# 주의: 경로 변수 라우트(`/{conti_id}`)보다 반드시 위에 선언해야 한다.
+# 아래에 두면 "ai-parse"가 conti_id 값으로 잡혀 422가 난다(`/latest`와 동일한 이유).
+@router.post(
+    "/ai-parse",
+    response_model=AiParseResult,
+    dependencies=[Depends(verify_edit_password)],
+)
+async def ai_parse_conti(image: UploadFile = File(...)):
+    """콘티 이미지를 AI로 구조화한다. 결과는 DB에 저장하지 않고 검수 화면으로 그대로 반환한다."""
+    return await ai_parse_service.parse_conti_image(image)
 
 
 @router.get("/{conti_id}", response_model=ContiDetail)

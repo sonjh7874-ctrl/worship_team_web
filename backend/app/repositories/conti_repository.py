@@ -15,7 +15,7 @@ DETAIL_SELECT = (
 
 def find_all() -> list[dict]:
     # 공개 목록/최신 조회는 검수·확정된(published) 콘티만 노출한다. draft는 아직 확정 전이라
-    # (직접 입력한 초안이든, 향후 Phase 5의 AI 추출 결과든) 팀 전체에 보이면 안 된다.
+    # (직접 입력한 초안이든, Phase 6의 AI 추출 결과든) 팀 전체에 보이면 안 된다.
     # 상세 조회(find_by_id)는 필터하지 않아 작성자가 편집 화면에서 자기 초안을 계속 볼 수 있다.
     res = (
         get_supabase()
@@ -53,13 +53,13 @@ def find_by_id(conti_id: int) -> dict | None:
     return res.data if res else None
 
 
-def create(service_date: date, title: str) -> dict:
-    # DB 컬럼 기본값은 'draft'지만, 지금은 리더십이 직접 입력하는 것 자체가 이미 검수를 거친
-    # 콘텐츠라 즉시 published로 만든다. draft는 Phase 5(AI 추출 결과 검수)에서만 실제로 쓰인다.
+def create(service_date: date, title: str, status: str = "published") -> dict:
+    # 기본값이 published인 이유는 수동 생성이 이미 사람이 검수한 입력이기 때문(API명세 1-1).
+    # AI 인식 흐름(Phase 6)만 draft로 만들어 검수 전까지 목록/최신 조회에서 숨긴다.
     res = (
         get_supabase()
         .table(TABLE)
-        .insert({"service_date": service_date.isoformat(), "title": title, "status": "published"})
+        .insert({"service_date": service_date.isoformat(), "title": title, "status": status})
         .execute()
     )
     return res.data[0]
