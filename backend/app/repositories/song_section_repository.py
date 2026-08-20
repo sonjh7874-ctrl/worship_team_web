@@ -34,24 +34,6 @@ def find_by_song_ids(song_ids: list[int]) -> dict[int, list[dict]]:
     return grouped
 
 
-def count_by_song_ids(song_ids: list[int]) -> dict[int, int]:
-    """곡 관리 화면(/songs)의 "가사 등록됨/미등록" 배지용. 곡별 등록된 구간 수만 필요하다."""
-    if not song_ids:
-        return {}
-    rows = (
-        get_supabase()
-        .table(TABLE)
-        .select("song_id")
-        .in_("song_id", song_ids)
-        .execute()
-        .data
-    )
-    counts: dict[int, int] = {}
-    for row in rows:
-        counts[row["song_id"]] = counts.get(row["song_id"], 0) + 1
-    return counts
-
-
 def replace_sections(song_id: int, rows: list[dict]) -> None:
     # PUT은 전체 교체 방식 — conti_songs/schedule_assignments와 동일한 delete-then-insert 패턴.
     supabase = get_supabase()

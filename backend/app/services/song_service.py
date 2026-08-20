@@ -8,8 +8,15 @@ def list_songs(q: str | None) -> list[SongItem]:
     # Supabase가 중첩 집계를 [{"count": n}] 형태로 내려주므로 응답 스키마의 usage_count로 펴서 담는다.
     items = []
     for row in song_repository.find_all(q):
-        nested = row.pop("conti_songs", None) or [{}]
-        items.append(SongItem(**row, usage_count=nested[0].get("count", 0)))
+        usage_nested = row.pop("conti_songs", None) or [{}]
+        sections_nested = row.pop("song_sections", None) or [{}]
+        items.append(
+            SongItem(
+                **row,
+                usage_count=usage_nested[0].get("count", 0),
+                section_count=sections_nested[0].get("count", 0),
+            )
+        )
     return items
 
 

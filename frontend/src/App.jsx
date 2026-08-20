@@ -17,6 +17,7 @@ import Profile from "./pages/Profile";
 import ScheduleEdit from "./pages/ScheduleEdit";
 import Signup from "./pages/Signup";
 import SongMain from "./pages/SongMain";
+import SongSections from "./pages/SongSections";
 import ScheduleMain from "./pages/ScheduleMain";
 import RequireRole from "./components/RequireRole";
 import { useAuth } from "./contexts/AuthContext";
@@ -87,6 +88,14 @@ function App() {
           }
         />
         <Route path="/songs" element={<SongMain />} />
+        <Route
+          path="/songs/:songId/sections"
+          element={
+            <RequireRole minRole="leader">
+              <SongSections />
+            </RequireRole>
+          }
+        />
         <Route path="/members" element={<MemberMain />} />
         <Route path="/notices" element={<NoticeMain />} />
         <Route

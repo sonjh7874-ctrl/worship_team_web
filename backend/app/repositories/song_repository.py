@@ -7,7 +7,7 @@ def find_all(q: str | None = None) -> list[dict]:
     # conti_songs(count)로 이 곡이 몇 개 콘티에 배치돼 있는지 함께 가져온다 —
     # 곡 관리 화면에서 "사용 중이라 지울 수 없음"을 미리 보여주기 위함(조회 1회로 해결).
     query = get_supabase().table(TABLE).select(
-        "id, title, artist, default_key, conti_songs(count)"
+        "id, title, artist, default_key, conti_songs(count), song_sections(count)"
     )
     # q가 있으면 제목 부분 일치 검색(대소문자 무시)으로 좁힌다. 콘티 편집 화면의 곡 검색용.
     if q:

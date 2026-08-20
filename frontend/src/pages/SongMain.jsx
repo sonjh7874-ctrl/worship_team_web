@@ -136,6 +136,14 @@ function SongMain() {
                   {song.title}
                   {song.artist ? ` _ ${song.artist}` : ""}
                   {song.default_key ? ` (${song.default_key})` : ""}{" "}
+                  {song.section_count > 0 ? (
+                    <span style={{ fontSize: 12, color: "#2a7" }}>가사 등록됨</span>
+                  ) : (
+                    <span style={{ fontSize: 12, color: "#999" }}>가사 미등록</span>
+                  )}{" "}
+                  {canEdit && (
+                    <Link to={`/songs/${song.id}/sections`}>가사 구간 관리</Link>
+                  )}{" "}
                   {canEdit && (
                     <>
                       <button type="button" onClick={() => startEdit(song)}>
