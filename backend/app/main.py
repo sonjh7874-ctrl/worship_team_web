@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from postgrest.exceptions import APIError
 
-from app.routers import calendar, contis, files, members, notices, schedules, songs
+from app.routers import auth, calendar, contis, files, members, notices, schedules, songs
 
 app = FastAPI(title="청년부 주일찬양팀 웹 API")
 
@@ -30,6 +30,7 @@ def handle_postgrest_api_error(request: Request, exc: APIError):
         content={"detail": exc.message, "error_code": "DB_ERROR"},
     )
 
+app.include_router(auth.router)
 app.include_router(contis.router)
 app.include_router(notices.router)
 app.include_router(schedules.router)
