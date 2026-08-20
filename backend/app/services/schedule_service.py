@@ -2,7 +2,7 @@ from datetime import date
 
 from fastapi import HTTPException
 
-from app.repositories import schedule_repository
+from app.repositories import calendar_repository, schedule_repository
 from app.schemas.schedule import (
     AssignedPerson,
     InstrumentAssignment,
@@ -73,6 +73,28 @@ def _pivot_assignments(rows: list[dict]) -> tuple[InstrumentAssignment, SingerAs
     return instrument, singer
 
 
+def _sync_special_calendar_event(week_row: dict) -> None:
+    # schedule_weeks.special_title이 원본(source of truth)이다 (ERD 3-4). 저장할 때마다
+    # 최종 상태를 기준으로 캘린더 이벤트를 만들거나/갱신하거나/지운다 — 어떤 필드가 바뀌었는지
+    # 따지지 않고 항상 이 함수 하나로 수렴시켜야 두 곳 값이 어긋나는 문제가 재발하지 않는다.
+    special_title = week_row.get("special_title")
+    if not special_title:
+        calendar_repository.delete_special_event(week_row["id"])
+        return
+
+    # 특순 날짜가 따로 없으면 예배 날짜를 대신 쓴다. 둘 다 없으면 캘린더 이벤트의
+    # start_date(NOT NULL)를 채울 수 없어 동기화를 건너뛴다.
+    special_date = week_row.get("special_date") or week_row.get("service_date")
+    if special_date is None:
+        return
+    if isinstance(special_date, str):
+        special_date = date.fromisoformat(special_date)
+
+    calendar_repository.upsert_special_event(
+        week_row["id"], special_title, special_date, week_row.get("special_memo")
+    )
+
+
 def _to_week_item(row: dict) -> ScheduleWeekItem:
     # special_title이 있는 행만 특순 정보를 중첩 객체로 묶어 내려준다 (없으면 null, README 빈 값 숨김 원칙).
     special = None
@@ -132,6 +154,7 @@ def create_week(schedule_id: int, payload: ScheduleWeekCreate) -> ScheduleWeekIt
         fields["special_date"] = fields["special_date"].isoformat()
 
     row = schedule_repository.create_week(schedule_id, fields)
+    _sync_special_calendar_event(row)
     return _to_week_item(row)
 
 
@@ -146,6 +169,7 @@ def update_week(week_id: int, payload: ScheduleWeekUpdate) -> ScheduleWeekItem:
     row = schedule_repository.update_week(week_id, fields) if fields else schedule_repository.find_week_by_id(week_id)
     if row is None:
         raise HTTPException(status_code=404, detail="주차를 찾을 수 없습니다.")
+    _sync_special_calendar_event(row)
     return _to_week_item(row)
 
 
