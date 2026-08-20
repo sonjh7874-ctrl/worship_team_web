@@ -28,6 +28,9 @@ class UserProfile(BaseModel):
     display_name: str
     role: Role
     member_id: int | None = None
+    # true면 관리자가 비밀번호를 초기화한 직후 상태 — 프론트가 로그인 즉시
+    # 비밀번호 변경 화면으로 강제 이동시킨다.
+    force_password_change: bool = False
 
 
 class TokenResponse(BaseModel):
@@ -39,3 +42,14 @@ class TokenResponse(BaseModel):
 
 class RoleUpdate(BaseModel):
     role: Role
+
+
+class PasswordResetResponse(BaseModel):
+    # 서버가 생성한 임시 비밀번호. 응답에만 담기고 어디에도 저장하지 않으므로
+    # 관리자가 이 시점에 화면에서 확인해 본인에게 직접 안내해야 한다.
+    temp_password: str
+
+
+class ChangePasswordRequest(BaseModel):
+    new_password: str
+

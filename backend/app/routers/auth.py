@@ -2,7 +2,9 @@ from fastapi import APIRouter, Depends
 
 from app.dependencies import require_role
 from app.schemas.auth import (
+    ChangePasswordRequest,
     LoginRequest,
+    PasswordResetResponse,
     RefreshRequest,
     RoleUpdate,
     SignupRequest,
@@ -46,3 +48,21 @@ def update_role(
     current_user: UserProfile = Depends(require_role("admin")),
 ):
     return auth_service.update_role(current_user.id, user_id, payload.role)
+
+
+@router.post(
+    "/users/{user_id}/password",
+    response_model=PasswordResetResponse,
+    dependencies=[Depends(require_role("admin"))],
+)
+def reset_password(user_id: str):
+    temp_password = auth_service.reset_password(user_id)
+    return PasswordResetResponse(temp_password=temp_password)
+
+
+@router.post("/me/password", response_model=UserProfile)
+def change_my_password(
+    payload: ChangePasswordRequest,
+    current_user: UserProfile = Depends(require_role("member")),
+):
+    return auth_service.change_own_password(current_user.id, payload.new_password)

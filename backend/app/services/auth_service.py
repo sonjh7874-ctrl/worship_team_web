@@ -1,3 +1,5 @@
+import secrets
+
 from fastapi import HTTPException
 from supabase_auth.errors import AuthApiError
 
@@ -68,29 +70,14 @@ def get_current_user(access_token: str) -> UserProfile:
     if profile_row is None:
         raise HTTPException(status_code=404, detail="사용자 프로필을 찾을 수 없습니다.")
 
-    return UserProfile(
-        id=user_res.user.id,
-        email=user_res.user.email,
-        display_name=profile_row["display_name"],
-        role=profile_row["role"],
-        member_id=profile_row["member_id"],
-    )
+    return _to_profile(user_res.user.id, user_res.user.email, profile_row)
 
 
 def list_users() -> list[UserProfile]:
     # 목록 화면(/admin/users)용 — 이메일은 auth.users에만 있어 admin API로 채운다.
     rows = user_profile_repository.find_all()
     emails = _fetch_emails({row["id"] for row in rows})
-    return [
-        UserProfile(
-            id=row["id"],
-            email=emails.get(row["id"]),
-            display_name=row["display_name"],
-            role=row["role"],
-            member_id=row["member_id"],
-        )
-        for row in rows
-    ]
+    return [_to_profile(row["id"], emails.get(row["id"]), row) for row in rows]
 
 
 def update_role(actor_id: str, target_user_id: str, role: str) -> UserProfile:
@@ -104,12 +91,50 @@ def update_role(actor_id: str, target_user_id: str, role: str) -> UserProfile:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
 
     emails = _fetch_emails({target_user_id})
+    return _to_profile(target_user_id, emails.get(target_user_id), row)
+
+
+def reset_password(target_user_id: str) -> str:
+    # 관리자가 값을 직접 정하지 않도록 서버가 무작위 임시 비밀번호를 생성한다 —
+    # 관리자가 그 값을 알게 되는 건 어차피 피할 수 없지만(재설정 행위 자체가 그렇다),
+    # 고정값이 아니라 매번 새로 생성해 추측 가능성을 없앤다. 응답에만 담기고
+    # 서버 어디에도 저장하지 않으므로, 관리자가 이 시점에 화면에서 확인해 본인에게 안내해야 한다.
+    # force_password_change를 함께 켜서, 이 임시 비밀번호로는 로그인 직후
+    # 강제로 자기 비밀번호로 바꾸게 한다 — 그 순간부터는 관리자도 새 비밀번호를 모른다.
+    temp_password = secrets.token_urlsafe(9)
+    try:
+        get_supabase().auth.admin.update_user_by_id(target_user_id, {"password": temp_password})
+    except AuthApiError as e:
+        raise HTTPException(status_code=400, detail=e.message) from e
+
+    row = user_profile_repository.set_force_password_change(target_user_id, True)
+    if row is None:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    return temp_password
+
+
+def change_own_password(user_id: str, new_password: str) -> UserProfile:
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="비밀번호는 6자 이상이어야 합니다.")
+    try:
+        res = get_supabase().auth.admin.update_user_by_id(user_id, {"password": new_password})
+    except AuthApiError as e:
+        raise HTTPException(status_code=400, detail=e.message) from e
+
+    row = user_profile_repository.set_force_password_change(user_id, False)
+    if row is None:
+        raise HTTPException(status_code=404, detail="사용자 프로필을 찾을 수 없습니다.")
+    return _to_profile(user_id, res.user.email if res.user else None, row)
+
+
+def _to_profile(user_id: str, email: str | None, row: dict) -> UserProfile:
     return UserProfile(
-        id=row["id"],
-        email=emails.get(row["id"]),
+        id=user_id,
+        email=email,
         display_name=row["display_name"],
         role=row["role"],
         member_id=row["member_id"],
+        force_password_change=row.get("force_password_change", False),
     )
 
 
@@ -119,13 +144,7 @@ def _to_token_response(auth_res, profile_row: dict) -> TokenResponse:
         access_token=session.access_token,
         refresh_token=session.refresh_token,
         expires_at=session.expires_at,
-        user=UserProfile(
-            id=auth_res.user.id,
-            email=auth_res.user.email,
-            display_name=profile_row["display_name"],
-            role=profile_row["role"],
-            member_id=profile_row["member_id"],
-        ),
+        user=_to_profile(auth_res.user.id, auth_res.user.email, profile_row),
     )
 
 

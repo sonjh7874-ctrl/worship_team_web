@@ -334,8 +334,12 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | GET | `/auth/me` | 내 프로필(이메일·이름·role) 조회 | 필요(로그인만 하면 됨) |
 | GET | `/auth/users` | 전체 사용자 목록 (`/admin/users` 화면용) | 필요(admin) |
 | PATCH | `/auth/users/{user_id}/role` | 역할 변경. `leader`↔`member`만 가능(admin 부여는 API로 불가) | 필요(admin) |
+| POST | `/auth/users/{user_id}/password` | 비밀번호 초기화. 서버가 무작위 임시 비밀번호를 생성해 `{ "temp_password": "..." }`로 1회 반환하고, 해당 사용자의 `force_password_change`를 `true`로 켠다 | 필요(admin) |
+| POST | `/auth/me/password` | 내 비밀번호 변경(6자 이상). 성공 시 `force_password_change`가 `false`로 풀린다 | 필요(로그인만 하면 됨) |
 
 > `role`은 `member`(기본) / `leader`(콘티·공지·스케줄·캘린더·인명부·곡 마스터 편집 가능) / `admin`(역할 관리까지 가능) 3단계다. 최초 admin 계정은 Supabase SQL로 직접 승격한다(앱에는 admin 발급 경로가 없다).
+>
+> **비밀번호 재설정은 이메일을 보내지 않는다.** 22명 규모의 폐쇄형 팀이라 "리더에게 요청 → 리더가 초기화 → 본인에게 직접 안내"가 실제 운영 흐름과 맞고, Supabase 무료 티어의 발송 한도·스팸함 문제(회원가입 이메일 인증과 동일한 이슈)를 피할 수 있다. 임시 비밀번호는 관리자가 확인하는 그 순간에만 응답으로 노출되고 서버 어디에도 저장되지 않으며, `force_password_change`가 켜져 있으면 로그인 직후 프론트가 `/change-password` 화면으로 강제 이동시켜 본인이 즉시 새 비밀번호로 바꾸게 한다.
 
 ---
 
@@ -349,8 +353,8 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | 공지사항/스케줄 | 12 | 공지 5 + 스케줄 7 |
 | 캘린더 | 5 | |
 | 인명부 | 4 | |
-| 인증/사용자 | 6 | Phase 7 신설 |
-| **합계** | **42** | |
+| 인증/사용자 | 8 | Phase 7 신설(비밀번호 초기화·변경 2개 추가) |
+| **합계** | **44** | |
 
 ---
 

@@ -1,13 +1,14 @@
 from app.supabase_client import get_supabase
 
 TABLE = "user_profiles"
+COLUMNS = "id, role, display_name, member_id, force_password_change"
 
 
 def find_by_id(user_id: str) -> dict | None:
     res = (
         get_supabase()
         .table(TABLE)
-        .select("id, role, display_name, member_id")
+        .select(COLUMNS)
         .eq("id", user_id)
         .maybe_single()
         .execute()
@@ -32,7 +33,7 @@ def find_all() -> list[dict]:
     res = (
         get_supabase()
         .table(TABLE)
-        .select("id, role, display_name, member_id")
+        .select(COLUMNS)
         .order("display_name")
         .execute()
     )
@@ -44,6 +45,17 @@ def update_role(user_id: str, role: str) -> dict | None:
         get_supabase()
         .table(TABLE)
         .update({"role": role})
+        .eq("id", user_id)
+        .execute()
+    )
+    return res.data[0] if res.data else None
+
+
+def set_force_password_change(user_id: str, value: bool) -> dict | None:
+    res = (
+        get_supabase()
+        .table(TABLE)
+        .update({"force_password_change": value})
         .eq("id", user_id)
         .execute()
     )

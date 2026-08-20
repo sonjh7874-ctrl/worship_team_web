@@ -246,12 +246,14 @@ create index idx_participants_event on event_participants (event_id);
 -- ============================================================
 
 create table user_profiles (
-  id            uuid primary key references auth.users (id) on delete cascade,
-  role          text not null default 'member' check (role in ('admin', 'leader', 'member')),
-  display_name  text not null,
-  member_id     bigint references members (id) on delete set null,
-  created_at    timestamptz not null default now(),
-  updated_at    timestamptz not null default now()
+  id                     uuid primary key references auth.users (id) on delete cascade,
+  role                   text not null default 'member' check (role in ('admin', 'leader', 'member')),
+  display_name           text not null,
+  member_id              bigint references members (id) on delete set null,
+  -- true면 관리자가 비밀번호를 초기화한 직후 상태 — 로그인 시 강제로 비밀번호 변경 화면으로 이동시킨다.
+  force_password_change  boolean not null default false,
+  created_at             timestamptz not null default now(),
+  updated_at             timestamptz not null default now()
 );
 
 create trigger trg_user_profiles_updated before update on user_profiles

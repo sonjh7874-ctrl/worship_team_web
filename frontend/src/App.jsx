@@ -1,8 +1,9 @@
-import { Link, Route, Routes } from "react-router-dom";
+import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AdminUsers from "./pages/AdminUsers";
 import CalendarDetail from "./pages/CalendarDetail";
 import CalendarEdit from "./pages/CalendarEdit";
 import CalendarMain from "./pages/CalendarMain";
+import ChangePassword from "./pages/ChangePassword";
 import ContiDetail from "./pages/ContiDetail";
 import ContiEdit from "./pages/ContiEdit";
 import ContiMain from "./pages/ContiMain";
@@ -30,6 +31,7 @@ function Header() {
             {user.display_name} ({role})
           </span>
           {role === "admin" && <Link to="/admin/users">사용자 관리</Link>}
+          <Link to="/change-password">비밀번호 변경</Link>
           <button type="button" onClick={logout}>
             로그아웃
           </button>
@@ -41,14 +43,29 @@ function Header() {
   );
 }
 
+// 관리자가 비밀번호를 초기화한 계정은 로그인 직후 이 화면 이외의 다른 경로로 못 가게 막는다.
+// force_password_change가 꺼지기 전까지는 어떤 링크를 눌러도 /change-password로 되돌려보낸다.
+function ForcePasswordChangeGuard({ children }) {
+  const { mustChangePassword, loading } = useAuth();
+  const location = useLocation();
+
+  if (loading) return children;
+  if (mustChangePassword && location.pathname !== "/change-password") {
+    return <Navigate to="/change-password" replace />;
+  }
+  return children;
+}
+
 function App() {
   return (
     <>
       <Header />
+      <ForcePasswordChangeGuard>
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/change-password" element={<ChangePassword />} />
         <Route path="/conti" element={<ContiMain />} />
         <Route
           path="/conti/new"
@@ -123,6 +140,7 @@ function App() {
           }
         />
       </Routes>
+      </ForcePasswordChangeGuard>
     </>
   );
 }

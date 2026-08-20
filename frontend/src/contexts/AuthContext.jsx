@@ -60,12 +60,25 @@ export function AuthProvider({ children }) {
     setUser(null);
   }
 
+  // 비밀번호 변경(force_password_change 해제) 등 프로필이 바뀐 뒤 세션에 반영한다.
+  // 토큰은 그대로 두고 user 부분만 갈아끼운다.
+  function updateUser(profile) {
+    const session = getSession();
+    if (session) {
+      setSession({ ...session, user: profile });
+    }
+    setUser(profile);
+  }
+
   const role = user?.role ?? null;
   const canEdit = role != null && ROLE_RANK[role] >= ROLE_RANK.leader;
   const isAdmin = role === "admin";
+  const mustChangePassword = Boolean(user?.force_password_change);
 
   return (
-    <AuthContext.Provider value={{ user, role, loading, canEdit, isAdmin, login, signup, logout }}>
+    <AuthContext.Provider
+      value={{ user, role, loading, canEdit, isAdmin, mustChangePassword, login, signup, logout, updateUser }}
+    >
       {children}
     </AuthContext.Provider>
   );

@@ -1,17 +1,20 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchUsers, updateUserRole } from "../api/auth";
+import { fetchUsers, resetUserPassword, updateUserRole } from "../api/auth";
 
 const ROLE_LABELS = { admin: "관리자", leader: "리더십", member: "팀원" };
 
-// admin 전용 — leader 권한을 부여·회수한다. admin 승격은 앱에서 하지 않고
-// Supabase SQL로만 하도록 SDD가 정했으므로(관리자 증식 경로를 앱에 두지 않기 위함),
+// admin 전용 — leader 권한을 부여·회수하고, 비밀번호를 초기화한다. admin 승격은 앱에서
+// 하지 않고 Supabase SQL로만 하도록 SDD가 정했으므로(관리자 증식 경로를 앱에 두지 않기 위함),
 // 여기서는 leader ↔ member 토글만 제공한다.
 function AdminUsers() {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [message, setMessage] = useState(null);
+  // 방금 발급한 임시 비밀번호 — 응답에만 담기고 어디에도 저장되지 않으므로 화면에서
+  // 이 순간에만 보여주고 안내를 유도한다.
+  const [tempPassword, setTempPassword] = useState(null);
 
   function load() {
     setLoading(true);
@@ -38,6 +41,26 @@ function AdminUsers() {
     }
   }
 
+  async function handleResetPassword(user) {
+    if (!window.confirm(`"${user.display_name}"님의 비밀번호를 초기화할까요? 기존 비밀번호는 즉시 무효화됩니다.`)) {
+      return;
+    }
+    setError(null);
+    setMessage(null);
+    setTempPassword(null);
+    try {
+      const { temp_password } = await resetUserPassword(user.id);
+      setTempPassword({ user, value: temp_password });
+      // 다음 로그인부터 비밀번호 변경이 강제되므로, 관리자가 임시 비밀번호를 지금 이 순간에만
+      // 직접 안내할 수 있다 — 이 값은 서버에도 저장되지 않아 다시 조회할 방법이 없다.
+      setUsers((prev) =>
+        prev.map((u) => (u.id === user.id ? { ...u, force_password_change: true } : u))
+      );
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   if (loading) return <p>불러오는 중...</p>;
 
   return (
@@ -46,22 +69,41 @@ function AdminUsers() {
       <h1>사용자 관리</h1>
       <p style={{ fontSize: 13 }}>
         리더십(leader) 권한을 부여·회수합니다. 관리자(admin) 권한은 여기서 바꿀 수 없습니다.
+        비밀번호를 잊어버린 팀원은 여기서 초기화한 뒤 안내해주세요 — 이메일은 보내지 않으며,
+        초기화된 사람은 다음 로그인 시 새 비밀번호로 바꾸라는 화면을 먼저 보게 됩니다.
       </p>
 
       {error && <p style={{ color: "red" }}>{error}</p>}
       {message && <p style={{ color: "green" }}>{message}</p>}
 
+      {tempPassword && (
+        <div style={{ border: "1px solid #a06000", padding: "0.6rem", margin: "0.6rem 0" }}>
+          <strong>{tempPassword.user.display_name}</strong>님의 임시 비밀번호:{" "}
+          <code style={{ fontSize: 16 }}>{tempPassword.value}</code>
+          <p style={{ fontSize: 12, color: "#a06000", margin: "0.3rem 0 0" }}>
+            이 값은 지금 한 번만 표시됩니다. 본인에게 직접(카톡 등) 안내해주세요. 로그인하면 즉시 새
+            비밀번호로 바꾸라는 화면이 뜹니다.
+          </p>
+        </div>
+      )}
+
       <ul>
         {users.map((user) => (
-          <li key={user.id}>
-            {user.display_name} ({user.email}) — {ROLE_LABELS[user.role]}{" "}
+          <li key={user.id} style={{ marginBottom: "0.5rem" }}>
+            {user.display_name} ({user.email}) — {ROLE_LABELS[user.role]}
+            {user.force_password_change && (
+              <span style={{ fontSize: 12, color: "#a06000" }}> · 비밀번호 변경 대기중</span>
+            )}{" "}
             {user.role === "admin" ? (
               <span style={{ fontSize: 12, color: "#555" }}>관리자는 SQL로만 변경 가능</span>
             ) : (
               <button type="button" onClick={() => handleToggle(user)}>
                 {user.role === "leader" ? "팀원으로 전환" : "리더십으로 전환"}
               </button>
-            )}
+            )}{" "}
+            <button type="button" onClick={() => handleResetPassword(user)}>
+              비밀번호 초기화
+            </button>
           </li>
         ))}
       </ul>

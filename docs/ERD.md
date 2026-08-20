@@ -169,6 +169,7 @@ erDiagram
         text role "admin | leader | member"
         text display_name
         bigint member_id FK "nullable"
+        boolean force_password_change "관리자 초기화 직후 true"
         timestamptz created_at
         timestamptz updated_at
     }
@@ -231,6 +232,7 @@ Phase 7에서 로그인 도입으로 `EDIT_PASSWORD` 자체는 코드에서 제�
 - `id`는 `auth.users.id`(uuid)를 그대로 PK로 쓴다 — 계정과 프로필이 1:1이라 별도 FK+unique 조합 대신 PK 공유가 더 단순하다. `on delete cascade`라 계정이 지워지면 프로필도 함께 지워진다.
 - `member_id`는 인명부(`members`)를 가리키는 **nullable FK**다. 계정(로그인 주체)과 인명부(배정 드롭다운용 마스터 데이터)는 성격이 달라 테이블을 합치지 않았다 — 인명부에는 계정 없는 과거 팀원 행이 이미 있고, 탈퇴자·동명이인 구분(`01우진` 등) 데이터도 계정과 무관하게 남아 있어야 한다.
 - `role`은 `admin`/`leader`/`member` 3단계, 기본값 `member`. 승격 경로는 API명세 4-1절 참고 — `admin` 부여는 API에 없고 SQL로만 한다(관리자 증식 경로를 앱에 두지 않기 위함).
+- `force_password_change`는 관리자가 팀원 비밀번호를 초기화(`POST /auth/users/{id}/password`)하면 `true`가 된다. 관리자는 무작위로 생성된 임시 비밀번호만 한 번 확인해 전달하고, 그 값 자체는 어디에도 저장하지 않는다. 로그인 응답(`UserProfile.force_password_change`)을 본 프론트가 비밀번호 변경 화면으로 강제 이동시키고, 사용자가 직접 새 비밀번호로 바꾸면(`POST /auth/me/password`) 다시 `false`로 돌아간다 — 그 순간부터는 관리자도 새 비밀번호를 모른다.
 - RLS는 다른 12개 테이블과 동일하게 **활성화 + 정책 없음**(서버가 `service_role`로만 접근).
 
 ---
