@@ -11,6 +11,7 @@ import {
   uploadSheetFile,
 } from "../api/contis";
 import { fetchSongs } from "../api/songs";
+import SongPicker from "../components/SongPicker";
 
 const FILE_TYPE_LABELS = { score_pdf: "악보 PDF", conti_image: "콘티 원본 이미지" };
 
@@ -62,8 +63,8 @@ function ContiEdit() {
   const [message, setMessage] = useState(null);
   const [error, setError] = useState(null);
 
-  // 곡 마스터 목록은 검수 화면의 "기존 곡 선택" 드롭다운에 쓴다. 실패해도 화면 자체는 동작해야 하므로
-  // (드롭다운만 비게 됨) 에러를 화면에 띄우지 않는다.
+  // 곡 마스터 목록은 검수 화면의 곡 검색에 쓴다. 실패해도 화면 자체는 동작해야 하므로
+  // (검색 결과만 비게 됨) 에러를 화면에 띄우지 않는다.
   useEffect(() => {
     if (isNew) return;
     fetchSongs()
@@ -125,8 +126,7 @@ function ContiEdit() {
 
   // 검수 화면에서 "기존 곡 선택 / 새로 등록"을 사람이 확정하는 지점(ERD 3-1).
   // 기존 곡을 고르면 제목·아티스트를 곡 마스터 값으로 덮어써 표시하고 입력을 잠근다.
-  function selectSong(index, value) {
-    const song = songOptions.find((s) => String(s.id) === value);
+  function selectSong(index, song) {
     setRows((prev) =>
       prev.map((row, i) => {
         if (i !== index) return row;
@@ -476,21 +476,12 @@ function ContiEdit() {
               <fieldset key={index}>
                 <legend>{index + 1}번 곡</legend>
                 <div>
-                  <label>
-                    곡 선택{" "}
-                    <select
-                      value={row.song_id ?? ""}
-                      onChange={(e) => selectSong(index, e.target.value)}
-                    >
-                      <option value="">새로 등록</option>
-                      {songOptions.map((song) => (
-                        <option key={song.id} value={song.id}>
-                          {song.title}
-                          {song.artist ? ` _ ${song.artist}` : ""}
-                        </option>
-                      ))}
-                    </select>
-                  </label>{" "}
+                  곡 선택{" "}
+                  <SongPicker
+                    songs={songOptions}
+                    value={row.song_id}
+                    onSelect={(song) => selectSong(index, song)}
+                  />{" "}
                   {row.match_status === "matched" && (
                     <span style={{ fontSize: 12, color: "green" }}>AI: 기존 곡과 일치</span>
                   )}
