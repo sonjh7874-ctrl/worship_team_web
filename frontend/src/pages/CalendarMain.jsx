@@ -113,7 +113,8 @@ function EventBar({ seg }) {
   const { event, startCol, endCol, lane, isStart, isEnd } = seg;
   const isAuto = event.source_type === "auto_from_schedule";
   const label = event.category === "기타" ? event.category_custom : event.category;
-  const background = CATEGORY_COLORS[event.category] || "#f3f4f6";
+  // 이벤트에 직접 지정한 프리셋 색이 있으면 그걸 우선하고, 없으면 카테고리 기본색을 쓴다.
+  const background = event.color || CATEGORY_COLORS[event.category] || "#f3f4f6";
 
   // 이 주에서 시작/끝이 실제 이벤트의 시작/끝과 일치할 때만 그쪽 모서리를 둥글게
   // 만들어, 다음 주로 계속 이어지는 막대는 각지게 표시해 "계속됨"을 암시한다.

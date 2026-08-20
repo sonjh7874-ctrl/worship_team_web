@@ -10,6 +10,56 @@ import { fetchMembers } from "../api/members";
 
 const CATEGORY_OPTIONS = ["수련회", "엠티", "특순", "기타"];
 
+// 백엔드 PRESET_COLORS(backend/app/schemas/calendar.py)와 순서·값을 맞춰 둔다.
+const PRESET_COLORS = [
+  "#fecaca",
+  "#fed7aa",
+  "#fef08a",
+  "#bbf7d0",
+  "#99f6e4",
+  "#bfdbfe",
+  "#ddd6fe",
+  "#fbcfe8",
+];
+
+function ColorSwatchPicker({ value, onChange }) {
+  return (
+    <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+      <button
+        type="button"
+        onClick={() => onChange(null)}
+        title="기본(카테고리 색)"
+        style={{
+          width: "1.5rem",
+          height: "1.5rem",
+          borderRadius: "999px",
+          border: value === null ? "2px solid #111" : "1px solid #ccc",
+          background: "#fff",
+          cursor: "pointer",
+        }}
+      >
+        ⨯
+      </button>
+      {PRESET_COLORS.map((c) => (
+        <button
+          key={c}
+          type="button"
+          onClick={() => onChange(c)}
+          title={c}
+          style={{
+            width: "1.5rem",
+            height: "1.5rem",
+            borderRadius: "999px",
+            border: value === c ? "2px solid #111" : "1px solid #ccc",
+            background: c,
+            cursor: "pointer",
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 function MultiMemberSelect({ values, onChange, members }) {
   function handleChange(e) {
     const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
@@ -42,6 +92,8 @@ function CalendarEdit() {
   const [endDate, setEndDate] = useState("");
   const [category, setCategory] = useState("수련회");
   const [categoryCustom, setCategoryCustom] = useState("");
+  // null이면 카테고리 기본색을 그대로 쓴다.
+  const [color, setColor] = useState(null);
   const [memo, setMemo] = useState("");
 
   const [members, setMembers] = useState([]);
@@ -82,6 +134,7 @@ function CalendarEdit() {
         setEndDate(event.end_date || "");
         setCategory(event.category);
         setCategoryCustom(event.category_custom || "");
+        setColor(event.color || null);
         setMemo(event.memo || "");
         setMemberIds(
           event.participants.filter((p) => p.member_id != null).map((p) => String(p.member_id))
@@ -119,6 +172,7 @@ function CalendarEdit() {
       end_date: endDate || null,
       category,
       category_custom: category === "기타" ? categoryCustom : null,
+      color,
       memo: memo || null,
       participants,
     };
@@ -232,6 +286,10 @@ function CalendarEdit() {
               required
             />
           )}
+        </div>
+        <div>
+          <label>막대 색상</label>{" "}
+          <ColorSwatchPicker value={color} onChange={setColor} />
         </div>
         <div>
           <label>

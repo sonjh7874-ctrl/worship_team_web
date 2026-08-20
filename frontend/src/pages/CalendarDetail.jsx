@@ -35,7 +35,22 @@ function CalendarDetail() {
       <Link to="/calendar">← 캘린더로</Link>{" "}
       {isAuto ? null : <Link to={`/calendar/${eventId}/edit`}>편집</Link>}
 
-      <h1>{event.title}</h1>
+      <h1>
+        {event.color && (
+          <span
+            style={{
+              display: "inline-block",
+              width: "0.9rem",
+              height: "0.9rem",
+              borderRadius: "999px",
+              background: event.color,
+              marginRight: "0.4rem",
+              verticalAlign: "middle",
+            }}
+          />
+        )}
+        {event.title}
+      </h1>
 
       <p>
         {event.start_date}
