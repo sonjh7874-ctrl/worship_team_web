@@ -10,10 +10,14 @@
 ### 0-1. Base URL / 인증
 
 - Base URL: `/api/v1`
-- **로그인 없음.** 조회(GET)는 전체 공개, 쓰기(POST/PATCH/DELETE)는 **편집 비밀번호**로 게이트한다.
-- 편집 비밀번호는 요청 헤더로 전달한다: `X-Edit-Password: <비밀번호>`
-- 서버는 `EDIT_PASSWORD` 환경변수와 비교해 검증한다. 틀리면 `401 Unauthorized`.
-- 이 헤더는 콘티/공지사항/스케줄/캘린더/인명부의 **쓰기 엔드포인트에만** 적용한다. 읽기 엔드포인트는 헤더가 없어도 동작한다.
+- **Supabase Auth 기반 로그인** (Phase 7, 2026-08-20). 조회(GET)는 로그인 여부와 무관하게 **전체 공개**이며, 쓰기(POST/PATCH/DELETE)는 **역할(role)** 로 게이트한다.
+- 인증은 요청 헤더로 전달한다: `Authorization: Bearer <access_token>`. 토큰은 `POST /auth/login`(또는 `/auth/signup`) 응답의 `access_token`이다.
+- 서버는 이 토큰을 Supabase Auth로 검증한 뒤, `user_profiles.role`을 조회해 등급을 비교한다(`app/dependencies.py`의 `require_role(min_role)`). 등급은 `member < leader < admin` — `require_role("leader")`는 leader 이상을, `require_role("admin")`은 admin만 통과시킨다.
+  - 헤더가 없거나 토큰이 무효/만료: `401 Unauthorized`
+  - 역할이 부족: `403 Forbidden`
+- 콘티/곡/파일/공지사항/스케줄/캘린더/인명부의 **쓰기 엔드포인트는 모두 `require_role("leader")`**. 사용자 역할 관리(`/auth/users`)만 `require_role("admin")`이다.
+- 액세스 토큰은 기본 1시간 만료다. 만료 시 `POST /auth/refresh`에 `refresh_token`을 보내 재발급받는다(프론트는 401 응답을 받으면 이 과정을 자동으로 1회 재시도한다).
+- **이전 방식이던 `X-Edit-Password` 단일 비밀번호 게이트(`EDIT_PASSWORD`)는 완전히 제거됐다.** 문제가 생기면 Phase 7의 교체 커밋을 git revert해 되돌아간다.
 
 ### 0-2. 공통 응답 형식
 
@@ -22,14 +26,15 @@
 ```json
 {
   "detail": "사람이 읽을 수 있는 에러 메시지",
-  "error_code": "EDIT_PASSWORD_INVALID"
+  "error_code": "DUPLICATE"
 }
 ```
 
 | 상태 코드 | 의미 |
 |---|---|
 | 400 | 요청 값 오류 (필수 필드 누락, 형식 오류) |
-| 401 | 편집 비밀번호 불일치 |
+| 401 | 인증 토큰 없음/무효/만료 |
+| 403 | 역할 등급 부족(leader/admin 권한 필요) |
 | 404 | 대상 리소스 없음 |
 | 409 | 유니크 제약 충돌 (예: 마이크 슬롯 중복 배정) |
 | 422 | FastAPI 기본 유효성 검사 오류 |
@@ -319,6 +324,21 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 
 ---
 
+## 4-1. 인증 / 사용자 (Phase 7)
+
+| Method | Path | 설명 | 인증 |
+|---|---|---|---|
+| POST | `/auth/signup` | 회원가입. 항상 `member` 역할로 생성된다 | 불필요 |
+| POST | `/auth/login` | 로그인 | 불필요 |
+| POST | `/auth/refresh` | 리프레시 토큰으로 액세스 토큰 재발급 | 불필요(refresh_token 자체가 자격) |
+| GET | `/auth/me` | 내 프로필(이메일·이름·role) 조회 | 필요(로그인만 하면 됨) |
+| GET | `/auth/users` | 전체 사용자 목록 (`/admin/users` 화면용) | 필요(admin) |
+| PATCH | `/auth/users/{user_id}/role` | 역할 변경. `leader`↔`member`만 가능(admin 부여는 API로 불가) | 필요(admin) |
+
+> `role`은 `member`(기본) / `leader`(콘티·공지·스케줄·캘린더·인명부·곡 마스터 편집 가능) / `admin`(역할 관리까지 가능) 3단계다. 최초 admin 계정은 Supabase SQL로 직접 승격한다(앱에는 admin 발급 경로가 없다).
+
+---
+
 ## 5. 엔드포인트 전체 요약
 
 > 2026-08-20 기준 실제 Swagger(`/docs`)와 대조해 갱신했다. 헬스체크(`GET /`)는 제외한 숫자다.
@@ -329,7 +349,8 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | 공지사항/스케줄 | 12 | 공지 5 + 스케줄 7 |
 | 캘린더 | 5 | |
 | 인명부 | 4 | |
-| **합계** | **36** | |
+| 인증/사용자 | 6 | Phase 7 신설 |
+| **합계** | **42** | |
 
 ---
 

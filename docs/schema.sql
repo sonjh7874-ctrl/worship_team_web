@@ -240,6 +240,27 @@ create index idx_participants_event on event_participants (event_id);
 
 
 -- ============================================================
+-- 4-1. user_profiles (Phase 7 — 로그인 계정별 역할)
+--      auth.users(Supabase Auth)에 딸린 프로필. 계정과 1:1이며,
+--      "배정 드롭다운용 마스터 데이터"인 members와는 성격이 달라 별도 테이블로 둔다.
+-- ============================================================
+
+create table user_profiles (
+  id            uuid primary key references auth.users (id) on delete cascade,
+  role          text not null default 'member' check (role in ('admin', 'leader', 'member')),
+  display_name  text not null,
+  member_id     bigint references members (id) on delete set null,
+  created_at    timestamptz not null default now(),
+  updated_at    timestamptz not null default now()
+);
+
+create trigger trg_user_profiles_updated before update on user_profiles
+  for each row execute function set_updated_at();
+
+comment on table user_profiles is '로그인 계정별 역할(admin/leader/member). 비밀번호는 저장하지 않음(auth.users가 보관)';
+
+
+-- ============================================================
 -- 5. 확장 범위 (MVP 제외) — 자막용 가사 정리
 --    필요해질 때 아래 주석을 해제해 실행
 -- ============================================================
@@ -298,6 +319,7 @@ alter table schedule_weeks      enable row level security;
 alter table schedule_assignments enable row level security;
 alter table calendar_events     enable row level security;
 alter table event_participants  enable row level security;
+alter table user_profiles       enable row level security;
 
 -- 정책을 만들지 않으므로 anon / authenticated 키로는 아무 것도 조회되지 않는다.
 -- service_role 키는 RLS를 우회하므로 FastAPI 서버만 정상 접근한다.

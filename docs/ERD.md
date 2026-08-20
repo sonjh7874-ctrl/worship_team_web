@@ -21,6 +21,7 @@
 | 10 | `schedule_assignments` | 주차별 포지션 배정 (세로형) | 기능 2 |
 | 11 | `calendar_events` | 캘린더 이벤트 | 기능 3 |
 | 12 | `event_participants` | 이벤트 참여 인원 | 기능 3 |
+| 13 | `user_profiles` | 로그인 계정별 역할(admin/leader/member) — Phase 7 | 공통 |
 | — | `song_sections` | 곡별 가사 구간(A/B/C) 매핑 — **확장 범위, MVP 제외** | 확장 |
 
 ---
@@ -44,6 +45,8 @@ erDiagram
     schedule_weeks ||--o| calendar_events : "특순을 단방향 동기화한다"
 
     calendar_events ||--o{ event_participants : "참여자를 갖는다"
+
+    members ||--o| user_profiles : "계정과 연결될 수 있다"
 
     members {
         bigint id PK
@@ -161,6 +164,15 @@ erDiagram
         text name_snapshot
     }
 
+    user_profiles {
+        uuid id PK "auth.users.id"
+        text role "admin | leader | member"
+        text display_name
+        bigint member_id FK "nullable"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
     song_sections {
         bigint id PK
         bigint song_id FK
@@ -208,9 +220,18 @@ erDiagram
 - `source_type='auto_from_schedule'`인 이벤트는 **캘린더 API에서 수정·삭제를 거부**한다(서버에서 차단). 프론트에서도 편집 버튼 대신 "공지사항에서 수정" 안내를 띄운다.
 - 이 제약이 없으면 두 곳의 값이 어긋나는, 이 프로젝트가 없애려는 문제가 그대로 재발한다.
 
-### 3-5. 비밀번호 게이트는 테이블로 두지 않는다
+### 3-5. 비밀번호 게이트는 테이블로 두지 않는다 (Phase 7 이후에도 유효)
 
-편집용 비밀번호는 **환경변수(`EDIT_PASSWORD`)** 로 관리하고, DB 테이블을 만들지 않는다. 값이 하나뿐이고 변경 빈도가 사실상 없으며, 테이블로 두면 "비밀번호 관리 화면"이라는 범위 밖 기능이 따라붙는다.
+원래 편집용 비밀번호는 **환경변수(`EDIT_PASSWORD`)** 로 관리하고 DB 테이블을 만들지 않았다. 값이 하나뿐이고 변경 빈도가 사실상 없으며, 테이블로 두면 "비밀번호 관리 화면"이라는 범위 밖 기능이 따라붙기 때문이었다.
+
+Phase 7에서 로그인 도입으로 `EDIT_PASSWORD` 자체는 코드에서 제거됐지만, 이 원칙은 무효화되지 않는다. `user_profiles` 테이블에 저장하는 것은 **비밀번호가 아니라 계정별 역할(role)**이다. 계정 비밀번호는 여전히 이 스키마 밖(Supabase Auth의 `auth.users`)에서 해시 보관되고, 우리 테이블에는 한 글자도 담기지 않는다.
+
+### 3-6. `user_profiles` — 로그인 계정과 역할 (Phase 7)
+
+- `id`는 `auth.users.id`(uuid)를 그대로 PK로 쓴다 — 계정과 프로필이 1:1이라 별도 FK+unique 조합 대신 PK 공유가 더 단순하다. `on delete cascade`라 계정이 지워지면 프로필도 함께 지워진다.
+- `member_id`는 인명부(`members`)를 가리키는 **nullable FK**다. 계정(로그인 주체)과 인명부(배정 드롭다운용 마스터 데이터)는 성격이 달라 테이블을 합치지 않았다 — 인명부에는 계정 없는 과거 팀원 행이 이미 있고, 탈퇴자·동명이인 구분(`01우진` 등) 데이터도 계정과 무관하게 남아 있어야 한다.
+- `role`은 `admin`/`leader`/`member` 3단계, 기본값 `member`. 승격 경로는 API명세 4-1절 참고 — `admin` 부여는 API에 없고 SQL로만 한다(관리자 증식 경로를 앱에 두지 않기 위함).
+- RLS는 다른 12개 테이블과 동일하게 **활성화 + 정책 없음**(서버가 `service_role`로만 접근).
 
 ---
 
@@ -262,11 +283,11 @@ erDiagram
 
 ### RLS 정책
 
-MVP는 로그인이 없고 **FastAPI 서버만 DB에 접근**한다(브라우저가 Supabase에 직접 접근하지 않음).
+Phase 7에서 로그인이 붙었지만, **브라우저는 여전히 Supabase에 직접 접근하지 않고 FastAPI 서버만 DB(데이터 테이블)에 접근**한다. 로그인 자체(회원가입·토큰 발급·검증)만 서버가 Supabase Auth API를 호출해 대행한다.
 
 - 모든 테이블 RLS **활성화 + 정책 없음** → `anon` 키로는 아무것도 못 읽음
-- 서버는 `service_role` 키를 사용해 RLS를 우회
-- 조회/편집 권한 판별은 **FastAPI 레이어**에서 처리 (편집은 비밀번호 게이트)
+- 서버는 일반 테이블 조회·쓰기에 `service_role` 키를 사용해 RLS를 우회하고, 로그인·토큰 검증에는 `anon` 키 클라이언트를 별도로 쓴다(RLS 우회가 필요 없는 작업이라 최소 권한 원칙)
+- 조회/편집 권한 판별은 **FastAPI 레이어**에서 처리 — 편집은 역할 기반 게이트(`require_role`, API명세 0-1절)
 
 ---
 
