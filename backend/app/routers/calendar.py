@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.dependencies import verify_edit_password
+from app.dependencies import require_role
 from app.schemas.calendar import (
     CalendarEventCreate,
     CalendarEventDetail,
@@ -26,7 +26,7 @@ def get_calendar_event(event_id: int):
     "",
     response_model=CalendarEventDetail,
     status_code=201,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def create_calendar_event(payload: CalendarEventCreate):
     return calendar_service.create_event(payload)
@@ -35,7 +35,7 @@ def create_calendar_event(payload: CalendarEventCreate):
 @router.patch(
     "/{event_id}",
     response_model=CalendarEventDetail,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def update_calendar_event(event_id: int, payload: CalendarEventUpdate):
     return calendar_service.update_event(event_id, payload)
@@ -44,7 +44,7 @@ def update_calendar_event(event_id: int, payload: CalendarEventUpdate):
 @router.delete(
     "/{event_id}",
     status_code=204,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def delete_calendar_event(event_id: int):
     calendar_service.delete_event(event_id)

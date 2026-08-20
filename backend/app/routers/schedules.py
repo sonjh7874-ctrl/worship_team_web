@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.dependencies import verify_edit_password
+from app.dependencies import require_role
 from app.schemas.schedule import (
     MonthlyScheduleCreate,
     MonthlyScheduleResponse,
@@ -23,7 +23,7 @@ def get_schedule(year: int, month: int):
     "",
     response_model=MonthlyScheduleResponse,
     status_code=201,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def create_schedule(payload: MonthlyScheduleCreate):
     return schedule_service.create_schedule(payload)
@@ -32,7 +32,7 @@ def create_schedule(payload: MonthlyScheduleCreate):
 @router.delete(
     "/{schedule_id}",
     status_code=204,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def delete_schedule(schedule_id: int):
     schedule_service.delete_schedule(schedule_id)
@@ -42,7 +42,7 @@ def delete_schedule(schedule_id: int):
     "/{schedule_id}/weeks",
     response_model=ScheduleWeekItem,
     status_code=201,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def create_week(schedule_id: int, payload: ScheduleWeekCreate):
     return schedule_service.create_week(schedule_id, payload)
@@ -51,7 +51,7 @@ def create_week(schedule_id: int, payload: ScheduleWeekCreate):
 @router.patch(
     "/{schedule_id}/weeks/{week_id}",
     response_model=ScheduleWeekItem,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def update_week(schedule_id: int, week_id: int, payload: ScheduleWeekUpdate):
     return schedule_service.update_week(week_id, payload)
@@ -60,7 +60,7 @@ def update_week(schedule_id: int, week_id: int, payload: ScheduleWeekUpdate):
 @router.delete(
     "/{schedule_id}/weeks/{week_id}",
     status_code=204,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def delete_week(schedule_id: int, week_id: int):
     schedule_service.delete_week(week_id)
@@ -69,7 +69,7 @@ def delete_week(schedule_id: int, week_id: int):
 @router.put(
     "/{schedule_id}/weeks/{week_id}/assignments",
     response_model=ScheduleWeekItem,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def put_assignments(schedule_id: int, week_id: int, payload: ScheduleAssignmentsPutRequest):
     return schedule_service.put_assignments(week_id, payload)

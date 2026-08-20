@@ -2,7 +2,7 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, File, Form, UploadFile
 
-from app.dependencies import verify_edit_password
+from app.dependencies import require_role
 from app.schemas.conti import (
     AiParseResult,
     ContiCreate,
@@ -33,7 +33,7 @@ def get_latest_conti():
 @router.post(
     "/ai-parse",
     response_model=AiParseResult,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 async def ai_parse_conti(image: UploadFile = File(...)):
     """콘티 이미지를 AI로 구조화한다. 결과는 DB에 저장하지 않고 검수 화면으로 그대로 반환한다."""
@@ -49,7 +49,7 @@ def get_conti(conti_id: int):
     "",
     response_model=ContiListItem,
     status_code=201,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def create_conti(payload: ContiCreate):
     return conti_service.create_conti(payload)
@@ -58,7 +58,7 @@ def create_conti(payload: ContiCreate):
 @router.patch(
     "/{conti_id}",
     response_model=ContiListItem,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def update_conti(conti_id: int, payload: ContiUpdate):
     return conti_service.update_conti(conti_id, payload)
@@ -67,7 +67,7 @@ def update_conti(conti_id: int, payload: ContiUpdate):
 @router.delete(
     "/{conti_id}",
     status_code=204,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def delete_conti(conti_id: int):
     conti_service.delete_conti(conti_id)
@@ -76,7 +76,7 @@ def delete_conti(conti_id: int):
 @router.put(
     "/{conti_id}/songs",
     response_model=ContiDetail,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def put_conti_songs(conti_id: int, payload: ContiSongsPutRequest):
     return conti_service.put_conti_songs(conti_id, payload)
@@ -85,7 +85,7 @@ def put_conti_songs(conti_id: int, payload: ContiSongsPutRequest):
 @router.delete(
     "/{conti_id}/songs/{order_no}",
     status_code=204,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def delete_conti_song(conti_id: int, order_no: int):
     conti_service.delete_conti_song(conti_id, order_no)
@@ -95,7 +95,7 @@ def delete_conti_song(conti_id: int, order_no: int):
     "/{conti_id}/files",
     response_model=SheetFileItem,
     status_code=201,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 async def upload_sheet_file(
     conti_id: int,

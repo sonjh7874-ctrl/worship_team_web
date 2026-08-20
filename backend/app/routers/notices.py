@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
 
-from app.dependencies import verify_edit_password
+from app.dependencies import require_role
 from app.schemas.notice import NoticeCreate, NoticeDetail, NoticeListItem, NoticeUpdate
 from app.services import notice_service
 
@@ -21,7 +21,7 @@ def get_notice(notice_id: int):
     "",
     response_model=NoticeDetail,
     status_code=201,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def create_notice(payload: NoticeCreate):
     return notice_service.create_notice(payload)
@@ -30,7 +30,7 @@ def create_notice(payload: NoticeCreate):
 @router.patch(
     "/{notice_id}",
     response_model=NoticeDetail,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def update_notice(notice_id: int, payload: NoticeUpdate):
     return notice_service.update_notice(notice_id, payload)
@@ -39,7 +39,7 @@ def update_notice(notice_id: int, payload: NoticeUpdate):
 @router.delete(
     "/{notice_id}",
     status_code=204,
-    dependencies=[Depends(verify_edit_password)],
+    dependencies=[Depends(require_role("leader"))],
 )
 def delete_notice(notice_id: int):
     notice_service.delete_notice(notice_id)

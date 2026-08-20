@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 
 load_dotenv(".env.local")
 
-EDIT_PASSWORD = os.getenv("EDIT_PASSWORD")
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 # 로그인(회원가입·로그인·토큰 검증)은 anon 키로 호출한다.
