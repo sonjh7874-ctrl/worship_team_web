@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchNotice } from "../api/notices";
+import CommentList from "../components/CommentList";
 import NoticeDetailView from "../components/NoticeDetailView";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -35,6 +36,7 @@ function NoticeDetail() {
       <Link to="/notices">← 목록으로</Link>{" "}
       {canEdit && <Link to={`/notices/${noticeId}/edit`}>편집</Link>}
       <NoticeDetailView notice={notice} />
+      <CommentList kind="notices" parentId={noticeId} />
     </div>
   );
 }

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchCalendarEvent } from "../api/calendar";
+import CommentList from "../components/CommentList";
 import { useAuth } from "../contexts/AuthContext";
 
 function CalendarDetail() {
@@ -74,6 +75,8 @@ function CalendarDetail() {
           </p>
         </div>
       )}
+
+      <CommentList kind="calendar" parentId={eventId} />
     </div>
   );
 }
