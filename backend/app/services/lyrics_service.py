@@ -102,9 +102,18 @@ def _build_song_blocks(song_form: str | None, sections_by_code: dict[str, dict])
                 blocks.extend(_duplicate(resolved, token.repeat_count - 1, token.repeat_count))
             continue
 
-        # kind == "unresolved"
-        blocks.append(LyricsBlock(kind="unresolved", text=token.raw))
-        unresolved_count += 1
+        # kind == "unresolved" — 파서가 정형 구간 코드로 인식하지 못한 토큰(한글 단어,
+        # 영문 여러 글자 단어 등 `^[A-Za-z][0-9]*` 형식이 아닌 것)이다. 이런 토큰이야말로
+        # "미해결 표기를 원문 그대로 구간으로 등록한다"는 원칙의 주 대상인데, 그동안 이 분기가
+        # 구간 목록 조회를 아예 시도하지 않고 무조건 미해결로 남겨버리는 버그가 있었다 —
+        # 등록해도 계속 미해결로 보이는 원인이었다. 여기서도 정확 일치를 한 번 더 시도한다.
+        entry = sections_by_code.get(token.raw)
+        if entry:
+            note = f"별칭 표기 → {entry['canonical']}" if entry["via_alias"] else None
+            blocks.append(LyricsBlock(kind="lyrics", section_code=entry["canonical"], text=entry["lyrics"], note=note))
+        else:
+            blocks.append(LyricsBlock(kind="unresolved", text=token.raw))
+            unresolved_count += 1
 
     return blocks, unresolved_count
 
