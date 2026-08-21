@@ -11,11 +11,12 @@ PARTICIPANT_TABLE = "event_participants"
 PARTICIPANTS_SELECT = f"{PARTICIPANT_TABLE}(member_id, name_snapshot, members(name))"
 
 LIST_SELECT = (
-    "id, title, start_date, end_date, category, category_custom, color, source_type, source_week_id"
+    "id, title, start_date, end_date, category, category_custom, color, source_type, source_week_id,"
+    " calendar_event_comments(count)"
 )
 DETAIL_SELECT = (
     "id, title, start_date, end_date, category, category_custom, color, memo,"
-    f" source_type, source_week_id, {PARTICIPANTS_SELECT}"
+    f" source_type, source_week_id, calendar_event_comments(count), {PARTICIPANTS_SELECT}"
 )
 
 

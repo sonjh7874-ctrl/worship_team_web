@@ -127,7 +127,7 @@ function EventBar({ seg }) {
     <Link
       to={`/calendar/${event.id}`}
       className="calendar-event-bar"
-      title={`${event.title}${label ? ` (${label})` : ""}`}
+      title={`${event.title}${label ? ` (${label})` : ""}${event.comment_count > 0 ? ` · 댓글 ${event.comment_count}개` : ""}`}
       style={{
         gridColumn: `${startCol + 1} / ${endCol + 2}`,
         gridRow: lane + 2,

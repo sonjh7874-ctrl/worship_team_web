@@ -69,6 +69,9 @@ function NoticeMain() {
                   {item.is_pinned && "📌 "}
                   {item.title}
                 </Link>
+                {item.comment_count > 0 && (
+                  <span style={{ fontSize: 12, color: "#666" }}> 💬 {item.comment_count}</span>
+                )}
               </li>
             ))}
           </ul>

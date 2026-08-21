@@ -9,6 +9,8 @@ class NoticeListItem(BaseModel):
     is_pinned: bool
     created_at: datetime
     updated_at: datetime
+    # 목록 화면에서 상세로 들어가지 않아도 댓글이 있는지 알 수 있도록 함께 내려준다.
+    comment_count: int = 0
 
 
 class NoticeDetail(NoticeListItem):

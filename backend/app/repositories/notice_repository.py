@@ -2,8 +2,8 @@ from app.supabase_client import get_supabase
 
 TABLE = "notices"
 
-LIST_SELECT = "id, title, is_pinned, created_at, updated_at"
-DETAIL_SELECT = "id, title, content, is_pinned, created_at, updated_at"
+LIST_SELECT = "id, title, is_pinned, created_at, updated_at, notice_comments(count)"
+DETAIL_SELECT = "id, title, content, is_pinned, created_at, updated_at, notice_comments(count)"
 
 
 def find_all() -> list[dict]:

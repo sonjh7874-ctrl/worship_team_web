@@ -4,15 +4,23 @@ from app.repositories import notice_repository
 from app.schemas.notice import NoticeCreate, NoticeDetail, NoticeListItem, NoticeUpdate
 
 
+def _pop_comment_count(row: dict) -> dict:
+    # Supabase가 중첩 집계를 [{"count": n}] 형태로 내려주므로 응답 스키마의 comment_count로 펴서 담는다
+    # (song_service.list_songs의 usage_count/section_count와 동일한 패턴).
+    nested = row.pop("notice_comments", None) or [{}]
+    row["comment_count"] = nested[0].get("count", 0)
+    return row
+
+
 def list_notices() -> list[NoticeListItem]:
-    return [NoticeListItem(**row) for row in notice_repository.find_all()]
+    return [NoticeListItem(**_pop_comment_count(row)) for row in notice_repository.find_all()]
 
 
 def get_notice(notice_id: int) -> NoticeDetail:
     row = notice_repository.find_by_id(notice_id)
     if row is None:
         raise HTTPException(status_code=404, detail="공지사항을 찾을 수 없습니다.")
-    return NoticeDetail(**row)
+    return NoticeDetail(**_pop_comment_count(row))
 
 
 def create_notice(payload: NoticeCreate) -> NoticeDetail:

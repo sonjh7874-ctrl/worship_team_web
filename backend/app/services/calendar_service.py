@@ -29,6 +29,13 @@ def _resolve_participant(row: dict) -> ParticipantItem | None:
     return None
 
 
+def _pop_comment_count(row: dict) -> int:
+    # Supabase가 중첩 집계를 [{"count": n}] 형태로 내려주므로 응답 스키마의 comment_count로 펴서 담는다
+    # (song_service.list_songs, notice_service와 동일한 패턴).
+    nested = row.pop("calendar_event_comments", None) or [{}]
+    return nested[0].get("count", 0)
+
+
 def _to_detail(row: dict) -> CalendarEventDetail:
     participants = [
         p for p in (_resolve_participant(r) for r in row.get("event_participants", [])) if p is not None
@@ -44,6 +51,7 @@ def _to_detail(row: dict) -> CalendarEventDetail:
         memo=row.get("memo"),
         source_type=row["source_type"],
         source_week_id=row.get("source_week_id"),
+        comment_count=_pop_comment_count(row),
         participants=participants,
     )
 
@@ -93,7 +101,11 @@ def _guard_manual_only(row: dict) -> None:
 
 
 def list_events(year: int, month: int) -> list[CalendarEventListItem]:
-    return [CalendarEventListItem(**row) for row in calendar_repository.find_by_month(year, month)]
+    items = []
+    for row in calendar_repository.find_by_month(year, month):
+        comment_count = _pop_comment_count(row)
+        items.append(CalendarEventListItem(**row, comment_count=comment_count))
+    return items
 
 
 def get_event(event_id: int) -> CalendarEventDetail:
