@@ -122,7 +122,8 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | PUT | `/songs/{song_id}/sections` | 구간 배열 전체 교체 | 필요(leader) |
 
 - 구간 저장(`PUT`)은 `conti_songs`/`schedule_assignments`와 동일한 전체 교체 패턴이다 — 한 화면에서 구간 전체를 확인·수정하고 저장 버튼 한 번으로 반영한다.
-- 요청 본문은 `{"sections": [{"section_code": "A1", "lyrics": "...", "display_order": 0}, ...]}`. `section_code` 중복은 **400**(DB 유니크 제약과 별개로 API 레벨에서 사전 검증).
+- 요청 본문은 `{"sections": [{"section_code": "A1", "lyrics": "...", "display_order": 0, "aliases": ["A"]}, ...]}`. `aliases`는 같은 가사를 가리키는 다른 표기(곡마다 송폼 표기가 바뀌는 경우 대비, 예: `A1` 등록 시 별칭에 `A` 추가)로 생략 시 빈 배열이다. **구간 코드와 별칭을 합친 전체 이름공간에서 중복이 있으면 400**(DB 유니크 제약과 별개로 API 레벨에서 사전 검증).
+- `GET`/`PUT` 응답은 `{"sections": [...], "last_song_form": "..." | null}` 형태다. `last_song_form`은 이 곡이 가장 최근 콘티에서 쓰인 송폼 원문으로, 어떤 코드로 등록해야 할지 감을 잡는 힌트용이다(편집 대상 아님, `song_repository.find_last_song_forms` 재사용).
 - **가사는 저작권 있는 콘텐츠라 조회(`GET`)도 `member` 이상 로그인이 필요하다** — 다른 조회 엔드포인트와 달리 비로그인 접근은 401.
 
 ### 1-3. 콘티-곡 배치
