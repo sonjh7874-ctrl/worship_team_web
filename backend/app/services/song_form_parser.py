@@ -83,5 +83,45 @@ def classify_token(raw: str) -> Token:
     return Token(kind="unresolved", raw=raw)
 
 
-def parse_song_form(song_form: str | None) -> list[Token]:
-    return [classify_token(tok) for tok in tokenize(song_form)]
+def _merge_multiword_tokens(raw_tokens: list[str], known_multiword_codes: list[str]) -> list[str | Token]:
+    """등록된 구간 코드 중 공백이 포함된 것("Let Everything" 등)이 있으면, 토큰화 이후에도
+    여전히 따로 떨어진 원문 조각들을 다시 하나로 묶는다.
+
+    송폼 원문(팀원이 그대로 보는 화면 텍스트)은 건드리지 않고 "Let Everything x2"처럼 그대로 두면서도,
+    리더가 구간 코드를 원문 그대로("Let Everything") 등록해두면 자동으로 한 구간으로 인식되게 하는
+    핵심 로직. 긴 코드부터 매칭해야 짧은 코드가 먼저 걸려 잘못 잘리는 일이 없다.
+    """
+    if not known_multiword_codes:
+        return list(raw_tokens)
+
+    phrases = sorted(
+        ((code, code.split()) for code in known_multiword_codes if " " in code),
+        key=lambda pair: -len(pair[1]),
+    )
+    if not phrases:
+        return list(raw_tokens)
+
+    merged: list[str | Token] = []
+    i = 0
+    n = len(raw_tokens)
+    while i < n:
+        matched_code = None
+        matched_len = 0
+        for code, words in phrases:
+            span = len(words)
+            if raw_tokens[i : i + span] == words:
+                matched_code, matched_len = code, span
+                break
+        if matched_code:
+            merged.append(Token(kind="section", raw=matched_code, section_code=matched_code))
+            i += matched_len
+        else:
+            merged.append(raw_tokens[i])
+            i += 1
+    return merged
+
+
+def parse_song_form(song_form: str | None, known_multiword_codes: list[str] | None = None) -> list[Token]:
+    raw_tokens = tokenize(song_form)
+    merged = _merge_multiword_tokens(raw_tokens, known_multiword_codes or [])
+    return [item if isinstance(item, Token) else classify_token(item) for item in merged]

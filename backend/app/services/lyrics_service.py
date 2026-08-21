@@ -62,7 +62,10 @@ def _duplicate(block: LyricsBlock, extra_count: int, repeat_total: int) -> list[
 
 
 def _build_song_blocks(song_form: str | None, sections_by_code: dict[str, dict]) -> tuple[list[LyricsBlock], int]:
-    tokens = song_form_parser.parse_song_form(song_form)
+    # 공백이 포함된 구간 코드/별칭("Let Everything" 등)이 등록돼 있으면, 송폼 원문은 그대로 둔 채
+    # 파서가 그 여러 단어를 한 토큰으로 미리 묶어보게 한다(원문을 사람이 읽는 화면과 분리).
+    known_multiword_codes = [code for code in sections_by_code if " " in code]
+    tokens = song_form_parser.parse_song_form(song_form, known_multiword_codes)
     blocks: list[LyricsBlock] = []
     unresolved_count = 0
 

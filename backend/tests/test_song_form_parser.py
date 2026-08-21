@@ -91,3 +91,35 @@ def test_full_real_song_form_example_classifies_every_token():
     kinds = [t.kind for t in tokens]
     assert kinds.count("marker") == 3  # (12), (맞4), (맞8)
     assert kinds.count("quoted") == 1  # bis(...)*2
+
+
+def test_known_multiword_code_is_merged_before_classification():
+    # "Let Everything"처럼 원문에 공백이 섞인 구간이 곡 마스터에 등록돼 있으면(코드/별칭에 공백
+    # 포함), 송폼 원문을 전혀 바꾸지 않고도 그 여러 단어를 한 토큰으로 인식해야 한다.
+    tokens = parse_song_form("(4) Let Everything x2 A1", known_multiword_codes=["Let Everything"])
+    kinds_raw = [(t.kind, t.raw) for t in tokens]
+    assert kinds_raw == [
+        ("marker", "(4)"),
+        ("section", "Let Everything"),
+        ("repeat", "x2"),
+        ("section", "A1"),
+    ]
+    merged = tokens[1]
+    assert merged.section_code == "Let Everything"
+
+
+def test_multiword_merge_prefers_longer_phrase_first():
+    tokens = parse_song_form(
+        "A B C",
+        known_multiword_codes=["A B", "A B C"],
+    )
+    assert len(tokens) == 1
+    assert tokens[0].raw == "A B C"
+
+
+def test_multiword_merge_does_not_affect_unrelated_songs():
+    # known_multiword_codes를 안 넘기면(기본값) 기존 동작이 그대로 유지된다 — 다른 곡에는
+    # 영향이 없어야 하므로 하위 호환을 확인한다.
+    tokens = parse_song_form("Let Everything x2")
+    kinds = [t.kind for t in tokens]
+    assert kinds == ["unresolved", "unresolved", "repeat"]
