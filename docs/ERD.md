@@ -23,6 +23,9 @@
 | 12 | `event_participants` | 이벤트 참여 인원 | 기능 3 |
 | 13 | `user_profiles` | 로그인 계정별 역할(admin/leader/member) — Phase 7 | 공통 |
 | 14 | `song_sections` | 곡별 가사 구간(A/B/C) 매핑 — Phase 9 | 기능 1 |
+| 15 | `account_events` | 계정 보안 이벤트 로그(이름/역할 변경, 비밀번호 초기화) — Phase 7 후속 | 공통 |
+| 16 | `notice_comments` | 공지사항 댓글 — Phase 10 | 기능 2 |
+| 17 | `calendar_event_comments` | 캘린더 이벤트 댓글 — Phase 10 | 기능 3 |
 
 ---
 
@@ -47,6 +50,9 @@ erDiagram
     calendar_events ||--o{ event_participants : "참여자를 갖는다"
 
     members ||--o| user_profiles : "계정과 연결될 수 있다"
+    user_profiles ||--o{ account_events : "계정 이벤트를 남긴다"
+    notices ||--o{ notice_comments : "댓글을 갖는다"
+    calendar_events ||--o{ calendar_event_comments : "댓글을 갖는다"
 
     members {
         bigint id PK
@@ -180,6 +186,37 @@ erDiagram
         text section_code "A1, B, Tag ..."
         text lyrics
     }
+
+    account_events {
+        bigint id PK
+        uuid user_id FK "auth.users.id, 대상 계정"
+        text event_type "display_name_changed | role_changed | password_reset"
+        text old_value "nullable, 비밀번호는 기록 안 함"
+        text new_value "nullable, 비밀번호는 기록 안 함"
+        uuid changed_by FK "nullable, 실행자"
+        text changed_by_name "실행자 이름 스냅샷"
+        timestamptz created_at
+    }
+
+    notice_comments {
+        bigint id PK
+        bigint notice_id FK
+        uuid user_id FK "nullable"
+        text author_name "작성 시점 스냅샷"
+        text content
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    calendar_event_comments {
+        bigint id PK
+        bigint event_id FK
+        uuid user_id FK "nullable"
+        text author_name "작성 시점 스냅샷"
+        text content
+        timestamptz created_at
+        timestamptz updated_at
+    }
 ```
 
 ---
@@ -243,6 +280,25 @@ Phase 7에서 로그인 도입으로 `EDIT_PASSWORD` 자체는 코드에서 제�
 - `section_code`가 `text`라 `A1` 같은 정형 코드뿐 아니라 "이해하지 못한 문구 그대로"도 코드로 등록할 수 있다. 송폼 해석에 실패한 표기(가사 첫 구절이 그대로 토큰인 경우 등)를 사람이 그 문구 그대로 구간으로 등록하면 다음부터 자동 해결되는 구조를 이 유연함이 지탱한다.
 - **`aliases`(Phase 9 실사용 피드백, 2026-08-21 추가)**: 같은 곡이라도 콘티마다 송폼 표기가 바뀌는 경우(`A1`으로 등록했는데 이번 주는 `A`로 옴)를 위해, 한 구간에 다른 표기를 여러 개 연결해둘 수 있다. 가사를 복제 저장하지 않고 표기만 여러 개 등록하는 방식이라 원본-사본 불일치 문제가 재발하지 않는다. 매칭 우선순위는 정확 코드 → 별칭 → 변주 접미사(`*`/`'`) 폴백 순.
 - 저작권 있는 콘텐츠라 **가사 관련 조회(`GET /songs/{id}/sections`, `GET /contis/{id}/lyrics`)만 로그인(member 이상)을 요구**한다 — 다른 12개 테이블 기반 조회는 여전히 비로그인 공개.
+- RLS는 다른 테이블과 동일하게 **활성화 + 정책 없음**.
+
+### 3-8. `account_events` — 계정 이벤트 로그 (Phase 7 후속, 2026-08-21)
+
+- 전체 CRUD를 추적하는 범용 감사로그가 아니라, admin이 실제로 다루는 **계정 보안 이벤트 3가지**(표시 이름 변경, 역할 변경, 비밀번호 초기화)로 범위를 좁혔다. 이 이상으로 넓히면(예: 콘티/공지 편집 이력) 모든 쓰기 엔드포인트에 로깅 훅이 필요해져 이 프로젝트 스코프(핵심 기능 3개 원칙)를 벗어난다.
+- `user_id`는 이벤트가 발생한 **대상** 계정, `changed_by`/`changed_by_name`은 **실행한** 계정이다. 본인이 표시 이름을 바꾸면 둘이 같고, admin이 역할을 바꾸거나 비밀번호를 초기화하면 다르다.
+- `changed_by_name`은 3-3절의 `name_snapshot`과 같은 이유로 스냅샷이다 — 조회할 때마다 `user_profiles`를 조인하지 않아 단순하고, 실행자가 나중에 이름을 바꿔도 과거 로그의 표기는 바뀌지 않는다.
+- **`password_reset` 이벤트는 `old_value`/`new_value`를 항상 `null`로 둔다.** Phase 7이 확립한 "비밀번호 값은 관리자도 저장하지 않는다" 원칙(3-6절)을 로그에도 그대로 적용한 것 — 이벤트가 있었다는 사실만 남기고 값은 남기지 않는다.
+- `user_id`가 `auth.users(id) on delete cascade`라 계정이 지워지면 그 계정에 대한 로그도 함께 지워진다. `changed_by`는 `on delete set null`이라 실행자 계정이 지워져도 로그 자체(와 이름 스냅샷)는 남는다.
+- RLS는 다른 테이블과 동일하게 **활성화 + 정책 없음**.
+
+### 3-9. `notice_comments` / `calendar_event_comments` — 댓글 (Phase 10)
+
+- 범용 다형성 테이블(`commentable_type`+`commentable_id`) 대신 **구체적 FK 2개로 분리**했다 — 이 프로젝트가 지금까지 계속 지켜온 관례(모든 참조가 named FK)를 따른 것이고, 테이블 2개가 늘어나는 비용보다 타입 안전성이 더 크다고 판단했다.
+- `author_name`은 3-3절의 `name_snapshot`, 3-8절의 `changed_by_name`과 같은 이유로 **작성 시점 스냅샷**이다 — 조회할 때마다 `user_profiles`를 조인하지 않고, 작성자가 나중에 표시 이름을 바꿔도 과거 댓글의 표기는 바뀌지 않는다.
+- `user_id`는 `auth.users(id) on delete set null`이라, 계정이 지워져도(현재 앱엔 삭제 기능이 없지만 대비) 댓글 자체와 `author_name` 스냅샷은 남는다.
+- **삭제는 완전 삭제(하드 delete)**로 정했다 — 스레드 구조가 아니라 단순 목록이라 "삭제된 댓글입니다" 흔적을 남길 실익이 적고, README가 이미 정한 "삭제는 본인 또는 leader 이상"과도 자연스럽게 맞는다.
+- **"수정됨" 표시는 별도 컬럼 없이 `updated_at != created_at` 비교로 판단**한다. 다른 테이블(`contis`, `notices` 등)과 동일한 `set_updated_at()` 트리거를 두 테이블에도 걸어 `UPDATE` 시 자동 갱신되게 했다 — 이 트리거를 처음에 빠뜨렸다가 실제 조회 테스트에서 `updated_at`이 안 바뀌는 것을 발견하고 추가했다.
+- 수정 권한(본인만)과 삭제 권한(본인 또는 leader 이상)은 역할 게이트(`require_role`)만으로 표현할 수 없는 **리소스 소유권 비교**라 서비스 레이어(`comment_service.compute_permissions`)에서 판정한다. 응답의 `can_edit`/`can_delete` 필드로 그 결과를 미리 내려줘 프론트가 같은 로직을 중복 구현하지 않게 했다.
 - RLS는 다른 테이블과 동일하게 **활성화 + 정책 없음**.
 
 ---

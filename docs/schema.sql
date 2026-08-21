@@ -279,6 +279,62 @@ comment on table song_sections is '곡별 가사 구간 매핑. 한 번 정하�
 
 
 -- ============================================================
+-- 5-1. account_events (Phase 7 후속 — 계정 이벤트 로그, 2026-08-21)
+--      admin이 계정 관련 보안 이벤트(표시 이름 변경/역할 변경/비밀번호 초기화)를
+--      추적할 수 있도록 남기는 로그. 비밀번호 값 자체는 절대 기록하지 않는다.
+-- ============================================================
+
+create table account_events (
+  id               bigserial primary key,
+  user_id          uuid not null references auth.users (id) on delete cascade,
+  event_type       text not null check (event_type in ('display_name_changed', 'role_changed', 'password_reset')),
+  old_value        text,
+  new_value        text,
+  changed_by       uuid references auth.users (id) on delete set null,
+  changed_by_name  text not null,
+  created_at       timestamptz not null default now()
+);
+create index idx_account_events_user on account_events (user_id, created_at desc);
+comment on table account_events is '계정 보안 이벤트 로그(이름/역할 변경, 비밀번호 초기화). 비밀번호 값 자체는 저장하지 않음';
+
+
+-- ============================================================
+-- 5-2. notice_comments / calendar_event_comments (Phase 10 — 댓글 기능)
+--      범용 다형성 테이블 없이 구체적 FK 2개로 분리(이 프로젝트의 기존 관례).
+--      author_name은 작성 시점 display_name 스냅샷 — 조회 시 user_profiles를 조인하지 않는다.
+-- ============================================================
+
+create table notice_comments (
+  id           bigserial primary key,
+  notice_id    bigint not null references notices (id) on delete cascade,
+  user_id      uuid references auth.users (id) on delete set null,
+  author_name  text not null,
+  content      text not null,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+create index idx_notice_comments_notice on notice_comments (notice_id, created_at);
+create trigger trg_notice_comments_updated before update on notice_comments
+  for each row execute function set_updated_at();
+
+create table calendar_event_comments (
+  id           bigserial primary key,
+  event_id     bigint not null references calendar_events (id) on delete cascade,
+  user_id      uuid references auth.users (id) on delete set null,
+  author_name  text not null,
+  content      text not null,
+  created_at   timestamptz not null default now(),
+  updated_at   timestamptz not null default now()
+);
+create index idx_calendar_event_comments_event on calendar_event_comments (event_id, created_at);
+create trigger trg_calendar_event_comments_updated before update on calendar_event_comments
+  for each row execute function set_updated_at();
+
+comment on table notice_comments is '공지사항 댓글. 작성은 member 이상, 수정은 본인만, 삭제는 본인 또는 leader 이상';
+comment on table calendar_event_comments is '캘린더 이벤트 댓글. 작성은 member 이상, 수정은 본인만, 삭제는 본인 또는 leader 이상';
+
+
+-- ============================================================
 -- 6. 포지션 초기 데이터 (seed)
 -- ============================================================
 
@@ -323,6 +379,9 @@ alter table calendar_events     enable row level security;
 alter table event_participants  enable row level security;
 alter table user_profiles       enable row level security;
 alter table song_sections       enable row level security;
+alter table account_events      enable row level security;
+alter table notice_comments     enable row level security;
+alter table calendar_event_comments enable row level security;
 
 -- 정책을 만들지 않으므로 anon / authenticated 키로는 아무 것도 조회되지 않는다.
 -- service_role 키는 RLS를 우회하므로 FastAPI 서버만 정상 접근한다.

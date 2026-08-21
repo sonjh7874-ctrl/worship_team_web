@@ -17,6 +17,7 @@
   - 역할이 부족: `403 Forbidden`
 - 콘티/곡/파일/공지사항/스케줄/캘린더/인명부의 **쓰기 엔드포인트는 모두 `require_role("leader")`**. 사용자 관리(`/auth/users` — 목록 조회·역할 변경·비밀번호 초기화)만 `require_role("admin")`이고, 내 정보 조회·수정·비밀번호 변경(`/auth/me`)은 로그인만 하면 된다(`require_role("member")`).
 - **예외 — 가사 관련 조회(GET)만 member 이상 필요**: `GET /songs/{song_id}/sections`, `GET /contis/{conti_id}/lyrics`(Phase 9). 저작권 있는 콘텐츠라 다른 조회 엔드포인트와 달리 비로그인 접근은 `401`이다.
+- **예외 — 댓글은 작성/수정/삭제만 로그인 필요**: `POST/PATCH/DELETE /notices/{id}/comments`, `/calendar/{id}/comments`(Phase 10)는 `require_role("member")`이지만, **목록 조회(GET)는 다른 콘텐츠와 동일하게 비로그인 공개**다. 수정은 작성자 본인만, 삭제는 본인 또는 `leader` 이상만 가능하도록 서비스 레이어에서 소유권을 추가로 검사한다(역할 게이트만으로는 표현할 수 없는 리소스 소유권 비교).
 - 액세스 토큰은 기본 1시간 만료다. 만료 시 `POST /auth/refresh`에 `refresh_token`을 보내 재발급받는다(프론트는 401 응답을 받으면 이 과정을 자동으로 1회 재시도한다).
 - **이전 방식이던 `X-Edit-Password` 단일 비밀번호 게이트(`EDIT_PASSWORD`)는 완전히 제거됐다.** 문제가 생기면 Phase 7의 교체 커밋을 git revert해 되돌아간다.
 
@@ -343,6 +344,17 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 - `member_id`와 `name_snapshot` 중 하나는 필수 (ERD `chk_assignment_identity` 제약과 동일 규칙을 API 레벨에서도 400으로 사전 검증)
 - 단일 슬롯 포지션(콰이어/특순/싱어 악보 제외)에 같은 `position_code`가 두 번 들어오면 `400`
 
+### 2-4. 공지사항 댓글 (Phase 10)
+
+| Method | Path | 설명 | 인증 |
+|---|---|---|---|
+| GET | `/notices/{notice_id}/comments` | 댓글 목록(작성순) | 불필요 |
+| POST | `/notices/{notice_id}/comments` | 댓글 작성 | member |
+| PATCH | `/notices/{notice_id}/comments/{comment_id}` | 댓글 수정(본인만) | member(+소유권) |
+| DELETE | `/notices/{notice_id}/comments/{comment_id}` | 댓글 삭제(본인 또는 leader 이상) | member(+소유권 또는 leader) |
+
+캘린더 이벤트 댓글(3-1절)과 완전히 동일한 패턴 — 상세 설계는 3-1절 참고.
+
 ---
 
 ## 3. 기능 3 — 캘린더
@@ -357,6 +369,33 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 
 - `source_type=auto_from_schedule`인 이벤트를 `PATCH`/`DELETE` 요청하면 **`403 Forbidden`** + `"공지사항에서 수정해주세요"` 메시지 반환 (ERD의 단방향 동기화 원칙을 API 레벨에서도 강제)
 - 특순 이벤트 생성/수정/삭제는 API로 직접 호출하지 않는다. **`PATCH /schedules/{schedule_id}/weeks/{week_id}`에서 `special.title`이 바뀌면 서버가 내부적으로 `calendar_events`를 upsert/삭제**한다 (별도 엔드포인트 없음, 서비스 레이어 내부 로직).
+
+### 3-1. 캘린더 이벤트 댓글 (Phase 10)
+
+| Method | Path | 설명 | 인증 |
+|---|---|---|---|
+| GET | `/calendar/{event_id}/comments` | 댓글 목록(작성순) | 불필요 |
+| POST | `/calendar/{event_id}/comments` | 댓글 작성 | member |
+| PATCH | `/calendar/{event_id}/comments/{comment_id}` | 댓글 수정(본인만) | member(+소유권) |
+| DELETE | `/calendar/{event_id}/comments/{comment_id}` | 댓글 삭제(본인 또는 leader 이상) | member(+소유권 또는 leader) |
+
+- 로그인 여부와 무관하게 조회만 가능해 "로그인의 실질적 이점이 없다"는 실사용 피드백에서 나온 기능(README 5절). **목록 조회는 비로그인 공개를 유지하고 작성만 로그인(member 이상)을 요구**한다 — Phase 9 가사 조회와 달리 저작권 문제가 없어 조회까지 좁힐 이유가 없다.
+- 응답(`CommentItem`)에는 `can_edit`/`can_delete`를 서버가 미리 계산해 내려준다: 수정은 작성자 본인만, 삭제는 본인 또는 `leader` 이상 가능(README 확정 사항). 프론트가 "현재 로그인한 사용자 id/역할"과 "댓글 작성자 id"를 비교하는 로직을 중복 구현하지 않게 하기 위함(Phase 6 `match_status`와 같은 접근).
+- `author_name`은 **작성 시점 `display_name` 스냅샷**이다. 조회 때마다 `user_profiles`를 조인하지 않아 단순하고, 작성자가 나중에 표시 이름을 바꿔도(Phase 7 후속 `/profile`) 과거 댓글의 표기는 바뀌지 않는다.
+- 삭제는 **완전 삭제**(하드 delete)다 — 스레드 구조가 아니라 단순 목록이라 "삭제된 댓글" 흔적을 남길 실익이 적다.
+- `is_edited`는 별도 컬럼 없이 `updated_at != created_at` 비교로 판단한다. **내용이 실제로 바뀌지 않았으면 `PATCH`가 DB `UPDATE` 자체를 건너뛴다** — 그냥 실행하면 트리거가 `updated_at`을 무조건 갱신해 "(수정됨)"이 잘못 표시되는 버그가 있었다(Phase 10 후속).
+- **댓글 내용은 최대 1000자**(`400`으로 거부). 도배성 장문 게시를 막는 최소한의 상한.
+- `PATCH`/`DELETE`는 `comment_id`뿐 아니라 **URL의 `notice_id`/`event_id`가 실제 댓글의 부모와 일치하는지도 검증**한다(불일치 시 `404`) — 처음엔 `comment_id`만 보고 판정해 URL의 부모 id가 사실상 무의미했던 정합성 버그가 있었다(Phase 10 후속).
+- `POST`는 부모(`notice_id`/`event_id`)가 존재하지 않으면 `404`를 반환한다. 존재 확인 없이 바로 insert하면 FK 위반이 그대로 `500`으로 새어나가 원본 DB 에러 메시지가 노출되는 문제가 있었다(Phase 10 후속).
+- `GET /notices`, `GET /calendar` 목록 응답의 각 항목에는 **`comment_count`**가 함께 내려간다(Phase 10 후속) — 상세로 들어가지 않아도 댓글이 있는지 알 수 있게 하기 위함. `songs.usage_count`와 같은 중첩 집계 패턴(`select(..., notice_comments(count))`)이라 조회 횟수는 늘지 않는다.
+
+```json
+{
+  "id": 12, "author_name": "손지헌", "content": "확인했습니다!",
+  "created_at": "2026-08-21T10:00:00+09:00", "updated_at": "2026-08-21T10:00:00+09:00",
+  "is_edited": false, "can_edit": true, "can_delete": true
+}
+```
 
 ---
 
@@ -386,10 +425,13 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | PATCH | `/auth/users/{user_id}/role` | 역할 변경. `leader`↔`member`만 가능(admin 부여는 API로 불가) | 필요(admin) |
 | POST | `/auth/users/{user_id}/password` | 비밀번호 초기화. 서버가 무작위 임시 비밀번호를 생성해 `{ "temp_password": "..." }`로 1회 반환하고, 해당 사용자의 `force_password_change`를 `true`로 켠다 | 필요(admin) |
 | POST | `/auth/me/password` | 내 비밀번호 변경(6자 이상). 성공 시 `force_password_change`가 `false`로 풀린다 | 필요(로그인만 하면 됨) |
+| GET | `/auth/users/{user_id}/events` | 계정 이벤트 로그 조회(이름 변경/역할 변경/비밀번호 초기화, 최신순) | 필요(admin) |
 
 > `role`은 `member`(기본) / `leader`(콘티·공지·스케줄·캘린더·인명부·곡 마스터 편집 가능) / `admin`(역할 관리까지 가능) 3단계다. 최초 admin 계정은 Supabase SQL로 직접 승격한다(앱에는 admin 발급 경로가 없다).
 >
 > **비밀번호 재설정은 이메일을 보내지 않는다.** 22명 규모의 폐쇄형 팀이라 "리더에게 요청 → 리더가 초기화 → 본인에게 직접 안내"가 실제 운영 흐름과 맞고, Supabase 무료 티어의 발송 한도·스팸함 문제(회원가입 이메일 인증과 동일한 이슈)를 피할 수 있다. 임시 비밀번호는 관리자가 확인하는 그 순간에만 응답으로 노출되고 서버 어디에도 저장되지 않으며, `force_password_change`가 켜져 있으면 로그인 직후 프론트가 `/change-password` 화면으로 강제 이동시켜 본인이 즉시 새 비밀번호로 바꾸게 한다.
+>
+> **계정 이벤트 로그(`account_events`, Phase 7 후속)**: admin이 표시 이름 변경·역할 변경·비밀번호 초기화 3가지를 이력으로 확인할 수 있다. 전체 CRUD를 추적하는 범용 감사로그가 아니라 admin이 실제로 다루는 계정 보안 이벤트로 범위를 좁혔다. `password_reset` 이벤트는 비밀번호 값 자체를 남기지 않고 발생 사실만 기록한다.
 
 ---
 
@@ -400,11 +442,11 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | 그룹 | 엔드포인트 수 | 내역 |
 |---|---|---|
 | 콘티/곡/악보 | 18 | 콘티 11(AI 인식 + 자막 가사 포함) + 곡 4 + 곡 가사 구간 2(Phase 9) + 파일 삭제 1 |
-| 공지사항/스케줄 | 12 | 공지 5 + 스케줄 7 |
-| 캘린더 | 5 | |
+| 공지사항/스케줄 | 16 | 공지 5 + 공지 댓글 4(Phase 10) + 스케줄 7 |
+| 캘린더 | 9 | 이벤트 5 + 이벤트 댓글 4(Phase 10) |
 | 인명부 | 4 | |
-| 인증/사용자 | 9 | Phase 7 신설(비밀번호 초기화·변경·내 정보 수정 3개 추가) |
-| **합계** | **48** | |
+| 인증/사용자 | 10 | Phase 7 신설(비밀번호 초기화·변경·내 정보 수정 3개 추가) + 계정 이벤트 로그(Phase 7 후속) 1개 |
+| **합계** | **57** | |
 
 ---
 
