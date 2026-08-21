@@ -272,6 +272,7 @@ create table song_sections (
   section_code  text not null,   -- A1, A2, B, C, Tag ...
   lyrics        text not null,
   display_order int not null default 0,
+  aliases       text,            -- 같은 가사를 가리키는 다른 표기(쉼표 구분). 곡마다 송폼 표기가 바뀔 때 재매칭용
   unique (song_id, section_code)
 );
 comment on table song_sections is '곡별 가사 구간 매핑. 한 번 정하면 재사용 (사람이 입력/검수)';

@@ -3,11 +3,24 @@ from app.supabase_client import get_supabase
 TABLE = "song_sections"
 
 
+def split_aliases(raw: str | None) -> list[str]:
+    """DB에 쉼표 구분 문자열로 저장된 별칭을 리스트로 푼다."""
+    if not raw:
+        return []
+    return [a.strip() for a in raw.split(",") if a.strip()]
+
+
+def join_aliases(aliases: list[str]) -> str | None:
+    """API로 받은 별칭 리스트를 DB 저장용 쉼표 구분 문자열로 합친다. 빈 리스트는 null로 저장."""
+    cleaned = [a.strip() for a in aliases if a.strip()]
+    return ", ".join(cleaned) if cleaned else None
+
+
 def find_by_song_id(song_id: int) -> list[dict]:
     res = (
         get_supabase()
         .table(TABLE)
-        .select("id, section_code, lyrics, display_order")
+        .select("id, section_code, lyrics, display_order, aliases")
         .eq("song_id", song_id)
         .order("display_order")
         .execute()
@@ -22,7 +35,7 @@ def find_by_song_ids(song_ids: list[int]) -> dict[int, list[dict]]:
     rows = (
         get_supabase()
         .table(TABLE)
-        .select("song_id, section_code, lyrics, display_order")
+        .select("song_id, section_code, lyrics, display_order, aliases")
         .in_("song_id", song_ids)
         .order("display_order")
         .execute()

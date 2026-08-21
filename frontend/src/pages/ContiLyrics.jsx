@@ -10,7 +10,7 @@ const BLOCK_STYLE = {
   unresolved: { color: "#c00", fontWeight: "bold" },
 };
 
-function LyricsBlockView({ block }) {
+function LyricsBlockView({ block, songId }) {
   const style = BLOCK_STYLE[block.kind] || {};
   return (
     <div style={{ marginBottom: 4, ...style }}>
@@ -19,6 +19,14 @@ function LyricsBlockView({ block }) {
         <span style={{ marginLeft: 8, fontSize: 12, color: "#888", fontStyle: "normal", fontWeight: "normal" }}>
           ({block.note})
         </span>
+      )}
+      {block.kind === "unresolved" && songId != null && (
+        <Link
+          to={`/songs/${songId}/sections?prefill=${encodeURIComponent(block.text)}`}
+          style={{ marginLeft: 8, fontSize: 12 }}
+        >
+          이 표기로 구간 등록
+        </Link>
       )}
     </div>
   );
@@ -33,14 +41,11 @@ function SongLyricsView({ song }) {
         {song.song_key ? ` (${song.song_key})` : ""}
       </h2>
       {song.unresolved_count > 0 && (
-        <p style={{ color: "#c00" }}>
-          미해결 {song.unresolved_count}건 —{" "}
-          <Link to={`/songs/${song.song_id ?? ""}/sections`}>가사 구간 등록하러 가기</Link>
-        </p>
+        <p style={{ color: "#c00" }}>미해결 {song.unresolved_count}건 — 아래 표기 옆 링크로 바로 등록할 수 있습니다.</p>
       )}
       <div>
         {song.blocks.map((block, i) => (
-          <LyricsBlockView key={i} block={block} />
+          <LyricsBlockView key={i} block={block} songId={song.song_id} />
         ))}
       </div>
     </div>

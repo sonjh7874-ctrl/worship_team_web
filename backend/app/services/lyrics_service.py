@@ -13,17 +13,40 @@ from app.services import song_form_parser
 from app.services.song_form_parser import Token
 
 
-def _resolve_section(sections_by_code: dict[str, str], token: Token) -> LyricsBlock | None:
-    # 정확 일치 우선, 없으면 변주 접미사(*, ')를 뗀 기본 구간으로 재조회한다.
-    if token.section_code is not None and token.section_code in sections_by_code:
-        return LyricsBlock(kind="lyrics", section_code=token.section_code, text=sections_by_code[token.section_code])
-    if token.fallback_code and token.fallback_code in sections_by_code:
-        return LyricsBlock(
-            kind="lyrics",
-            section_code=token.fallback_code,
-            text=sections_by_code[token.fallback_code],
-            note=f"변주 표기({token.raw} → {token.fallback_code})",
-        )
+def _build_section_lookup(rows: list[dict]) -> dict[str, dict]:
+    """구간 코드+별칭을 한 이름공간으로 모은다. 실제 코드가 별칭보다 우선한다
+    (두 구간이 같은 별칭을 등록해도 실제 코드로 등록된 쪽이 항상 이긴다).
+    """
+    lookup: dict[str, dict] = {}
+    for row in rows:
+        lookup[row["section_code"]] = {
+            "lyrics": row["lyrics"],
+            "canonical": row["section_code"],
+            "via_alias": False,
+        }
+    for row in rows:
+        for alias in song_section_repository.split_aliases(row.get("aliases")):
+            if alias not in lookup:
+                lookup[alias] = {"lyrics": row["lyrics"], "canonical": row["section_code"], "via_alias": True}
+    return lookup
+
+
+def _resolve_section(sections_by_code: dict[str, dict], token: Token) -> LyricsBlock | None:
+    # 정확 일치(코드 또는 별칭) 우선, 없으면 변주 접미사(*, ')를 뗀 기본 구간으로 재조회한다.
+    entry = sections_by_code.get(token.section_code) if token.section_code else None
+    if entry:
+        note = f"별칭 표기 → {entry['canonical']}" if entry["via_alias"] else None
+        return LyricsBlock(kind="lyrics", section_code=entry["canonical"], text=entry["lyrics"], note=note)
+
+    if token.fallback_code:
+        entry = sections_by_code.get(token.fallback_code)
+        if entry:
+            return LyricsBlock(
+                kind="lyrics",
+                section_code=entry["canonical"],
+                text=entry["lyrics"],
+                note=f"변주 표기({token.raw} → {entry['canonical']})",
+            )
     return None
 
 
@@ -38,7 +61,7 @@ def _duplicate(block: LyricsBlock, extra_count: int, repeat_total: int) -> list[
     return copies
 
 
-def _build_song_blocks(song_form: str | None, sections_by_code: dict[str, str]) -> tuple[list[LyricsBlock], int]:
+def _build_song_blocks(song_form: str | None, sections_by_code: dict[str, dict]) -> tuple[list[LyricsBlock], int]:
     tokens = song_form_parser.parse_song_form(song_form)
     blocks: list[LyricsBlock] = []
     unresolved_count = 0
@@ -96,9 +119,7 @@ def build_conti_lyrics(conti_id: int) -> ContiLyricsResponse:
     unresolved_total = 0
     for cs in sorted(conti_songs, key=lambda row: row["order_no"]):
         song = cs.get("songs") or {}
-        sections_by_code = {
-            row["section_code"]: row["lyrics"] for row in sections_by_song.get(song.get("id"), [])
-        }
+        sections_by_code = _build_section_lookup(sections_by_song.get(song.get("id"), []))
         blocks, unresolved_count = _build_song_blocks(cs.get("song_form"), sections_by_code)
         unresolved_total += unresolved_count
         songs.append(

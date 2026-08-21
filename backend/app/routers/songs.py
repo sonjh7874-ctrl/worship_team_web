@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends
 
 from app.dependencies import require_role
 from app.schemas.song import SongCreate, SongItem, SongUpdate
-from app.schemas.song_section import SongSectionItem, SongSectionsUpdate
+from app.schemas.song_section import SongSectionsResponse, SongSectionsUpdate
 from app.services import song_section_service, song_service
 
 router = APIRouter(prefix="/api/v1/songs", tags=["songs"])
@@ -44,7 +44,7 @@ def update_song(song_id: int, payload: SongUpdate):
 
 @router.get(
     "/{song_id}/sections",
-    response_model=list[SongSectionItem],
+    response_model=SongSectionsResponse,
     dependencies=[Depends(require_role("member"))],
 )
 def list_song_sections(song_id: int):
@@ -54,7 +54,7 @@ def list_song_sections(song_id: int):
 
 @router.put(
     "/{song_id}/sections",
-    response_model=list[SongSectionItem],
+    response_model=SongSectionsResponse,
     dependencies=[Depends(require_role("leader"))],
 )
 def put_song_sections(song_id: int, payload: SongSectionsUpdate):
