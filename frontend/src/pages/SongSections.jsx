@@ -27,6 +27,8 @@ function SongSections() {
   const [searchParams] = useSearchParams();
   // /conti/:id/lyrics의 미해결 표기에서 "이 표기로 구간 만들기"를 누르면 넘어오는 원문.
   const prefillCode = searchParams.get("prefill");
+  // /conti/:id/lyrics에서 넘어온 경우, 저장 후 그 콘티의 자막 화면으로 바로 돌아갈 수 있게 한다.
+  const contiId = searchParams.get("contiId");
 
   const [song, setSong] = useState(null);
   const [rows, setRows] = useState([]);
@@ -143,7 +145,8 @@ function SongSections() {
 
   const nav = (
     <div>
-      <Link to="/">← 메인으로</Link> <Link to="/songs">곡 관리</Link>
+      <Link to="/">← 메인으로</Link> <Link to="/songs">곡 관리</Link>{" "}
+      {contiId && <Link to={`/conti/${contiId}/lyrics`}>이 콘티 자막 가사 보기</Link>}
     </div>
   );
 

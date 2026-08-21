@@ -11,7 +11,7 @@ const BLOCK_STYLE = {
   unresolved: { marginBottom: 20, paddingLeft: 16, color: "#c00", fontWeight: "bold", whiteSpace: "pre-line" },
 };
 
-function LyricsBlockView({ block, songId }) {
+function LyricsBlockView({ block, songId, contiId }) {
   const style = BLOCK_STYLE[block.kind] || {};
   return (
     <div style={style}>
@@ -23,7 +23,7 @@ function LyricsBlockView({ block, songId }) {
       )}
       {block.kind === "unresolved" && songId != null && (
         <Link
-          to={`/songs/${songId}/sections?prefill=${encodeURIComponent(block.text)}`}
+          to={`/songs/${songId}/sections?prefill=${encodeURIComponent(block.text)}&contiId=${contiId}`}
           style={{ marginLeft: 8, fontSize: 12 }}
         >
           이 표기로 구간 등록
@@ -33,7 +33,7 @@ function LyricsBlockView({ block, songId }) {
   );
 }
 
-function SongLyricsView({ song }) {
+function SongLyricsView({ song, contiId }) {
   const [copied, setCopied] = useState(false);
 
   // 자막팀에 넘길 때는 마디 표기·미해결 표기 없이 실제 가사 줄만 필요하므로,
@@ -58,13 +58,16 @@ function SongLyricsView({ song }) {
       </h2>
       <button type="button" onClick={handleCopyLyricsOnly}>
         {copied ? "복사됨" : "이 곡 가사만 복사"}
-      </button>
+      </button>{" "}
+      {song.song_id != null && (
+        <Link to={`/songs/${song.song_id}/sections?contiId=${contiId}`}>가사 구간 편집</Link>
+      )}
       {song.unresolved_count > 0 && (
         <p style={{ color: "#c00" }}>미해결 {song.unresolved_count}건 — 아래 표기 옆 링크로 바로 등록할 수 있습니다.</p>
       )}
       <div>
         {song.blocks.map((block, i) => (
-          <LyricsBlockView key={i} block={block} songId={song.song_id} />
+          <LyricsBlockView key={i} block={block} songId={song.song_id} contiId={contiId} />
         ))}
       </div>
     </div>
@@ -169,7 +172,7 @@ function ContiLyrics() {
       </button>
 
       {lyrics.songs.map((song) => (
-        <SongLyricsView key={song.order_no} song={song} />
+        <SongLyricsView key={song.order_no} song={song} contiId={contiId} />
       ))}
     </div>
   );
