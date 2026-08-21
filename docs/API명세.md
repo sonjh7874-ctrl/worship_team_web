@@ -16,6 +16,7 @@
   - 헤더가 없거나 토큰이 무효/만료: `401 Unauthorized`
   - 역할이 부족: `403 Forbidden`
 - 콘티/곡/파일/공지사항/스케줄/캘린더/인명부의 **쓰기 엔드포인트는 모두 `require_role("leader")`**. 사용자 관리(`/auth/users` — 목록 조회·역할 변경·비밀번호 초기화)만 `require_role("admin")`이고, 내 정보 조회·수정·비밀번호 변경(`/auth/me`)은 로그인만 하면 된다(`require_role("member")`).
+- **예외 — 가사 관련 조회(GET)만 member 이상 필요**: `GET /songs/{song_id}/sections`, `GET /contis/{conti_id}/lyrics`(Phase 9). 저작권 있는 콘텐츠라 다른 조회 엔드포인트와 달리 비로그인 접근은 `401`이다.
 - 액세스 토큰은 기본 1시간 만료다. 만료 시 `POST /auth/refresh`에 `refresh_token`을 보내 재발급받는다(프론트는 401 응답을 받으면 이 과정을 자동으로 1회 재시도한다).
 - **이전 방식이던 `X-Edit-Password` 단일 비밀번호 게이트(`EDIT_PASSWORD`)는 완전히 제거됐다.** 문제가 생기면 Phase 7의 교체 커밋을 git revert해 되돌아간다.
 
@@ -112,8 +113,17 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | PATCH | `/songs/{song_id}` | 곡 정보 수정 (제목/아티스트/기본키) | 필요 |
 | DELETE | `/songs/{song_id}` | 곡 삭제 (**어떤 콘티에도 배치되지 않은 곡만**) | 필요 |
 
-- `GET /songs` 응답의 각 곡에는 `usage_count`(이 곡이 배치된 콘티 수)가 함께 내려간다. 곡 관리 화면이 삭제 가능 여부를 미리 보여주기 위한 값이며, 중첩 count 집계라 조회 횟수는 늘지 않는다.
+- `GET /songs` 응답의 각 곡에는 `usage_count`(이 곡이 배치된 콘티 수)와 `section_count`(등록된 가사 구간 수, Phase 9)가 함께 내려간다. 둘 다 곡 관리 화면(`/songs`)이 삭제 가능 여부와 "가사 등록됨/미등록" 배지를 미리 보여주기 위한 값이며, 중첩 count 집계라 조회 횟수는 늘지 않는다.
 - `DELETE`는 `usage_count > 0`이면 **409**로 거부한다. `conti_songs.song_id` FK가 `on delete restrict`라 그냥 지우면 DB 오류가 500으로 새어 나가고, 무엇보다 과거 콘티의 곡 정보가 깨지기 때문이다. AI 인식이 제목을 잘못 읽어 생긴 곡처럼 **아직 어디에도 안 쓰인 찌꺼기만** 지울 수 있다.
+
+| Method | Path | 설명 | 인증 |
+|---|---|---|---|
+| GET | `/songs/{song_id}/sections` | 곡의 구간별 가사 목록 (A/B/C ...) | **member 이상** |
+| PUT | `/songs/{song_id}/sections` | 구간 배열 전체 교체 | 필요(leader) |
+
+- 구간 저장(`PUT`)은 `conti_songs`/`schedule_assignments`와 동일한 전체 교체 패턴이다 — 한 화면에서 구간 전체를 확인·수정하고 저장 버튼 한 번으로 반영한다.
+- 요청 본문은 `{"sections": [{"section_code": "A1", "lyrics": "...", "display_order": 0}, ...]}`. `section_code` 중복은 **400**(DB 유니크 제약과 별개로 API 레벨에서 사전 검증).
+- **가사는 저작권 있는 콘텐츠라 조회(`GET`)도 `member` 이상 로그인이 필요하다** — 다른 조회 엔드포인트와 달리 비로그인 접근은 401.
 
 ### 1-3. 콘티-곡 배치
 
@@ -195,6 +205,44 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 - 조회 시(`GET /contis/{conti_id}`) 서버가 **서명된 URL(signed URL, 유효시간 1시간)** 을 발급해 응답에 포함 — 버킷이 Private이므로 필요
 - `replace=true`면 **같은 `file_type`의 기존 파일을 Storage·DB에서 지우고 새로 올린다.** AI 인식을 여러 번 돌려도 콘티 원본 이미지가 1장만 유지되게 하려는 옵션이라 AI 인식 흐름만 사용하고, 악보 PDF 등 수동 업로드는 기본값 `false`라 여러 개 쌓을 수 있다.
 - **콘티를 삭제하면(`DELETE /contis/{conti_id}`) 딸린 Storage 파일도 함께 지운다.** DB의 `sheet_files` 행은 FK CASCADE로 정리되지만 Storage 객체에는 DB 제약이 닿지 않아, 서비스 레이어에서 콘티 삭제 직전에 파일부터 지워야 버킷에 고아 파일이 쌓이지 않는다(무료 티어 용량 보호).
+
+### 1-6. 콘티 자막용 가사 (Phase 9)
+
+| Method | Path | 설명 | 인증 |
+|---|---|---|---|
+| GET | `/contis/{conti_id}/lyrics` | 콘티의 자막용 가사(송폼 순서로 조합된 결과) | **member 이상** |
+
+- **저장하지 않고 매 요청마다 계산한다.** `conti_songs.song_form`을 파서로 토큰 분류한 뒤 `song_sections`와 매칭해 조합한다 — 저장해두면 가사를 고친 뒤 결과가 옛날 값으로 남는 "원본-사본 불일치" 문제가 재발하기 때문이다.
+- 응답은 곡별로 `blocks` 배열(각 블록은 `kind`: `lyrics` | `marker` | `unresolved`)을 담는다. `unresolved_count`(곡별)와 `unresolved_total`(콘티 전체)로 해석 실패 건수를 함께 내려준다.
+- **송폼 해석 실패는 에러가 아니다.** 등록되지 않은 구간 코드나 가사 첫 구절이 그대로 토큰인 경우(`kind: "unresolved"`)는 원문 그대로 담아 반환하고, 프론트가 해당 곡의 구간 등록 화면(`/songs/{song_id}/sections`) 링크를 함께 보여준다. 한 번 등록하면 다음 조회부터 자동으로 해결된다.
+- 변주 표기(`C*` → `C`)로 대체 매칭됐거나, 반복(`x2`)으로 복제됐거나, 인용 딸린 지시(`bis(...)`/`Tag(...)`)가 등록된 구간 없이 인용 원문으로 대체된 경우는 각 블록의 `note` 필드에 그 사실을 남긴다.
+
+**응답 예시**
+
+```json
+{
+  "conti_id": 12,
+  "service_date": "2026-08-09",
+  "title": "주일예배",
+  "songs": [
+    {
+      "order_no": 1,
+      "song_id": 3,
+      "title": "삶의 예배",
+      "artist": "아이자야",
+      "song_key": "G-A",
+      "song_form": "(4) A1 A2 B (맞4) A2 B (맞4) (up) B B",
+      "blocks": [
+        { "kind": "lyrics", "section_code": "A1", "text": "...", "note": null },
+        { "kind": "marker", "section_code": null, "text": "(4)", "note": null },
+        { "kind": "unresolved", "section_code": null, "text": "B'", "note": null }
+      ],
+      "unresolved_count": 1
+    }
+  ],
+  "unresolved_total": 1
+}
+```
 
 ---
 
@@ -346,16 +394,16 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 
 ## 5. 엔드포인트 전체 요약
 
-> 2026-08-20 기준 실제 Swagger(`/docs`)와 대조해 갱신했다. 헬스체크(`GET /`)는 제외한 숫자다.
+> 2026-08-21 기준 실제 Swagger(`/docs`)와 대조해 갱신했다. 헬스체크(`GET /`)는 제외한 숫자다.
 
 | 그룹 | 엔드포인트 수 | 내역 |
 |---|---|---|
-| 콘티/곡/악보 | 15 | 콘티 10(AI 인식 포함) + 곡 4 + 파일 삭제 1 |
+| 콘티/곡/악보 | 18 | 콘티 11(AI 인식 + 자막 가사 포함) + 곡 4 + 곡 가사 구간 2(Phase 9) + 파일 삭제 1 |
 | 공지사항/스케줄 | 12 | 공지 5 + 스케줄 7 |
 | 캘린더 | 5 | |
 | 인명부 | 4 | |
 | 인증/사용자 | 9 | Phase 7 신설(비밀번호 초기화·변경·내 정보 수정 3개 추가) |
-| **합계** | **45** | |
+| **합계** | **48** | |
 
 ---
 
