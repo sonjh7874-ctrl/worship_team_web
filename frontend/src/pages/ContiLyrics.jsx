@@ -2,18 +2,19 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchContiLyrics } from "../api/lyrics";
 
-// 마디/간주 표기(마커)는 가사가 아니라 진행 정보라 옅게, 해석 실패(unresolved) 토큰은
-// 사람이 알아채야 하므로 눈에 띄게 스타일을 다르게 준다.
+// 마디/간주 표기(마커)는 가사가 아니라 진행 정보라 옅고 좁게, 실제 가사 블록(파트)은
+// 들여쓰기 + 넉넉한 간격을 줘서 파트 사이가 눈에 띄게 구분되도록 한다. 해석 실패(unresolved)
+// 토큰은 사람이 알아채야 하므로 눈에 띄게 스타일을 다르게 준다.
 const BLOCK_STYLE = {
-  lyrics: {},
-  marker: { color: "#888", fontStyle: "italic" },
-  unresolved: { color: "#c00", fontWeight: "bold" },
+  lyrics: { marginBottom: 20, paddingLeft: 16, whiteSpace: "pre-line" },
+  marker: { marginBottom: 6, color: "#888", fontStyle: "italic" },
+  unresolved: { marginBottom: 20, paddingLeft: 16, color: "#c00", fontWeight: "bold", whiteSpace: "pre-line" },
 };
 
 function LyricsBlockView({ block, songId }) {
   const style = BLOCK_STYLE[block.kind] || {};
   return (
-    <div style={{ marginBottom: 4, ...style }}>
+    <div style={style}>
       {block.kind === "unresolved" ? `[?] ${block.text}` : block.text}
       {block.note && (
         <span style={{ marginLeft: 8, fontSize: 12, color: "#888", fontStyle: "normal", fontWeight: "normal" }}>
@@ -33,13 +34,31 @@ function LyricsBlockView({ block, songId }) {
 }
 
 function SongLyricsView({ song }) {
+  const [copied, setCopied] = useState(false);
+
+  // 자막팀에 넘길 때는 마디 표기·미해결 표기 없이 실제 가사 줄만 필요하므로,
+  // kind가 "lyrics"인 블록만 골라 곡 단위로 복사한다(연습용 "전체 복사"와는 별개 버튼).
+  function handleCopyLyricsOnly() {
+    const text = song.blocks
+      .filter((block) => block.kind === "lyrics")
+      .map((block) => block.text)
+      .join("\n\n");
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
+
   return (
-    <div style={{ marginBottom: 24 }}>
+    <div style={{ marginBottom: 32 }}>
       <h2>
         {song.order_no}. {song.title}
         {song.artist ? ` _ ${song.artist}` : ""}
         {song.song_key ? ` (${song.song_key})` : ""}
       </h2>
+      <button type="button" onClick={handleCopyLyricsOnly}>
+        {copied ? "복사됨" : "이 곡 가사만 복사"}
+      </button>
       {song.unresolved_count > 0 && (
         <p style={{ color: "#c00" }}>미해결 {song.unresolved_count}건 — 아래 표기 옆 링크로 바로 등록할 수 있습니다.</p>
       )}
