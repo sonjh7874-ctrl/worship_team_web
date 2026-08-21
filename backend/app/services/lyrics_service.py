@@ -104,6 +104,7 @@ def build_conti_lyrics(conti_id: int) -> ContiLyricsResponse:
         songs.append(
             ContiLyricsSong(
                 order_no=cs["order_no"],
+                song_id=song.get("id"),
                 title=song.get("title", ""),
                 artist=song.get("artist"),
                 song_key=cs.get("song_key"),

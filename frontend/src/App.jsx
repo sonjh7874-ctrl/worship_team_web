@@ -5,6 +5,7 @@ import CalendarEdit from "./pages/CalendarEdit";
 import CalendarMain from "./pages/CalendarMain";
 import ChangePassword from "./pages/ChangePassword";
 import ContiDetail from "./pages/ContiDetail";
+import ContiLyrics from "./pages/ContiLyrics";
 import ContiEdit from "./pages/ContiEdit";
 import ContiMain from "./pages/ContiMain";
 import Home from "./pages/Home";
@@ -79,6 +80,7 @@ function App() {
           }
         />
         <Route path="/conti/:contiId" element={<ContiDetail />} />
+        <Route path="/conti/:contiId/lyrics" element={<ContiLyrics />} />
         <Route
           path="/conti/:contiId/edit"
           element={

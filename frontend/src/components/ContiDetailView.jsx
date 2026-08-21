@@ -1,8 +1,15 @@
+import { Link } from "react-router-dom";
+
 function ContiDetailView({ conti }) {
   return (
     <div>
       <h1>{conti.title}</h1>
       <p>{conti.service_date}</p>
+      {conti.songs.length > 0 && (
+        <p>
+          <Link to={`/conti/${conti.id}/lyrics`}>자막용 가사 보기</Link>
+        </p>
+      )}
       {conti.songs.length === 0 ? (
         <p>등록된 곡이 없습니다.</p>
       ) : (

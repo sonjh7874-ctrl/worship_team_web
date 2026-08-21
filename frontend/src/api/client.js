@@ -24,7 +24,11 @@ async function parseResponse(res, method, path) {
     // 백엔드 에러 응답의 detail 메시지를 그대로 화면에 보여주기 위해 우선 사용하고,
     // JSON이 아니거나 detail이 없으면 상태 코드 기반 기본 메시지로 대체한다.
     const detail = await res.json().catch(() => null);
-    throw new Error(detail?.detail || `${method} ${path} failed: ${res.status}`);
+    const err = new Error(detail?.detail || `${method} ${path} failed: ${res.status}`);
+    // 401(로그인 필요)처럼 메시지 문자열이 아니라 상태 코드로 분기해야 하는 화면(예: 자막 가사
+    // 보기)이 있어, 에러 메시지와 별도로 status를 함께 담아 던진다.
+    err.status = res.status;
+    throw err;
   }
   // DELETE 성공(204 No Content)은 응답 본문이 없어 res.json()을 호출하면 에러가 난다.
   if (res.status === 204) return null;

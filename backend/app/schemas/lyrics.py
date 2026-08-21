@@ -13,6 +13,7 @@ class LyricsBlock(BaseModel):
 
 class ContiLyricsSong(BaseModel):
     order_no: int
+    song_id: int
     title: str
     artist: str | None = None
     song_key: str | None = None
