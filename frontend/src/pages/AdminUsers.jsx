@@ -1,8 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { fetchUsers, resetUserPassword, updateUserRole } from "../api/auth";
+import { fetchAccountEvents, fetchUsers, resetUserPassword, updateUserRole } from "../api/auth";
 
 const ROLE_LABELS = { admin: "관리자", leader: "리더십", member: "팀원" };
+
+const EVENT_LABELS = {
+  display_name_changed: "이름 변경",
+  role_changed: "역할 변경",
+  password_reset: "비밀번호 초기화",
+};
+
+function formatEventValue(eventType, value) {
+  if (value === null || value === undefined) return null;
+  return eventType === "role_changed" ? ROLE_LABELS[value] ?? value : value;
+}
 
 // admin 전용 — leader 권한을 부여·회수하고, 비밀번호를 초기화한다. admin 승격은 앱에서
 // 하지 않고 Supabase SQL로만 하도록 SDD가 정했으므로(관리자 증식 경로를 앱에 두지 않기 위함),
@@ -15,6 +26,10 @@ function AdminUsers() {
   // 방금 발급한 임시 비밀번호 — 응답에만 담기고 어디에도 저장되지 않으므로 화면에서
   // 이 순간에만 보여주고 안내를 유도한다.
   const [tempPassword, setTempPassword] = useState(null);
+  // 이력 펼침 상태 — 사용자 id별로 이벤트 목록을 캐시해 다시 펼칠 때 재조회하지 않는다.
+  const [expandedUserId, setExpandedUserId] = useState(null);
+  const [eventsByUser, setEventsByUser] = useState({});
+  const [eventsError, setEventsError] = useState(null);
 
   function load() {
     setLoading(true);
@@ -61,6 +76,22 @@ function AdminUsers() {
     }
   }
 
+  async function handleToggleHistory(user) {
+    if (expandedUserId === user.id) {
+      setExpandedUserId(null);
+      return;
+    }
+    setExpandedUserId(user.id);
+    setEventsError(null);
+    if (eventsByUser[user.id]) return; // 이미 불러온 적 있으면 재조회하지 않는다.
+    try {
+      const events = await fetchAccountEvents(user.id);
+      setEventsByUser((prev) => ({ ...prev, [user.id]: events }));
+    } catch (err) {
+      setEventsError(err.message);
+    }
+  }
+
   if (loading) return <p>불러오는 중...</p>;
 
   return (
@@ -103,7 +134,28 @@ function AdminUsers() {
             )}{" "}
             <button type="button" onClick={() => handleResetPassword(user)}>
               비밀번호 초기화
+            </button>{" "}
+            <button type="button" onClick={() => handleToggleHistory(user)}>
+              {expandedUserId === user.id ? "이력 닫기" : "이력 보기"}
             </button>
+            {expandedUserId === user.id && (
+              <div style={{ fontSize: 12, marginTop: "0.3rem", paddingLeft: "1rem" }}>
+                {eventsError && <p style={{ color: "red" }}>{eventsError}</p>}
+                {eventsByUser[user.id] === undefined && !eventsError && <p>불러오는 중...</p>}
+                {eventsByUser[user.id]?.length === 0 && <p>기록된 이벤트가 없습니다.</p>}
+                {eventsByUser[user.id]?.map((event) => {
+                  const oldLabel = formatEventValue(event.event_type, event.old_value);
+                  const newLabel = formatEventValue(event.event_type, event.new_value);
+                  return (
+                    <p key={event.id} style={{ margin: "0.15rem 0" }}>
+                      [{EVENT_LABELS[event.event_type]}]
+                      {oldLabel && newLabel ? ` ${oldLabel} → ${newLabel}` : ""}{" "}
+                      ({event.changed_by_name}, {new Date(event.created_at).toLocaleString("ko-KR")})
+                    </p>
+                  );
+                })}
+              </div>
+            )}
           </li>
         ))}
       </ul>

@@ -3,7 +3,8 @@ import secrets
 from fastapi import HTTPException
 from supabase_auth.errors import AuthApiError
 
-from app.repositories import user_profile_repository
+from app.repositories import account_event_repository, user_profile_repository
+from app.schemas.account_event import AccountEventItem
 from app.schemas.auth import LoginRequest, SignupRequest, TokenResponse, UserProfile
 from app.supabase_client import get_supabase, get_supabase_anon
 
@@ -80,21 +81,31 @@ def list_users() -> list[UserProfile]:
     return [_to_profile(row["id"], emails.get(row["id"]), row) for row in rows]
 
 
-def update_role(actor_id: str, target_user_id: str, role: str) -> UserProfile:
+def update_role(actor: UserProfile, target_user_id: str, role: str) -> UserProfile:
     if role == "admin":
         raise HTTPException(status_code=403, detail="admin 권한은 앱에서 부여할 수 없습니다.")
-    if actor_id == target_user_id:
+    if actor.id == target_user_id:
         raise HTTPException(status_code=403, detail="자기 자신의 역할은 변경할 수 없습니다.")
 
+    before = user_profile_repository.find_by_id(target_user_id)
     row = user_profile_repository.update_role(target_user_id, role)
     if row is None:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    account_event_repository.create(
+        user_id=target_user_id,
+        event_type="role_changed",
+        old_value=before["role"] if before else None,
+        new_value=role,
+        changed_by=actor.id,
+        changed_by_name=actor.display_name,
+    )
 
     emails = _fetch_emails({target_user_id})
     return _to_profile(target_user_id, emails.get(target_user_id), row)
 
 
-def reset_password(target_user_id: str) -> str:
+def reset_password(actor: UserProfile, target_user_id: str) -> str:
     # 관리자가 값을 직접 정하지 않도록 서버가 무작위 임시 비밀번호를 생성한다 —
     # 관리자가 그 값을 알게 되는 건 어차피 피할 수 없지만(재설정 행위 자체가 그렇다),
     # 고정값이 아니라 매번 새로 생성해 추측 가능성을 없앤다. 응답에만 담기고
@@ -110,6 +121,16 @@ def reset_password(target_user_id: str) -> str:
     row = user_profile_repository.set_force_password_change(target_user_id, True)
     if row is None:
         raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+
+    # 비밀번호 값 자체는 old_value/new_value 어디에도 남기지 않는다 — 이벤트 발생 사실만 기록.
+    account_event_repository.create(
+        user_id=target_user_id,
+        event_type="password_reset",
+        old_value=None,
+        new_value=None,
+        changed_by=actor.id,
+        changed_by_name=actor.display_name,
+    )
     return temp_password
 
 
@@ -132,10 +153,26 @@ def update_display_name(user_id: str, email: str | None, display_name: str) -> U
     if not display_name:
         raise HTTPException(status_code=400, detail="이름을 입력해주세요.")
 
+    before = user_profile_repository.find_by_id(user_id)
     row = user_profile_repository.update_display_name(user_id, display_name)
     if row is None:
         raise HTTPException(status_code=404, detail="사용자 프로필을 찾을 수 없습니다.")
+
+    if before is not None and before["display_name"] != display_name:
+        account_event_repository.create(
+            user_id=user_id,
+            event_type="display_name_changed",
+            old_value=before["display_name"],
+            new_value=display_name,
+            changed_by=user_id,
+            changed_by_name=display_name,
+        )
     return _to_profile(user_id, email, row)
+
+
+def list_account_events(user_id: str) -> list[AccountEventItem]:
+    rows = account_event_repository.find_by_user(user_id)
+    return [AccountEventItem(**row) for row in rows]
 
 
 def _to_profile(user_id: str, email: str | None, row: dict) -> UserProfile:

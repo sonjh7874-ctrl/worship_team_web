@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.dependencies import require_role
+from app.schemas.account_event import AccountEventItem
 from app.schemas.auth import (
     ChangePasswordRequest,
     LoginRequest,
@@ -56,17 +57,25 @@ def update_role(
     payload: RoleUpdate,
     current_user: UserProfile = Depends(require_role("admin")),
 ):
-    return auth_service.update_role(current_user.id, user_id, payload.role)
+    return auth_service.update_role(current_user, user_id, payload.role)
 
 
-@router.post(
-    "/users/{user_id}/password",
-    response_model=PasswordResetResponse,
+@router.post("/users/{user_id}/password", response_model=PasswordResetResponse)
+def reset_password(
+    user_id: str,
+    current_user: UserProfile = Depends(require_role("admin")),
+):
+    temp_password = auth_service.reset_password(current_user, user_id)
+    return PasswordResetResponse(temp_password=temp_password)
+
+
+@router.get(
+    "/users/{user_id}/events",
+    response_model=list[AccountEventItem],
     dependencies=[Depends(require_role("admin"))],
 )
-def reset_password(user_id: str):
-    temp_password = auth_service.reset_password(user_id)
-    return PasswordResetResponse(temp_password=temp_password)
+def get_account_events(user_id: str):
+    return auth_service.list_account_events(user_id)
 
 
 @router.post("/me/password", response_model=UserProfile)

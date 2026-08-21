@@ -37,3 +37,8 @@ export function changeMyPassword(newPassword) {
 export function updateMyProfile(displayName) {
   return apiPatch("/api/v1/auth/me", { display_name: displayName });
 }
+
+// 관리자 전용 — 특정 계정의 보안 이벤트 이력(이름/역할 변경, 비밀번호 초기화)을 최신순으로 조회.
+export function fetchAccountEvents(userId) {
+  return apiGet(`/api/v1/auth/users/${userId}/events`);
+}
