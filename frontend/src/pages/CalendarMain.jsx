@@ -11,10 +11,14 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const WEEKDAY_COLORS = { 0: "#dc2626", 6: "#2563eb" };
 
 // 카테고리별 막대 배경색 — 구분만 되면 충분해서 팔레트는 최소화한다.
+// "생일"은 인명부 생년월일에서 자동 생성되는 이벤트 전용 카테고리라 수동 생성 드롭다운에는
+// 나오지 않는다(FIXED_CATEGORIES에 없음, Phase 12 후속 3-12절) — 이 목록에서 파생되는
+// 필터 체크박스에는 다른 카테고리와 동일하게 나타난다.
 const CATEGORY_COLORS = {
   수련회: "#e0f2fe",
   엠티: "#fef3c7",
   특순: "#ede9fe",
+  생일: "#fce7f3",
   기타: "#f3f4f6",
 };
 
@@ -114,7 +118,8 @@ function computeWeekSegments(weekDates, events, laneByEventId) {
 
 function EventBar({ seg }) {
   const { event, startCol, endCol, lane, isStart, isEnd } = seg;
-  const isAuto = event.source_type === "auto_from_schedule";
+  const isAutoSchedule = event.source_type === "auto_from_schedule";
+  const isBirthday = event.source_type === "auto_birthday";
   const label = event.category === "기타" ? event.category_custom : event.category;
   // 이벤트에 직접 지정한 프리셋 색이 있으면 그걸 우선하고, 없으면 카테고리 기본색을 쓴다.
   const background = event.color || CATEGORY_COLORS[event.category] || "#f3f4f6";
@@ -146,7 +151,8 @@ function EventBar({ seg }) {
         display: "block",
       }}
     >
-      {isAuto && "🔗 "}
+      {isAutoSchedule && "🔗 "}
+      {isBirthday && "🎂 "}
       {event.title}
     </Link>
   );

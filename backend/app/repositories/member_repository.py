@@ -4,7 +4,7 @@ TABLE = "members"
 
 
 def find_all(team: str | None = None, active: bool | None = None) -> list[dict]:
-    query = get_supabase().table(TABLE).select("id, name, team, is_active")
+    query = get_supabase().table(TABLE).select("id, name, team, is_active, gender, birth_date")
     # 스케줄 배정 드롭다운에서 팀/활동여부로 좁혀 쓰므로 두 필터를 선택적으로 적용한다.
     if team:
         query = query.eq("team", team)
@@ -18,7 +18,7 @@ def find_by_id(member_id: int) -> dict | None:
     res = (
         get_supabase()
         .table(TABLE)
-        .select("id, name, team, is_active")
+        .select("id, name, team, is_active, gender, birth_date")
         .eq("id", member_id)
         .maybe_single()
         .execute()
@@ -26,11 +26,19 @@ def find_by_id(member_id: int) -> dict | None:
     return res.data if res else None
 
 
-def create(name: str, team: str, is_active: bool) -> dict:
+def create(name: str, team: str, is_active: bool, gender: str, birth_date: str | None) -> dict:
     res = (
         get_supabase()
         .table(TABLE)
-        .insert({"name": name, "team": team, "is_active": is_active})
+        .insert(
+            {
+                "name": name,
+                "team": team,
+                "is_active": is_active,
+                "gender": gender,
+                "birth_date": birth_date,
+            }
+        )
         .execute()
     )
     return res.data[0]

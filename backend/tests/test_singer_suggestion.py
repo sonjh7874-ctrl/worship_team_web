@@ -1,4 +1,5 @@
-"""싱어팀 자동 배정 제안(app/services/singer_suggestion_service.py)의 순수 로직 테스트 (Phase 12).
+"""싱어팀 자동 배정 제안(app/services/singer_suggestion_service.py)의 순수 로직 테스트 (Phase 12,
+성별 인지 마이크 배치는 Phase 12 후속).
 
 DB 접근 없는 순수 함수라 pytest만으로 돈다 — Phase 9 test_lyrics_service.py,
 Phase 10 test_comment_service.py, Phase 11-A test_schedule_counts.py와 같은 패턴.
@@ -15,8 +16,11 @@ from app.services.singer_suggestion_service import build_singer_suggestions
 SERVICE_DATE = date(2026, 8, 2)
 
 
-def _member(member_id: int, name: str) -> dict:
-    return {"id": member_id, "name": name, "team": "singer", "is_active": True}
+def _member(member_id: int, name: str, gender: str = "female") -> dict:
+    # 성별과 무관한 테스트가 대부분이라 기본값을 하나로 통일해뒀다 — 이러면 모든 후보가 같은
+    # 성별이라 성별 우선순위 로직이 사실상 "순서대로 채우기"로 수렴해, 기존(성별 도입 전) 테스트의
+    # 기대값이 그대로 유지된다. 성별 자체를 검증하는 테스트는 아래에서 명시적으로 지정한다.
+    return {"id": member_id, "name": name, "team": "singer", "is_active": True, "gender": gender}
 
 
 def _submission(
@@ -153,6 +157,56 @@ def test_submission_without_member_id_is_ignored():
     # member_id 없는 제출은 candidate 매칭에 쓰이지 않고, members 목록에도 없어 unknown으로 잡힌다.
     assert skipped.unknown == ["정승주"]
     assert mic == []
+
+
+def test_gender_preferred_slot_prefers_matching_gender_even_if_lower_priority_candidate_waits():
+    # 슬롯 1은 남자 우선(MALE_MIC_SLOTS)이다. 여자 후보(임하늘)가 배정 횟수가 더 적어
+    # 정렬상 앞서더라도, 슬롯 1은 성별이 맞는 남자 후보(정승주)를 먼저 채워야 한다.
+    members = [_member(1, "정승주", gender="male"), _member(2, "임하늘", gender="female")]
+    submissions = [
+        _submission(1, "정승주", default_status="available"),
+        _submission(2, "임하늘", default_status="available"),
+    ]
+    counts = [_count(1, "정승주", month=5, year=5), _count(2, "임하늘", month=0, year=0)]
+
+    mic, choir, skipped = build_singer_suggestions(members, submissions, counts, EMPTY_MIC, [], SERVICE_DATE)
+
+    slot1 = next(m for m in mic if m.slot == 1)
+    assert slot1.name == "정승주"
+    # 슬롯 2는 여자 우선이라 임하늘이 그대로 배정된다.
+    slot2 = next(m for m in mic if m.slot == 2)
+    assert slot2.name == "임하늘"
+
+
+def test_gender_fallback_when_preferred_gender_has_no_candidate():
+    # 여자만 있고 남자가 아예 없으면, 남자 우선 슬롯(1)도 비워두지 않고 여자로 채운다
+    # (README/전체_로드맵 확정 사항: 해당 성별 없으면 다른 성별로 대체 가능).
+    members = [_member(1, "정승주", gender="female")]
+    submissions = [_submission(1, "정승주", default_status="available")]
+
+    mic, choir, skipped = build_singer_suggestions(members, submissions, [], EMPTY_MIC, [], SERVICE_DATE)
+
+    assert len(mic) == 1
+    assert mic[0].slot == 1
+    assert mic[0].name == "정승주"
+
+
+def test_full_roster_fills_slots_by_designated_gender():
+    # 남자 4명·여자 4명이 모두 참석 가능하면, 슬롯 1·4·5·8은 남자로, 2·3·6·7은 여자로 채워져야 한다.
+    males = [_member(i, f"남{i}", gender="male") for i in range(1, 5)]
+    females = [_member(i, f"여{i}", gender="female") for i in range(5, 9)]
+    members = males + females
+    submissions = [_submission(m["id"], m["name"], default_status="available") for m in members]
+
+    mic, choir, skipped = build_singer_suggestions(members, submissions, [], EMPTY_MIC, [], SERVICE_DATE)
+
+    assert len(mic) == 8
+    by_slot = {m.slot: m.name for m in mic}
+    for slot in (1, 4, 5, 8):
+        assert by_slot[slot].startswith("남"), f"slot {slot}은 남자여야 하는데 {by_slot[slot]}"
+    for slot in (2, 3, 6, 7):
+        assert by_slot[slot].startswith("여"), f"slot {slot}은 여자여야 하는데 {by_slot[slot]}"
+    assert choir == []
 
 
 def test_deterministic_output_for_same_input():

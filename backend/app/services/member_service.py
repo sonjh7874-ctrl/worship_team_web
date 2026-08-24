@@ -9,13 +9,16 @@ def list_members(team: str | None, active: bool | None) -> list[Member]:
 
 
 def create_member(payload: MemberCreate) -> Member:
-    row = member_repository.create(payload.name, payload.team, payload.is_active)
+    birth_date = payload.birth_date.isoformat() if payload.birth_date else None
+    row = member_repository.create(payload.name, payload.team, payload.is_active, payload.gender, birth_date)
     return Member(**row)
 
 
 def update_member(member_id: int, payload: MemberUpdate) -> Member:
     # exclude_unset으로 요청에 포함된 필드만 갱신하는 부분 수정(PATCH)을 구현한다.
     fields = payload.model_dump(exclude_unset=True)
+    if fields.get("birth_date") is not None:
+        fields["birth_date"] = fields["birth_date"].isoformat()
     row = member_repository.update(member_id, fields) if fields else member_repository.find_by_id(member_id)
     if row is None:
         raise HTTPException(status_code=404, detail="팀원을 찾을 수 없습니다.")

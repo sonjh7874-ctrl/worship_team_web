@@ -21,19 +21,29 @@ const INSTRUMENT_POSITIONS = [
   { code: "inst_score", field: "score", label: "악보" },
 ];
 
-const MIC_POSITIONS = Array.from({ length: 8 }, (_, i) => ({
-  code: `mic${i + 1}`,
-  slot: String(i + 1),
-  label: `마이크 ${i + 1}`,
-}));
+// 무대 배치가 성별 고정이라(README 4절, Phase 12 후속) 마이크 1·4·5·8은 남자, 2·3·6·7은
+// 여자 자리다. 라벨에 표시해 리더가 드롭다운에서 바로 참고할 수 있게 한다.
+const MALE_MIC_SLOTS = new Set(["1", "4", "5", "8"]);
+const GENDER_LABELS = { male: "남", female: "여" };
+
+const MIC_POSITIONS = Array.from({ length: 8 }, (_, i) => {
+  const slot = String(i + 1);
+  return {
+    code: `mic${i + 1}`,
+    slot,
+    label: `마이크 ${i + 1} (${MALE_MIC_SLOTS.has(slot) ? "남" : "여"} 자리)`,
+  };
+});
 
 // counts가 있으면(마이크 슬롯 전용, Phase 11-A) 옵션 라벨에 "이번 달 N · 올해 M" 배정 횟수를
 // 함께 보여준다. 숫자는 저장된 DB 기준이라 아직 저장하지 않은 화면상의 변경은 반영되지 않는다.
 function MemberSelect({ value, onChange, members, unlinkedName, counts }) {
   function optionLabel(m) {
+    const genderTag = m.gender ? GENDER_LABELS[m.gender] : null;
     const c = counts?.[m.id];
-    if (!c) return m.name;
-    return `${m.name} (이번 달 ${c.month_count}회 · 올해 ${c.year_count}회)`;
+    if (!c) return genderTag ? `${m.name} (${genderTag})` : m.name;
+    const genderPrefix = genderTag ? `${genderTag} · ` : "";
+    return `${m.name} (${genderPrefix}이번 달 ${c.month_count}회 · 올해 ${c.year_count}회)`;
   }
   return (
     <>

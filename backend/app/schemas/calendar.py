@@ -43,10 +43,13 @@ class CalendarEventListItem(BaseModel):
     category_custom: str | None = None
     # 프리셋 8색 중 하나(hex) 또는 null(카테고리 기본색 사용). 그리드 막대 색상에 쓰인다.
     color: str | None = None
-    # 자동 생성된 특순 이벤트인지 여부 — 프론트가 그리드 칩에 배지를 붙이고
-    # 상세 화면에서 수정/삭제 버튼 대신 안내문을 보여줄지 판단하는 데 쓴다 (ERD 3-4).
+    # 자동 생성된 이벤트인지 여부 — 프론트가 그리드 칩에 배지를 붙이고
+    # 상세 화면에서 수정/삭제 버튼 대신 안내문을 보여줄지 판단하는 데 쓴다.
+    # "auto_from_schedule"(특순, ERD 3-4) / "auto_birthday"(생일, 3-12절) / "manual".
     source_type: str
     source_week_id: int | None = None
+    # 생일 자동 이벤트가 가리키는 팀원(members.id). 특순 이벤트에는 항상 null이다.
+    source_member_id: int | None = None
     # 목록 화면에서 상세로 들어가지 않아도 댓글이 있는지 알 수 있도록 함께 내려준다.
     comment_count: int = 0
 

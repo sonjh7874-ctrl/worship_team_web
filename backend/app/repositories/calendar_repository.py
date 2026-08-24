@@ -11,12 +11,12 @@ PARTICIPANT_TABLE = "event_participants"
 PARTICIPANTS_SELECT = f"{PARTICIPANT_TABLE}(member_id, name_snapshot, members(name))"
 
 LIST_SELECT = (
-    "id, title, start_date, end_date, category, category_custom, color, source_type, source_week_id,"
-    " calendar_event_comments(count)"
+    "id, title, start_date, end_date, category, category_custom, color,"
+    " source_type, source_week_id, source_member_id, calendar_event_comments(count)"
 )
 DETAIL_SELECT = (
     "id, title, start_date, end_date, category, category_custom, color, memo,"
-    f" source_type, source_week_id, calendar_event_comments(count), {PARTICIPANTS_SELECT}"
+    f" source_type, source_week_id, source_member_id, calendar_event_comments(count), {PARTICIPANTS_SELECT}"
 )
 
 
@@ -52,6 +52,24 @@ def find_by_id(event_id: int) -> dict | None:
         .execute()
     )
     return res.data if res else None
+
+
+def find_birthday_events_by_month(year: int, month: int) -> list[dict]:
+    # 생일 이벤트는 항상 하루짜리(end_date 없음)라 find_by_month의 오버랩 조건이 필요 없다.
+    # 그 달 범위 안의 auto_birthday 행만 그대로 가져와 서비스 레이어가 멤버 목록과 비교해
+    # 대상이 아니게 된 행(퇴사·생일 삭제)은 지우고, 새로 대상이 된 사람은 만든다.
+    month_start = date(year, month, 1)
+    month_end = date(year, month, cal.monthrange(year, month)[1])
+    res = (
+        get_supabase()
+        .table(TABLE)
+        .select("id, title, start_date, source_member_id")
+        .eq("source_type", "auto_birthday")
+        .gte("start_date", month_start.isoformat())
+        .lte("start_date", month_end.isoformat())
+        .execute()
+    )
+    return res.data
 
 
 def find_by_source_week(week_id: int) -> dict | None:

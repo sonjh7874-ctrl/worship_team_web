@@ -1,6 +1,9 @@
+import calendar as cal
+from datetime import date
+
 from fastapi import HTTPException
 
-from app.repositories import calendar_repository
+from app.repositories import calendar_repository, member_repository
 from app.schemas.calendar import (
     FIXED_CATEGORIES,
     PRESET_COLORS,
@@ -12,7 +15,12 @@ from app.schemas.calendar import (
     ParticipantItem,
 )
 
-AUTO_EDIT_BLOCKED_MESSAGE = "공지사항(월간 스케줄)에서 수정해주세요."
+# 이벤트가 어떤 원본에서 자동 생성됐는지에 따라 안내 메시지가 다르다 — 특순은 스케줄에서,
+# 생일은 인명부에서 고쳐야 한다(3-12절). "manual"은 이 맵에 없으므로 애초에 가드에 걸리지 않는다.
+_AUTO_EDIT_BLOCKED_MESSAGES = {
+    "auto_from_schedule": "공지사항(월간 스케줄)에서 수정해주세요.",
+    "auto_birthday": "인명부에서 생년월일을 수정해주세요.",
+}
 
 
 def _resolve_participant(row: dict) -> ParticipantItem | None:
@@ -51,6 +59,7 @@ def _to_detail(row: dict) -> CalendarEventDetail:
         memo=row.get("memo"),
         source_type=row["source_type"],
         source_week_id=row.get("source_week_id"),
+        source_member_id=row.get("source_member_id"),
         comment_count=_pop_comment_count(row),
         participants=participants,
     )
@@ -94,13 +103,69 @@ def _validate_date_order(start_date: str, end_date: str | None) -> None:
 
 
 def _guard_manual_only(row: dict) -> None:
-    # 특순 자동 동기화 이벤트는 공지사항(월간 스케줄)이 원본이라 캘린더 API로 직접
-    # 수정/삭제할 수 없다 (ERD 3-4, API명세 3절 — 단방향 동기화 강제).
-    if row["source_type"] == "auto_from_schedule":
-        raise HTTPException(status_code=403, detail=AUTO_EDIT_BLOCKED_MESSAGE)
+    # 자동 생성 이벤트(특순 ERD 3-4, 생일 3-12절)는 각자의 원본이 진짜 출처라 캘린더 API로
+    # 직접 수정/삭제할 수 없다 (단방향 동기화 강제).
+    message = _AUTO_EDIT_BLOCKED_MESSAGES.get(row["source_type"])
+    if message:
+        raise HTTPException(status_code=403, detail=message)
+
+
+def _birthday_event_date(birth_date: date, year: int) -> date:
+    try:
+        return birth_date.replace(year=year)
+    except ValueError:
+        # 2/29 생일이 평년과 겹치면 2/28로 보정한다.
+        return birth_date.replace(year=year, day=28)
+
+
+def _sync_birthday_events(year: int, month: int) -> None:
+    # 그 달의 생일 자동 이벤트를 현재 인명부 상태와 맞춰 재계산한다 — 특순처럼 저장 시점에
+    # 동기화를 트리거할 "쓰기 이벤트"가 없으므로, 그 달을 조회할 때마다 대상자를 다시 계산해
+    # 없으면 만들고, 더 이상 대상이 아니면(퇴사·생일 삭제) 지운다(3-12절). 퇴사한 팀원은
+    # 애초에 활동 팀원 조회에서 빠지므로 생일이 새로 생기지 않는다.
+    members = member_repository.find_all(active=True)
+    desired: dict[int, tuple[date, str]] = {}
+    for member in members:
+        birth_date = member.get("birth_date")
+        if not birth_date:
+            continue
+        if isinstance(birth_date, str):
+            birth_date = date.fromisoformat(birth_date)
+        if birth_date.month != month:
+            continue
+        event_date = _birthday_event_date(birth_date, year)
+        desired[member["id"]] = (event_date, f"{member['name']}님 생일")
+
+    existing = {row["source_member_id"]: row for row in calendar_repository.find_birthday_events_by_month(year, month)}
+
+    for member_id, (event_date, title) in desired.items():
+        row = existing.pop(member_id, None)
+        start_date_iso = event_date.isoformat()
+        if row is None:
+            calendar_repository.create_event(
+                {
+                    "title": title,
+                    "start_date": start_date_iso,
+                    "end_date": None,
+                    "category": "생일",
+                    "category_custom": None,
+                    "color": None,
+                    "memo": None,
+                    "source_type": "auto_birthday",
+                    "source_week_id": None,
+                    "source_member_id": member_id,
+                }
+            )
+        elif row["start_date"] != start_date_iso or row["title"] != title:
+            calendar_repository.update_event(row["id"], {"start_date": start_date_iso, "title": title})
+
+    # 남은 항목은 더 이상 대상이 아닌(퇴사·생일 삭제) 이전 생일 이벤트라 지운다.
+    for row in existing.values():
+        calendar_repository.delete_event(row["id"])
 
 
 def list_events(year: int, month: int) -> list[CalendarEventListItem]:
+    _sync_birthday_events(year, month)
     items = []
     for row in calendar_repository.find_by_month(year, month):
         comment_count = _pop_comment_count(row)

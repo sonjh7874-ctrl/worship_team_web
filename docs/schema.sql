@@ -25,6 +25,8 @@ create table members (
   name        text not null,
   team        text not null check (team in ('singer', 'instrument')),
   is_active   boolean not null default true,
+  gender      text not null check (gender in ('male', 'female')),
+  birth_date  date,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now()
 );
@@ -34,6 +36,8 @@ create trigger trg_members_updated before update on members
 
 comment on table members is '인명부. 배정 드롭다운의 마스터 데이터';
 comment on column members.is_active is 'false = 탈퇴/비활동. 과거 배정 기록은 유지';
+comment on column members.gender is '싱어팀 마이크 1~8번 배치가 성별 고정이라(Phase 12 후속) 필수 필드로 둔다';
+comment on column members.birth_date is '선택 입력. 있으면 캘린더에 생일이 매년 자동 표시된다(Phase 12 후속)';
 
 
 create table positions (
@@ -204,14 +208,17 @@ create table calendar_events (
   color            text,
   memo             text,
   source_type      text not null default 'manual'
-                     check (source_type in ('manual', 'auto_from_schedule')),
+                     check (source_type in ('manual', 'auto_from_schedule', 'auto_birthday')),
   source_week_id   bigint references schedule_weeks (id) on delete cascade,
+  source_member_id bigint references members (id) on delete cascade,
   created_at       timestamptz not null default now(),
   updated_at       timestamptz not null default now(),
-  -- 자동 생성 이벤트는 원본 주차를 반드시 가리켜야 하고, 수동 이벤트는 가리키면 안 됨
+  -- 자동 생성 이벤트는 각자의 원본(주차 또는 팀원)을 반드시 가리켜야 하고, 수동 이벤트는
+  -- 둘 다 가리키면 안 됨. auto_birthday는 Phase 12 후속에서 추가됐다(3-12절).
   constraint chk_event_source check (
-    (source_type = 'auto_from_schedule' and source_week_id is not null)
-    or (source_type = 'manual' and source_week_id is null)
+    (source_type = 'auto_from_schedule' and source_week_id is not null and source_member_id is null)
+    or (source_type = 'auto_birthday' and source_member_id is not null and source_week_id is null)
+    or (source_type = 'manual' and source_week_id is null and source_member_id is null)
   ),
   constraint chk_event_period check (end_date is null or end_date >= start_date)
 );

@@ -30,7 +30,9 @@ function CalendarDetail() {
     );
   }
 
-  const isAuto = event.source_type === "auto_from_schedule";
+  const isAutoSchedule = event.source_type === "auto_from_schedule";
+  const isBirthday = event.source_type === "auto_birthday";
+  const isAuto = isAutoSchedule || isBirthday;
   const categoryLabel = event.category === "기타" ? event.category_custom : event.category;
 
   return (
@@ -66,12 +68,21 @@ function CalendarDetail() {
         <p>참여 인원: {event.participants.map((p) => p.name).join(", ")}</p>
       )}
 
-      {isAuto && (
+      {isAutoSchedule && (
         <div style={{ background: "#ede9fe", padding: "0.5rem", marginTop: "1rem" }}>
           <p>
             🔗 이 이벤트는 공지사항(월간 스케줄)의 특순 정보에서 자동으로 만들어졌습니다. 여기서
             직접 수정·삭제할 수 없고, <Link to="/schedules">월간 스케줄</Link>에서 특순 정보를
             바꾸면 이 이벤트도 함께 갱신됩니다.
+          </p>
+        </div>
+      )}
+      {isBirthday && (
+        <div style={{ background: "#fce7f3", padding: "0.5rem", marginTop: "1rem" }}>
+          <p>
+            🎂 이 이벤트는 인명부의 생년월일에서 자동으로 만들어졌습니다. 여기서 직접
+            수정·삭제할 수 없고, <Link to="/members">인명부</Link>에서 생년월일을 바꾸면 다음에
+            이 달을 조회할 때 함께 갱신됩니다.
           </p>
         </div>
       )}

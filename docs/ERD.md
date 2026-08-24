@@ -48,6 +48,7 @@ erDiagram
     monthly_schedules ||--o{ schedule_weeks : "주차를 갖는다"
     schedule_weeks ||--o{ schedule_assignments : "배정을 갖는다"
     schedule_weeks ||--o| calendar_events : "특순을 단방향 동기화한다"
+    members ||--o| calendar_events : "생일을 단방향 동기화한다"
 
     calendar_events ||--o{ event_participants : "참여자를 갖는다"
 
@@ -63,6 +64,8 @@ erDiagram
         text name
         text team "singer | instrument"
         boolean is_active
+        text gender "male | female, not null (Phase 12 후속)"
+        date birth_date "nullable, 있으면 캘린더 생일 자동 표시"
         timestamptz created_at
         timestamptz updated_at
     }
@@ -161,8 +164,9 @@ erDiagram
         text category_custom
         text color "프리셋 8색 hex, nullable"
         text memo
-        text source_type "manual | auto_from_schedule"
+        text source_type "manual | auto_from_schedule | auto_birthday"
         bigint source_week_id FK "nullable"
+        bigint source_member_id FK "nullable, 생일 자동 이벤트가 가리키는 팀원(Phase 12 후속)"
         timestamptz created_at
         timestamptz updated_at
     }
@@ -358,6 +362,46 @@ Phase 7에서 로그인 도입으로 `EDIT_PASSWORD` 자체는 코드에서 제�
   "사람이 검수해 확정한 값"이라는 성격이 다르기 때문이다).
 - RLS는 다른 테이블과 동일하게 **활성화 + 정책 없음**. 다만 조회(`GET`) API 자체는 다른 도메인과 달리 leader
   이상만 허용한다(API명세 0-1절 예외) — 참/불참 사유가 팀원 개인 사정을 담은 텍스트이기 때문이다.
+
+### 3-11. `members.gender` — 성별 필수 필드 (Phase 12 후속)
+
+- 싱어팀 마이크 1~8번 무대 배치가 성별 고정이다(4절 마이크 무대 좌표) — 앞줄·뒷줄 모두 바깥쪽(1·4·5·8)이
+  남자, 안쪽(2·3·6·7)이 여자로 대칭이다. Phase 12(싱어팀 자동 배정 제안)가 이 규칙을 반영하지 못한 채
+  나가서, 배정 제안이 실제 무대 관례와 어긋나는 문제를 뒤늦게 발견하고 추가했다.
+- README가 원래 "인명부 상세 필드 최소화" 원칙으로 회비·티셔츠·생일·겸직·연락처 등을 배제했지만, 성별은
+  스케줄 배정 제안 알고리즘이 실제로 쓰는 값이라 이 원칙의 예외다 — 마이크 배정 횟수(3-8절 이전 Phase 11-A)와
+  같은 급의 "배정 로직이 필요로 하는 최소 데이터"로 본다.
+- **`not null`로 강제**했다 — nullable로 두면 추천 알고리즘이 "성별 불명" 케이스를 매 슬롯마다 예외 처리해야
+  하고, 22명 규모에서 결국 전원 입력해야 끝나는 값이라 처음부터 필수로 요구하는 편이 더 단순하다. 다만 이미
+  값이 있는 테이블에 `not null` 컬럼을 바로 추가할 수 없어, 운영 반영은 3단계로 나눈다: ① nullable로 컬럼
+  추가 → ② 기존 행 전체 백필 → ③ `not null` 제약 적용. API 스키마(`MemberCreate`)는 처음부터 필수로 요구해
+  신규 팀원은 성별 없이 등록될 수 없다.
+- 마이크 슬롯에 해당 성별 후보가 없으면 다른 성별로 대체할 수 있다(실사용 확인 사항) — 이 대체 규칙은
+  DB 제약이 아니라 `singer_suggestion_service.build_singer_suggestions`의 순수 로직에 있다(1순위 매칭
+  성별 → 2순위 다른 성별). 콰이어는 무대 위치가 없어 성별을 가리지 않는다.
+
+### 3-12. `members.birth_date` + `calendar_events.source_member_id` — 생일 자동 캘린더 (Phase 12 후속)
+
+- `birth_date`는 **선택 입력**(nullable)이다 — 성별과 달리 배정 로직이 직접 쓰는 값이 아니라 편의 기능(생일
+  알림)의 원천 데이터일 뿐이라, 입력을 강제할 이유가 없다.
+- 특순(3-4절)과 같은 **단방향 동기화** 구조이지만 트리거 지점이 다르다. 특순은 "주차 저장"이라는 명확한
+  쓰기 이벤트가 있어 그 시점에 동기화하면 되지만, 생일은 그런 쓰기 이벤트가 없다(생년월일은 한 번 넣으면
+  거의 안 바뀐다). 그래서 **그 달을 조회하는 시점(`GET /calendar?year=&month=`)마다 재계산**한다 — 이번 달
+  달력을 열 때마다 활동 중인 팀원의 생일을 다시 계산해 없으면 만들고, 더 이상 대상이 아니게 된 이벤트
+  (퇴사·생년월일 삭제)는 지운다. 스케줄 잡힌 배치 작업(cron)이 이 프로젝트에 없기 때문에 택한 실용적인
+  절충이며, 자주 보는 화면일수록 최신 상태로 스스로 정리되는 "레이지 동기화"다.
+- **퇴사(`is_active=false`) 팀원의 생일은 만들지 않는다**(실사용 확인 사항). 활동 중인 팀원만 대상으로 하므로
+  퇴사 시 다음 조회부터 자동으로 사라진다(레이지 동기화의 자연스러운 효과이지 별도 삭제 로직이 아니다).
+- `source_member_id bigint references members(id) on delete cascade` — 팀원이 완전히 삭제되면(하드 삭제)
+  생일 이벤트도 함께 사라진다. 비활성화(퇴사 처리)는 위 레이지 동기화가, 완전 삭제는 이 FK CASCADE가 각각
+  처리해 이중으로 안전하다.
+- `source_type`에 `auto_birthday`를 추가하고 `chk_event_source`를 3-way로 확장했다 — `source_week_id`/
+  `source_member_id` 중 정확히 하나만 채워지는 자동 이벤트 두 종류와, 둘 다 비어 있는 수동 이벤트로 나뉜다.
+- 카테고리 `생일`은 3-4절 `특순`과 마찬가지로 **수동 생성 대상이 아니다**. 다만 특순은 `FIXED_CATEGORIES`에
+  포함돼 있어(사용자가 수동으로도 `특순` 카테고리를 만들 수 있음, 기존 설계 그대로 유지) 대칭이 완벽하진
+  않지만, `생일`은 새로 추가하는 카테고리라 아예 `FIXED_CATEGORIES` 밖에 두어 혼동을 만들 수동 생성 경로
+  자체를 없앴다.
+- 2/29생이 평년과 겹치면 2/28로 보정한다(`_birthday_event_date`) — 흔한 윤년 생일 처리 관례를 따랐다.
 
 ---
 
