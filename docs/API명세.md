@@ -18,6 +18,7 @@
 - 콘티/곡/파일/공지사항/스케줄/캘린더/인명부의 **쓰기 엔드포인트는 모두 `require_role("leader")`**. 사용자 관리(`/auth/users` — 목록 조회·역할 변경·비밀번호 초기화)만 `require_role("admin")`이고, 내 정보 조회·수정·비밀번호 변경(`/auth/me`)은 로그인만 하면 된다(`require_role("member")`).
 - **예외 — 가사 관련 조회(GET)만 member 이상 필요**: `GET /songs/{song_id}/sections`, `GET /contis/{conti_id}/lyrics`(Phase 9). 저작권 있는 콘텐츠라 다른 조회 엔드포인트와 달리 비로그인 접근은 `401`이다.
 - **예외 — 댓글은 작성/수정/삭제만 로그인 필요**: `POST/PATCH/DELETE /notices/{id}/comments`, `/calendar/{id}/comments`(Phase 10)는 `require_role("member")`이지만, **목록 조회(GET)는 다른 콘텐츠와 동일하게 비로그인 공개**다. 수정은 작성자 본인만, 삭제는 본인 또는 `leader` 이상만 가능하도록 서비스 레이어에서 소유권을 추가로 검사한다(역할 게이트만으로는 표현할 수 없는 리소스 소유권 비교).
+- **예외 — 참/불참 조회는 leader 이상 필요**: `GET/PUT /schedules/availability`(Phase 11-B)는 조회(`GET`)도 `require_role("leader")`다. 참/불참 사유(`결혼식`, `가족일정` 등)가 팀원 개인 사정을 담은 텍스트라, 다른 도메인의 "조회는 비로그인 공개" 원칙과 달리 리더십 전용으로 좁혔다.
 - 액세스 토큰은 기본 1시간 만료다. 만료 시 `POST /auth/refresh`에 `refresh_token`을 보내 재발급받는다(프론트는 401 응답을 받으면 이 과정을 자동으로 1회 재시도한다).
 - **이전 방식이던 `X-Edit-Password` 단일 비밀번호 게이트(`EDIT_PASSWORD`)는 완전히 제거됐다.** 문제가 생기면 Phase 7의 교체 커밋을 git revert해 되돌아간다.
 
@@ -272,6 +273,9 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | PATCH | `/schedules/{schedule_id}/weeks/{week_id}` | 주차 정보 수정 (비고/불참사항/특순) | 필요 |
 | DELETE | `/schedules/{schedule_id}/weeks/{week_id}` | 주차 삭제 | 필요 |
 | PUT | `/schedules/{schedule_id}/weeks/{week_id}/assignments` | **해당 주차의 배정 전체 교체** | 필요 |
+| POST | `/schedules/availability/ai-parse` | 여러 명 참/불참 텍스트를 AI로 구조화(저장 안 함, Phase 11-B) | 필요 |
+| GET | `/schedules/availability?year=2026&month=8` | 해당 월 참/불참 제출 현황 조회(Phase 11-B) | 필요(leader) |
+| PUT | `/schedules/availability?year=2026&month=8` | 해당 월 참/불참 제출 전체 교체(확정 저장, Phase 11-B) | 필요 |
 
 > **설계 근거**: 배정도 콘티-곡 배치와 동일하게, 리더십이 "이번 주 포지션표 전체"를 한 화면에서 입력하고 저장 버튼 한 번으로 반영하는 흐름이다. 포지션 19개 중 채워진 것만 배열로 보내면 서버가 `schedule_assignments`를 통째로 교체한다.
 
@@ -295,6 +299,63 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
   선택지에 없어 숫자를 붙일 자리가 없다(ERD 3-3).
 - **표시 위치는 `ScheduleEdit`의 마이크 1~8 드롭다운뿐**이다. 숫자는 항상 저장된 DB 기준이라, 아직 저장하지 않은 화면상의
   배정 변경은 반영되지 않는다.
+
+**참/불참 텍스트 파싱 (Phase 11-B)**
+
+카톡에 올라오는 자유 텍스트(참·불참 명단)를 콘티 이미지 인식(1-4절)과 동일한 "AI가 구조화 → 사람이 검수 → 확정 저장"
+패턴으로 처리한다. 저장 단위는 "날짜별 항목 + 월 단위 기본값" 조합이다 — `29일 불참(결혼식), 30일 참`처럼 한 주차
+페어 안에서도 날짜별로 상태가 갈리는 실제 사례가 있어, 주차 단위가 아니라 날짜 단위로 저장한다. `전참`/`전체 불참(사유)`
+같은 축약형은 그 달의 실제 날짜를 계산하지 않고 기본값 자체로만 저장한다.
+
+`POST /schedules/availability/ai-parse` 요청/응답 예시:
+
+```json
+// 요청
+{ "text": "8월 섬김 일정 (서유진)\n1,2일 참\n...\n\n8월 섬김 일정 (송지오)\n\n전참/ 특새 참", "year": 2026, "month": 8 }
+```
+
+```json
+// 응답 — DB에 저장하지 않는다. 사람이 검수 후 PUT /schedules/availability로 확정 저장한다.
+{
+  "people": [
+    {
+      "name_raw": "서유진",
+      "matched_member_id": 29,
+      "match_status": "matched",
+      "default_status": null,
+      "default_reason": null,
+      "entries": [
+        { "date": "2026-08-29", "status": "unavailable", "reason": "결혼식" },
+        { "date": "2026-08-30", "status": "available", "reason": null }
+      ],
+      "raw_text": "8월 섬김 일정 (서유진)\n1,2일 참\n..."
+    },
+    {
+      "name_raw": "송지오",
+      "matched_member_id": 27,
+      "match_status": "matched",
+      "default_status": "available",
+      "default_reason": null,
+      "entries": [],
+      "raw_text": "8월 섬김 일정 (송지오)\n\n전참/ 특새 참"
+    }
+  ]
+}
+```
+
+- **날짜는 서버가 계산한다.** 모델에게는 "일(day)" 숫자만 뽑게 하고, 서버가 요청받은 `year`/`month`와 조합해 실제
+  날짜를 만든다 — 콘티 이미지 인식(1-4절)의 "날짜는 서버가 계산" 원칙과 동일하게, 모델이 연/월을 잘못 짚는 위험을
+  원천 차단한다.
+- **특새(특별새벽집회) 관련 줄은 파싱 대상이 아니다.** 정기 주일 스케줄과 테이블 구조 자체가 달라 이번 범위에서
+  제외했다. 텍스트에 `특새 참` 같은 줄이 있어도 결과에 포함하지 않는다.
+- **이름 매칭은 곡 매칭(1-4절)과 동일 패턴** — 정규화 완전 일치로 인명부와 자동 매칭하고, 실패하면
+  `match_status: "unmatched"`로 표시해 검수 화면에서 사람이 인명부 선택 또는 미등록 인물로 확정한다.
+- **조회(`GET`)도 leader 이상만 필요하다.** 다른 도메인(콘티/공지/스케줄)의 조회는 비로그인 공개지만, 참/불참
+  사유(`결혼식`, `가족일정` 등)는 팀원 개인 사정을 담은 텍스트라 리더십 전용으로 좁혔다.
+- `PUT /schedules/availability`는 그 달 제출 전체를 교체하는 방식이다(`conti_songs`/`schedule_assignments`와 동일한
+  delete-then-insert 패턴). 리더가 같은 달 참/불참을 다시 붙여넣어 재파싱·재확정해도 항상 최신 상태로 덮어써진다.
+- **이 API는 저장·조회까지만 하고, 배정 화면(`ScheduleEdit`)과 연동되지 않는다.** 불참자를 배정 드롭다운에서
+  자동으로 걸러내거나 추천에 반영하는 것은 Phase 12(싱어팀 자동 배정 제안)의 범위다.
 
 **`GET /schedules?year=2026&month=8` 응답 예시 (마이크 배치 포함, 화면에서 바로 렌더 가능한 형태로 피벗)**
 
@@ -459,16 +520,16 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 
 ## 5. 엔드포인트 전체 요약
 
-> 2026-08-22 기준 실제 Swagger(`/docs`)와 대조해 갱신했다. 헬스체크(`GET /`)는 제외한 숫자다.
+> 2026-08-24 기준 실제 Swagger(`/docs`)와 대조해 갱신했다. 헬스체크(`GET /`)는 제외한 숫자다.
 
 | 그룹 | 엔드포인트 수 | 내역 |
 |---|---|---|
 | 콘티/곡/악보 | 18 | 콘티 11(AI 인식 + 자막 가사 포함) + 곡 4 + 곡 가사 구간 2(Phase 9) + 파일 삭제 1 |
-| 공지사항/스케줄 | 17 | 공지 5 + 공지 댓글 4(Phase 10) + 스케줄 7 + 배정 횟수 조회 1(Phase 11-A) |
+| 공지사항/스케줄 | 20 | 공지 5 + 공지 댓글 4(Phase 10) + 스케줄 7 + 배정 횟수 조회 1(Phase 11-A) + 참/불참 파싱 3(Phase 11-B) |
 | 캘린더 | 9 | 이벤트 5 + 이벤트 댓글 4(Phase 10) |
 | 인명부 | 4 | |
 | 인증/사용자 | 10 | Phase 7 신설(비밀번호 초기화·변경·내 정보 수정 3개 추가) + 계정 이벤트 로그(Phase 7 후속) 1개 |
-| **합계** | **58** | |
+| **합계** | **61** | |
 
 ---
 

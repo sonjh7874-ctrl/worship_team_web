@@ -26,6 +26,8 @@
 | 15 | `account_events` | 계정 보안 이벤트 로그(이름/역할 변경, 비밀번호 초기화) — Phase 7 후속 | 공통 |
 | 16 | `notice_comments` | 공지사항 댓글 — Phase 10 | 기능 2 |
 | 17 | `calendar_event_comments` | 캘린더 이벤트 댓글 — Phase 10 | 기능 3 |
+| 18 | `availability_submissions` | 참/불참 텍스트 파싱 결과(사람×월 제출) — Phase 11-B | 기능 2 |
+| 19 | `availability_entries` | 제출된 날짜별 참/불참 항목 — Phase 11-B | 기능 2 |
 
 ---
 
@@ -53,6 +55,8 @@ erDiagram
     user_profiles ||--o{ account_events : "계정 이벤트를 남긴다"
     notices ||--o{ notice_comments : "댓글을 갖는다"
     calendar_events ||--o{ calendar_event_comments : "댓글을 갖는다"
+    members ||--o{ availability_submissions : "참/불참을 제출한다"
+    availability_submissions ||--o{ availability_entries : "날짜별 항목을 갖는다"
 
     members {
         bigint id PK
@@ -217,6 +221,27 @@ erDiagram
         timestamptz created_at
         timestamptz updated_at
     }
+
+    availability_submissions {
+        bigint id PK
+        int year
+        int month
+        bigint member_id FK "nullable"
+        text name_snapshot
+        text default_status "available | unavailable | null"
+        text default_reason
+        text raw_text "원문 그대로 보관, 트러블슈팅용"
+        timestamptz created_at
+        timestamptz updated_at
+    }
+
+    availability_entries {
+        bigint id PK
+        bigint submission_id FK
+        date date
+        text status "available | unavailable"
+        text reason
+    }
 ```
 
 ---
@@ -300,6 +325,31 @@ Phase 7에서 로그인 도입으로 `EDIT_PASSWORD` 자체는 코드에서 제�
 - **"수정됨" 표시는 별도 컬럼 없이 `updated_at != created_at` 비교로 판단**한다. 다른 테이블(`contis`, `notices` 등)과 동일한 `set_updated_at()` 트리거를 두 테이블에도 걸어 `UPDATE` 시 자동 갱신되게 했다 — 이 트리거를 처음에 빠뜨렸다가 실제 조회 테스트에서 `updated_at`이 안 바뀌는 것을 발견하고 추가했다.
 - 수정 권한(본인만)과 삭제 권한(본인 또는 leader 이상)은 역할 게이트(`require_role`)만으로 표현할 수 없는 **리소스 소유권 비교**라 서비스 레이어(`comment_service.compute_permissions`)에서 판정한다. 응답의 `can_edit`/`can_delete` 필드로 그 결과를 미리 내려줘 프론트가 같은 로직을 중복 구현하지 않게 했다.
 - RLS는 다른 테이블과 동일하게 **활성화 + 정책 없음**.
+
+### 3-10. `availability_submissions` / `availability_entries` — 참/불참 텍스트 파싱 (Phase 11-B)
+
+- **부모(제출) + 자식(날짜별 항목) 구조**를 택했다 — `contis`+`conti_songs`, `monthly_schedules`+`schedule_weeks`와 같은
+  이 프로젝트의 기존 패턴이다. 한 사람의 한 달치 제출이 부모(`availability_submissions`) 한 행, 그 안의 날짜별
+  참/불참이 자식(`availability_entries`) 여러 행이다.
+- **저장 단위는 "날짜별 항목 + 월 단위 기본값" 조합**이다. 실제 카톡 텍스트에 `29일 불참(결혼식), 30일 참`처럼
+  같은 주차 페어 안에서도 날짜별로 상태가 갈리는 사례가 있어, 주차(`schedule_weeks`) 단위가 아니라 **날짜 단위**로
+  저장해야 정확하게 표현할 수 있다. 반대로 `전참`/`전체 불참(사유)` 같은 축약형은 `default_status`/`default_reason`에
+  그대로 담아, 그 달에 실제로 몇 번의 주일이 있는지 계산하는 로직 없이도 처리된다.
+- **`schedule_weeks`나 `monthly_schedules`를 FK로 참조하지 않는다.** 참/불참 제출은 리더가 배정을 짜기 **전에**
+  받는 경우가 많아(참석 여부를 알아야 배정을 짤 수 있으므로), 그 달의 `monthly_schedules`/`schedule_weeks` 행이
+  아직 없을 수도 있다. `year`/`month` 정수만으로 독립적으로 존재해, 스케줄 생성 순서와 무관하게 저장할 수 있다.
+- `member_id`는 nullable이지만 **`name_snapshot`은 항상 채워진다** — 3-3절의 `schedule_assignments`(member_id 또는
+  name_snapshot 중 하나만 필수)와 달리, 참/불참 제출은 항상 카톡 텍스트의 이름에서 시작하므로 이름이 없는 경우가 없다.
+  인명부 매칭에 실패한 사람은 `member_id`만 null로 남고, 검수 화면에서 리더가 인명부 선택 또는 미등록 인물로 확정한다.
+- **`raw_text`는 원문을 그대로 보관**한다 — 3-8절 `account_events`가 값 자체는 남기지 않는 원칙과는 반대로,
+  여기서는 오히려 원문을 남기는 쪽을 택했다. `contis.ai_raw_result`(Phase 6)와 같은 목적으로,
+  AI 파싱이 놓친 부분을 사람이 원문과 대조해 검수·재확정할 수 있게 하기 위함이다.
+- **조합 결과(자막 가사, 3-7절)와 달리 매 요청 계산하지 않고 그대로 저장한다.** 참/불참은 리더가 검수 화면에서
+  직접 수정할 수 있는 확정값이라, 원본(카톡 텍스트)이 바뀌어도 이미 확정한 결과가 자동으로 따라 바뀌면 안 된다 —
+  재확정하려면 다시 파싱해서 `PUT`으로 덮어써야 한다(3-4절 특순 동기화·3-7절 자막 가사와는 반대되는 선택이지만,
+  "사람이 검수해 확정한 값"이라는 성격이 다르기 때문이다).
+- RLS는 다른 테이블과 동일하게 **활성화 + 정책 없음**. 다만 조회(`GET`) API 자체는 다른 도메인과 달리 leader
+  이상만 허용한다(API명세 0-1절 예외) — 참/불참 사유가 팀원 개인 사정을 담은 텍스트이기 때문이다.
 
 ---
 

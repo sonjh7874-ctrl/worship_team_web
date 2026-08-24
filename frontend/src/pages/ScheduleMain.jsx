@@ -148,6 +148,7 @@ function ScheduleMain() {
     <div>
       <Link to="/">← 메인으로</Link>
       <h1>월간 스케줄</h1>
+      {canEdit && <p><Link to="/schedules/availability">참/불참 현황 보기</Link></p>}
 
       <form onSubmit={handleSearch}>
         <label>

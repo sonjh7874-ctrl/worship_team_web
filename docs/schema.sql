@@ -361,6 +361,44 @@ insert into positions (code, team, label, display_order, is_multi) values
 
 
 -- ============================================================
+-- 6-2. availability_submissions / availability_entries (Phase 11-B — 참/불참 텍스트 파싱)
+--      부모(사람×월 제출) + 자식(날짜별 항목) 구조. contis/conti_songs, monthly_schedules/schedule_weeks와
+--      동일한 패턴. 저장 단위는 "날짜별 항목 + 월 단위 기본값" 조합 — "29일 불참(결혼식), 30일 참"처럼
+--      주차 페어 안에서도 날짜별로 상태가 갈리는 실제 사례가 있어 날짜 단위로 저장하고,
+--      "전참"/"전체 불참(사유)" 같은 축약형은 달력 계산 없이 기본값 자체로 저장한다.
+-- ============================================================
+
+create table availability_submissions (
+  id             bigserial primary key,
+  year           int not null,
+  month          int not null,
+  member_id      bigint references members (id) on delete set null,
+  name_snapshot  text not null,
+  default_status text check (default_status in ('available', 'unavailable')),
+  default_reason text,
+  raw_text       text not null,
+  created_at     timestamptz not null default now(),
+  updated_at     timestamptz not null default now()
+);
+create index idx_availability_submissions_month on availability_submissions (year, month);
+
+create trigger trg_availability_submissions_updated before update on availability_submissions
+  for each row execute function set_updated_at();
+
+create table availability_entries (
+  id            bigserial primary key,
+  submission_id bigint not null references availability_submissions (id) on delete cascade,
+  date          date not null,
+  status        text not null check (status in ('available', 'unavailable')),
+  reason        text
+);
+create index idx_availability_entries_submission on availability_entries (submission_id);
+
+comment on table availability_submissions is '참/불참 텍스트 파싱 결과(사람×월 단위 제출). AI가 구조화하고 사람이 검수 후 확정 저장(Phase 11-B)';
+comment on table availability_entries is '제출된 날짜별 참/불참 항목. 기본값(전참/전체 불참)과 다른 날짜만이 아니라, 축약형 없이 나열된 사람은 언급된 날짜 전부가 여기 들어간다';
+
+
+-- ============================================================
 -- 7. RLS — 서버(service_role)만 접근 허용
 --    브라우저는 FastAPI를 거쳐서만 데이터에 접근한다
 -- ============================================================
@@ -382,6 +420,8 @@ alter table song_sections       enable row level security;
 alter table account_events      enable row level security;
 alter table notice_comments     enable row level security;
 alter table calendar_event_comments enable row level security;
+alter table availability_submissions enable row level security;
+alter table availability_entries enable row level security;
 
 -- 정책을 만들지 않으므로 anon / authenticated 키로는 아무 것도 조회되지 않는다.
 -- service_role 키는 RLS를 우회하므로 FastAPI 서버만 정상 접근한다.

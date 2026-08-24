@@ -1,5 +1,6 @@
 import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AdminUsers from "./pages/AdminUsers";
+import AvailabilityEdit from "./pages/AvailabilityEdit";
 import CalendarDetail from "./pages/CalendarDetail";
 import CalendarEdit from "./pages/CalendarEdit";
 import CalendarMain from "./pages/CalendarMain";
@@ -123,6 +124,14 @@ function App() {
           element={
             <RequireRole minRole="leader">
               <ScheduleEdit />
+            </RequireRole>
+          }
+        />
+        <Route
+          path="/schedules/availability"
+          element={
+            <RequireRole minRole="leader">
+              <AvailabilityEdit />
             </RequireRole>
           }
         />
