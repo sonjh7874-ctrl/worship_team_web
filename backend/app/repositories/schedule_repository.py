@@ -19,7 +19,7 @@ DETAIL_SELECT = (
 )
 
 WEEK_DETAIL_SELECT = (
-    "id, week_label, service_date, remark, absence_note,"
+    "id, schedule_id, week_label, service_date, remark, absence_note,"
     f" special_title, special_date, special_memo, {ASSIGNMENTS_SELECT}"
 )
 

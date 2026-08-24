@@ -22,17 +22,21 @@ from app.schemas.schedule import (
 MIC_SLOTS = [str(i) for i in range(1, 9)]
 
 
-def resolve_attendance(submission: AvailabilitySubmissionItem | None, service_date: date_type) -> str:
+def resolve_attendance(
+    submission: AvailabilitySubmissionItem | None, service_date: date_type | None
+) -> str:
     """그 주일(service_date)의 참석 여부를 판정한다.
 
     우선순위: 날짜별 항목(entries) 정확 매칭 → 월 단위 기본값(default_status) → 불명확("unknown").
-    제출 자체가 없으면(None) 무조건 unknown이다. 결과는 "available" | "unavailable" | "unknown".
+    제출 자체가 없으면(None) 무조건 unknown이다. service_date가 없는 주차(드물게 서비스 날짜
+    미입력)는 날짜별 매칭을 건너뛰고 기본값만 본다. 결과는 "available" | "unavailable" | "unknown".
     """
     if submission is None:
         return "unknown"
-    for entry in submission.entries:
-        if entry.date == service_date:
-            return entry.status
+    if service_date is not None:
+        for entry in submission.entries:
+            if entry.date == service_date:
+                return entry.status
     if submission.default_status:
         return submission.default_status
     return "unknown"
@@ -44,7 +48,7 @@ def build_singer_suggestions(
     mic_counts: list[MicAssignmentCount],
     current_mic: dict[str, AssignedPerson | None],
     current_choir: list[AssignedPerson],
-    service_date: date_type,
+    service_date: date_type | None,
 ) -> tuple[list[SuggestedMicSlot], list[SuggestedPerson], SuggestionSkipped]:
     """빈 마이크 슬롯과 콰이어를 채울 후보를 계산한다.
 

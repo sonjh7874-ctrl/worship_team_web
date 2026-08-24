@@ -15,6 +15,7 @@ from app.schemas.schedule import (
     ScheduleWeekCreate,
     ScheduleWeekItem,
     ScheduleWeekUpdate,
+    SingerSuggestionsResponse,
 )
 from app.services import availability_parse_service, availability_service, schedule_service
 
@@ -121,3 +122,13 @@ def delete_week(schedule_id: int, week_id: int):
 )
 def put_assignments(schedule_id: int, week_id: int, payload: ScheduleAssignmentsPutRequest):
     return schedule_service.put_assignments(week_id, payload)
+
+
+@router.get(
+    "/{schedule_id}/weeks/{week_id}/suggestions",
+    response_model=SingerSuggestionsResponse,
+    dependencies=[Depends(require_role("leader"))],
+)
+def get_week_suggestions(schedule_id: int, week_id: int):
+    """싱어팀 마이크/콰이어 자동 배정 제안(Phase 12). 참/불참 데이터가 그 파생이라 조회도 leader 이상만."""
+    return schedule_service.get_week_suggestions(schedule_id, week_id)

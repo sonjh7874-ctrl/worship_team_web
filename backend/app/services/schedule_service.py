@@ -2,7 +2,7 @@ from datetime import date
 
 from fastapi import HTTPException
 
-from app.repositories import calendar_repository, schedule_repository
+from app.repositories import calendar_repository, member_repository, schedule_repository
 from app.schemas.schedule import (
     AssignedPerson,
     AssignmentCountsResponse,
@@ -16,7 +16,10 @@ from app.schemas.schedule import (
     ScheduleWeekSpecial,
     ScheduleWeekUpdate,
     SingerAssignment,
+    SingerSuggestionsResponse,
 )
+from app.services import availability_service
+from app.services.singer_suggestion_service import build_singer_suggestions
 
 # position_code -> (배정 그룹, 응답 필드명). positions 마스터의 고정 항목과 1:1 대응한다
 # (API명세 2-2 응답 예시 기준. inst_score/singer_score는 응답 필드명이 둘 다 "score"라 그룹으로 구분).
@@ -258,3 +261,44 @@ def get_assignment_counts(year: int, month: int) -> AssignmentCountsResponse:
     rows = schedule_repository.find_mic_assignments_by_year(year)
     counts = aggregate_mic_counts(rows, month)
     return AssignmentCountsResponse(year=year, month=month, counts=counts)
+
+
+def get_week_suggestions(schedule_id: int, week_id: int) -> SingerSuggestionsResponse:
+    # 싱어팀 마이크/콰이어 자동 배정 제안(Phase 12). 알고리즘 자체는 순수 함수
+    # (singer_suggestion_service.build_singer_suggestions)이고, 여기서는 그 함수가 필요로 하는
+    # 조회(현재 배정·참/불참·배정 횟수·인명부)만 조립한다. 결과는 저장하지 않고 매 요청 계산한다
+    # (Phase 9 자막 가사와 동일한 "원본-사본 불일치 방지" 원칙).
+    schedule = schedule_repository.find_by_id(schedule_id)
+    if schedule is None:
+        raise HTTPException(status_code=404, detail="월 스케줄을 찾을 수 없습니다.")
+
+    row = schedule_repository.find_week_with_assignments(week_id)
+    if row is None or row.get("schedule_id") != schedule_id:
+        raise HTTPException(status_code=404, detail="주차를 찾을 수 없습니다.")
+
+    service_date = row.get("service_date")
+    if isinstance(service_date, str):
+        service_date = date.fromisoformat(service_date)
+
+    _, singer = _pivot_assignments(row.get("schedule_assignments", []))
+
+    # 그 달 싱어팀 참/불참 제출이 하나도 없으면 추천 대상이 애초에 0명이라 조회를 더 하지 않고
+    # 바로 반환한다 — "미제출자는 추천 대상에서 제외" 원칙과 일관된 처리(전체_로드맵.md Phase 12 결정 6).
+    availability = availability_service.get_availability(schedule["year"], schedule["month"], "singer")
+    if not availability.submissions:
+        return SingerSuggestionsResponse(week_id=week_id, service_date=service_date, has_availability=False)
+
+    members = member_repository.find_all(team="singer", active=True)
+    mic_counts = get_assignment_counts(schedule["year"], schedule["month"]).counts
+
+    mic, choir, skipped = build_singer_suggestions(
+        members, availability.submissions, mic_counts, singer.mic, singer.choir, service_date
+    )
+    return SingerSuggestionsResponse(
+        week_id=week_id,
+        service_date=service_date,
+        has_availability=True,
+        mic=mic,
+        choir=choir,
+        skipped=skipped,
+    )
