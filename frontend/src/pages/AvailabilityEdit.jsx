@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { fetchAvailability, parseAvailability, putAvailability } from "../api/availability";
 import { fetchMembers } from "../api/members";
 
@@ -330,7 +329,6 @@ function AvailabilityEdit() {
 
   return (
     <div>
-      <Link to="/schedules">← 스케줄로</Link>
       <h1>참/불참 현황</h1>
       <p style={{ color: "#666" }}>
         카톡에서 받은 여러 명의 참/불참 텍스트를 한 번에 붙여넣고 분석한 뒤, 확인·수정해서 저장하세요.

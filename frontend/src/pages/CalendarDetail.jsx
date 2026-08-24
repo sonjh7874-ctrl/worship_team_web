@@ -24,7 +24,6 @@ function CalendarDetail() {
   if (error || !event) {
     return (
       <div>
-        <Link to="/calendar">← 캘린더로</Link>
         <p>이벤트를 찾을 수 없습니다.</p>
       </div>
     );
@@ -37,7 +36,6 @@ function CalendarDetail() {
 
   return (
     <div>
-      <Link to="/calendar">← 캘린더로</Link>{" "}
       {!isAuto && canEdit && <Link to={`/calendar/${eventId}/edit`}>편집</Link>}
 
       <h1>

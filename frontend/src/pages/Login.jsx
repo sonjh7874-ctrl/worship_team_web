@@ -39,8 +39,6 @@ function Login() {
 
   return (
     <div>
-      <Link to="/">← 메인으로</Link>
-
       <h1>로그인</h1>
 
       {error && <p style={{ color: "red" }}>{error}</p>}

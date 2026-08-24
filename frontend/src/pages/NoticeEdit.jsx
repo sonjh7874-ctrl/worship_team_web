@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import { createNotice, deleteNotice, fetchNotice, updateNotice } from "../api/notices";
 
 function NoticeEdit() {
@@ -62,10 +62,6 @@ function NoticeEdit() {
 
   return (
     <div>
-      <Link to={isNew ? "/notices" : `/notices/${noticeId}`}>
-        {isNew ? "← 공지 목록으로" : "← 상세로"}
-      </Link>
-
       <h1>{isNew ? "공지 작성" : "공지 편집"}</h1>
 
       {error && <p style={{ color: "red" }}>{error}</p>}

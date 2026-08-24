@@ -204,7 +204,6 @@ function CalendarEdit() {
   if (loadError) {
     return (
       <div>
-        <Link to="/calendar">← 캘린더로</Link>
         <p style={{ color: "red" }}>{loadError}</p>
       </div>
     );
@@ -212,7 +211,6 @@ function CalendarEdit() {
   if (isAuto) {
     return (
       <div>
-        <Link to={`/calendar/${eventId}`}>← 상세로</Link>
         <p>
           이 이벤트는 공지사항(월간 스케줄)의 특순 정보에서 자동으로 생성돼 여기서 직접 수정할 수
           없습니다. <Link to="/schedules">월간 스케줄</Link>에서 특순 정보를 수정해주세요.
@@ -223,10 +221,6 @@ function CalendarEdit() {
 
   return (
     <div>
-      <Link to={isNew ? "/calendar" : `/calendar/${eventId}`}>
-        {isNew ? "← 캘린더로" : "← 상세로"}
-      </Link>
-
       <h1>{isNew ? "이벤트 작성" : "이벤트 편집"}</h1>
 
       {formError && <p style={{ color: "red" }}>{formError}</p>}

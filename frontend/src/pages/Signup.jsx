@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 function Signup() {
@@ -34,8 +34,6 @@ function Signup() {
 
   return (
     <div>
-      <Link to="/login">← 로그인으로</Link>
-
       <h1>회원가입</h1>
 
       <p>

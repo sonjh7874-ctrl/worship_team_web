@@ -40,8 +40,6 @@ function Profile() {
 
   return (
     <div>
-      <Link to="/">← 메인으로</Link>
-
       <h1>내 정보</h1>
 
       <p style={{ fontSize: 13 }}>이메일: {user.email}</p>

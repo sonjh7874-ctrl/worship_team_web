@@ -1,4 +1,4 @@
-import { Link, Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import AdminUsers from "./pages/AdminUsers";
 import AvailabilityEdit from "./pages/AvailabilityEdit";
 import CalendarDetail from "./pages/CalendarDetail";
@@ -23,30 +23,8 @@ import SongMain from "./pages/SongMain";
 import SongSections from "./pages/SongSections";
 import ScheduleMain from "./pages/ScheduleMain";
 import RequireRole from "./components/RequireRole";
+import AppShell from "./components/AppShell";
 import { useAuth } from "./contexts/AuthContext";
-
-function Header() {
-  const { user, role, logout } = useAuth();
-
-  return (
-    <header style={{ display: "flex", justifyContent: "flex-end", gap: 12, padding: "8px 0" }}>
-      {user ? (
-        <>
-          <span>
-            {user.display_name} ({role})
-          </span>
-          {role === "admin" && <Link to="/admin/users">사용자 관리</Link>}
-          <Link to="/profile">내 정보</Link>
-          <button type="button" onClick={logout}>
-            로그아웃
-          </button>
-        </>
-      ) : (
-        <Link to="/login">로그인</Link>
-      )}
-    </header>
-  );
-}
 
 // 관리자가 비밀번호를 초기화한 계정은 로그인 직후 이 화면 이외의 다른 경로로 못 가게 막는다.
 // force_password_change가 꺼지기 전까지는 어떤 링크를 눌러도 /change-password로 되돌려보낸다.
@@ -63,8 +41,7 @@ function ForcePasswordChangeGuard({ children }) {
 
 function App() {
   return (
-    <>
-      <Header />
+    <AppShell>
       <ForcePasswordChangeGuard>
       <Routes>
         <Route path="/" element={<Home />} />
@@ -165,7 +142,7 @@ function App() {
         <Route path="*" element={<NotFound />} />
       </Routes>
       </ForcePasswordChangeGuard>
-    </>
+    </AppShell>
   );
 }
 

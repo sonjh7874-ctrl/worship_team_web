@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import {
   aiParseConti,
   createConti,
@@ -392,10 +392,6 @@ function ContiEdit() {
 
   return (
     <div>
-      <Link to={isNew ? "/conti" : `/conti/${contiId}`}>
-        {isNew ? "← 콘티 목록으로" : "← 상세로"}
-      </Link>
-
       <h1>{isNew ? "콘티 만들기" : "콘티 편집"}</h1>
 
       {error && <p style={{ color: "red" }}>{error}</p>}

@@ -36,7 +36,6 @@ function ContiMain() {
   // 하나도 없는 상태(신규 배포 직후 등)에서도 항상 보여야 다른 화면으로 갈 수 있다.
   const nav = (
     <div>
-      <Link to="/">← 메인으로</Link>{" "}
       {canEdit && <Link to="/conti/new">새 콘티 만들기</Link>}{" "}
       <Link to="/members">인명부</Link>{" "}
       <Link to="/songs">곡 관리</Link>{" "}

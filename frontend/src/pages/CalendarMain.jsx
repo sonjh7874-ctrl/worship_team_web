@@ -280,7 +280,6 @@ function CalendarMain() {
 
   return (
     <div>
-      <Link to="/">← 메인으로</Link>
       <h1>캘린더</h1>
 
       {canEdit && (

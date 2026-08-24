@@ -341,14 +341,12 @@ function ScheduleEdit() {
   if (loading) return <p>불러오는 중...</p>;
   if (loadError) return (
     <div>
-      <Link to="/schedules">← 스케줄로</Link>
       <p style={{ color: "red" }}>{loadError}</p>
     </div>
   );
 
   return (
     <div>
-      <Link to="/schedules">← 스케줄로</Link>
       <h1>주차 편집: {weekLabel}</h1>
 
 

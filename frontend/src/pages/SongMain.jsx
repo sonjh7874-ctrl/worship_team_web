@@ -74,16 +74,9 @@ function SongMain() {
     }
   }
 
-  const nav = (
-    <div>
-      <Link to="/">← 메인으로</Link> <Link to="/conti">콘티</Link>
-    </div>
-  );
-
   if (loading) {
     return (
       <div>
-        {nav}
         <p>불러오는 중...</p>
       </div>
     );
@@ -91,7 +84,6 @@ function SongMain() {
 
   return (
     <div>
-      {nav}
       <h1>곡 마스터 관리</h1>
       <p style={{ fontSize: 13 }}>
         콘티에 한 번이라도 배치된 곡은 과거 콘티 기록이 깨지므로 삭제할 수 없습니다(수정은 가능). AI 콘티 인식이

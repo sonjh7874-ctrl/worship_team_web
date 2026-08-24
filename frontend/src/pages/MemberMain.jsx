@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { createMember, deleteMember, fetchMembers, updateMember } from "../api/members";
 import { useAuth } from "../contexts/AuthContext";
 
@@ -127,7 +126,6 @@ function MemberMain() {
 
   return (
     <div>
-      <Link to="/">← 메인으로</Link>
       <h1>인명부</h1>
 
       {error && <p style={{ color: "red" }}>{error}</p>}

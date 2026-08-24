@@ -143,17 +143,15 @@ function SongSections() {
     }
   }
 
-  const nav = (
-    <div>
-      <Link to="/">← 메인으로</Link> <Link to="/songs">곡 관리</Link>{" "}
-      {contiId && <Link to={`/conti/${contiId}/lyrics`}>이 콘티 자막 가사 보기</Link>}
-    </div>
-  );
+  // 콘티에서 진입한 경우에만 원래 자막 검수 흐름으로 돌아가는 보조 링크를 유지한다.
+  const contiLyricsLink = contiId ? (
+    <Link to={`/conti/${contiId}/lyrics`}>이 콘티 자막 가사 보기</Link>
+  ) : null;
 
   if (loading) {
     return (
       <div>
-        {nav}
+        {contiLyricsLink}
         <p>불러오는 중...</p>
       </div>
     );
@@ -161,7 +159,7 @@ function SongSections() {
 
   return (
     <div>
-      {nav}
+      {contiLyricsLink}
       <h1>가사 구간 관리{song ? ` — ${song.title}` : ""}</h1>
       <p style={{ fontSize: 13 }}>
         구간 코드는 송폼에 쓰이는 표기(A1, B, Tag 등)와 맞춰 등록해야 자막용 가사 조합에서 자동으로

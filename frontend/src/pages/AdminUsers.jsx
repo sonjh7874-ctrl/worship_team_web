@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { fetchAccountEvents, fetchUsers, resetUserPassword, updateUserRole } from "../api/auth";
 
 const ROLE_LABELS = { admin: "관리자", leader: "리더십", member: "팀원" };
@@ -96,7 +95,6 @@ function AdminUsers() {
 
   return (
     <div>
-      <Link to="/">← 메인으로</Link>
       <h1>사용자 관리</h1>
       <p style={{ fontSize: 13 }}>
         리더십(leader) 권한을 부여·회수합니다. 관리자(admin) 권한은 여기서 바꿀 수 없습니다.

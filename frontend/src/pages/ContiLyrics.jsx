@@ -118,16 +118,9 @@ function ContiLyrics() {
       .catch(() => setError("복사에 실패했습니다."));
   }
 
-  const nav = (
-    <div>
-      <Link to={`/conti/${contiId}`}>← 콘티 상세로</Link>
-    </div>
-  );
-
   if (loading) {
     return (
       <div>
-        {nav}
         <p>불러오는 중...</p>
       </div>
     );
@@ -136,7 +129,6 @@ function ContiLyrics() {
   if (needsLogin) {
     return (
       <div>
-        {nav}
         <p>가사는 로그인 후 볼 수 있습니다.</p>
         <Link to={`/login?next=${encodeURIComponent(`/conti/${contiId}/lyrics`)}`}>로그인하기</Link>
       </div>
@@ -146,7 +138,6 @@ function ContiLyrics() {
   if (error) {
     return (
       <div>
-        {nav}
         <p style={{ color: "red" }}>{error}</p>
       </div>
     );
@@ -156,7 +147,6 @@ function ContiLyrics() {
 
   return (
     <div>
-      {nav}
       <h1>{lyrics.title} — 자막용 가사</h1>
       <p>{lyrics.service_date}</p>
 
