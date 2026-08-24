@@ -1,18 +1,25 @@
+import Badge from "./Badge";
+import Card from "./Card";
+
 // 콘티의 ContiDetailView처럼 메인/상세 화면에서 공용으로 쓰는 공지 표시 컴포넌트.
 function NoticeDetailView({ notice }) {
   return (
-    <div>
-      <h1>
-        {notice.is_pinned && "📌 "}
-        {notice.title}
-      </h1>
-      <p>{new Date(notice.created_at).toLocaleDateString()}</p>
+    <Card className="notice-detail-card">
+      <header className="detail-heading">
+        <div>
+          <div className="detail-heading__meta">
+            {notice.is_pinned && <Badge tone="warm">고정</Badge>}
+            <span>{new Date(notice.created_at).toLocaleDateString("ko-KR")}</span>
+          </div>
+          <h1>{notice.title}</h1>
+        </div>
+      </header>
       {notice.content ? (
-        <p style={{ whiteSpace: "pre-wrap" }}>{notice.content}</p>
+        <div className="notice-detail-card__content">{notice.content}</div>
       ) : (
-        <p>내용이 없습니다.</p>
+        <p className="empty-copy">내용이 없습니다.</p>
       )}
-    </div>
+    </Card>
   );
 }
 

@@ -9,22 +9,27 @@ import {
 } from "../api/schedules";
 import MicStageLayout from "../components/MicStageLayout";
 import InstrumentPositionGrid from "../components/InstrumentPositionGrid";
+import Badge from "../components/Badge";
+import Button from "../components/Button";
+import Card from "../components/Card";
+import PageContainer from "../components/PageContainer";
 import { useAuth } from "../contexts/AuthContext";
 
 function WeekCard({ week, scheduleId, year, month, onDelete, canEdit }) {
   return (
-    <div style={{ border: "1px solid #ccc", padding: "0.5rem", marginBottom: "0.5rem" }}>
-      <strong>{week.week_label}</strong> {week.service_date}{" "}
+    <Card className="schedule-week-card">
+      <header className="schedule-week-card__header"><div><Badge tone="primary">{week.week_label}</Badge> <strong>{week.service_date}</strong></div>
       {canEdit && (
-        <>
-          <Link to={`/schedules/${scheduleId}/weeks/${week.id}/edit?year=${year}&month=${month}`}>
+        <div className="inline-actions">
+          <Button as={Link} variant="secondary" to={`/schedules/${scheduleId}/weeks/${week.id}/edit?year=${year}&month=${month}`}>
             편집
-          </Link>{" "}
-          <button type="button" onClick={() => onDelete(week)}>
+          </Button>{" "}
+          <Button variant="danger" onClick={() => onDelete(week)}>
             삭제
-          </button>
-        </>
+          </Button>
+        </div>
       )}
+      </header>
 
       {week.remark && <p>비고: {week.remark}</p>}
       {week.special && (
@@ -41,8 +46,8 @@ function WeekCard({ week, scheduleId, year, month, onDelete, canEdit }) {
       {week.singer.score.length > 0 && (
         <p>싱어 악보: {week.singer.score.map((p) => p.name).join(", ")}</p>
       )}
-      {week.absence_note && <p>불참: {week.absence_note}</p>}
-    </div>
+      {week.absence_note && <p className="schedule-week-card__absence"><strong>불참</strong> {week.absence_note}</p>}
+    </Card>
   );
 }
 
@@ -145,18 +150,18 @@ function ScheduleMain() {
   }
 
   return (
-    <div>
-      <h1>월간 스케줄</h1>
+    <PageContainer size="editor" className="content-page schedule-page">
+      <header className="page-heading"><div><h1>월간 스케줄</h1><p>주차별 악기팀과 싱어팀 배정을 확인하세요.</p></div></header>
       {canEdit && <p><Link to="/schedules/availability">참/불참 현황 보기</Link></p>}
 
-      <form onSubmit={handleSearch}>
+      <form onSubmit={handleSearch} className="month-search-form">
         <label>
           연도{" "}
           <input
             type="number"
             value={year}
             onChange={(e) => setYear(e.target.value)}
-            style={{ width: "5em" }}
+            className="month-input month-input--year"
           />
         </label>{" "}
         <label>
@@ -167,16 +172,16 @@ function ScheduleMain() {
             max="12"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            style={{ width: "3em" }}
+            className="month-input month-input--month"
           />
         </label>{" "}
         <button type="submit">조회</button>
       </form>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {message && <p style={{ color: "green" }}>{message}</p>}
+      {error && <p className="inline-notice inline-notice--danger">{error}</p>}
+      {message && <p className="inline-notice inline-notice--success">{message}</p>}
 
-      {loading && <p>불러오는 중...</p>}
+      {loading && <p className="page-status">스케줄을 불러오는 중...</p>}
 
       {!loading && notFound && (
         <div>
@@ -194,9 +199,9 @@ function ScheduleMain() {
       {!loading && schedule && (
         <div>
           {canEdit && (
-            <button type="button" onClick={handleDeleteSchedule} style={{ color: "red" }}>
+            <Button variant="danger" onClick={handleDeleteSchedule}>
               이 달 스케줄 전체 삭제
-            </button>
+            </Button>
           )}
 
           {schedule.weeks.length === 0 ? (
@@ -241,7 +246,7 @@ function ScheduleMain() {
           )}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

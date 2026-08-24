@@ -1,8 +1,25 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchContiList, fetchLatestConti } from "../api/contis";
+import Badge from "../components/Badge";
+import Button from "../components/Button";
+import Card from "../components/Card";
 import ContiDetailView from "../components/ContiDetailView";
+import EmptyState from "../components/EmptyState";
+import PageContainer from "../components/PageContainer";
 import { useAuth } from "../contexts/AuthContext";
+
+function PageHeader({ title, description, action }) {
+  return (
+    <header className="page-heading">
+      <div>
+        <h1>{title}</h1>
+        {description && <p>{description}</p>}
+      </div>
+      {action}
+    </header>
+  );
+}
 
 function ContiMain() {
   const { canEdit } = useAuth();
@@ -32,51 +49,66 @@ function ContiMain() {
       .catch(() => {});
   }, []);
 
-  // 인명부/공지사항/스케줄 링크는 콘티 유무와 무관한 전역 내비게이션이므로, 콘티가
-  // 하나도 없는 상태(신규 배포 직후 등)에서도 항상 보여야 다른 화면으로 갈 수 있다.
-  const nav = (
-    <div>
-      {canEdit && <Link to="/conti/new">새 콘티 만들기</Link>}{" "}
-      <Link to="/members">인명부</Link>{" "}
-      <Link to="/songs">곡 관리</Link>{" "}
-      <Link to="/notices">공지사항</Link>{" "}
-      <Link to="/schedules">월간 스케줄</Link>
+  // 새 콘티 만들기와 곡 관리는 콘티 유무와 무관한 화면 진입점이므로, 콘티가 하나도
+  // 없는 상태(신규 배포 직후 등)에서도 항상 보여야 다른 화면으로 갈 수 있다.
+  const headerAction = (
+    <div className="inline-actions">
+      <Button as={Link} to="/songs" variant="secondary">
+        곡 관리
+      </Button>
+      {canEdit && (
+        <Button as={Link} to="/conti/new">
+          새 콘티 만들기
+        </Button>
+      )}
     </div>
+  );
+
+  // 검수 대기는 편집 권한이 있는 사람만 의미가 있는 작업 목록이라 leader 이상에게만 보여준다.
+  const draftSection = canEdit && draftContis.length > 0 && (
+    <section className="content-section">
+      <div className="section-heading">
+        <div>
+          <p className="section-heading__eyebrow">LEADER</p>
+          <h2>검수 대기</h2>
+        </div>
+      </div>
+      <Card variant="list" className="compact-list-card">
+        <ul className="content-link-list">
+          {draftContis.map((item) => (
+            <li key={item.id}>
+              <Link to={`/conti/${item.id}/edit`}>
+                <span>
+                  <strong>{item.title}</strong>
+                  <small>{item.service_date}</small>
+                </span>
+                <Badge tone="warm">검수 필요</Badge>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </Card>
+    </section>
   );
 
   if (loading) {
     return (
-      <div>
-        {nav}
-        <p>불러오는 중...</p>
-      </div>
+      <PageContainer className="content-page">
+        <p className="page-status">콘티를 불러오는 중...</p>
+      </PageContainer>
     );
   }
 
-  // 검수 대기는 편집 권한이 있는 사람만 의미가 있는 작업 목록이라 leader 이상에게만 보여준다.
-  const draftSection = canEdit && draftContis.length > 0 && (
-    <div>
-      <h2>검수 대기</h2>
-      <ul>
-        {draftContis.map((item) => (
-          <li key={item.id}>
-            <Link to={`/conti/${item.id}/edit`}>
-              {item.service_date} - {item.title}
-            </Link>{" "}
-            <span style={{ fontSize: 12, color: "#a06000" }}>검수 후 게시해주세요</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-
-  if (error) {
+  if (error || !conti) {
     return (
-      <div>
-        {nav}
-        <p>등록된 콘티가 없습니다.</p>
+      <PageContainer className="content-page">
+        <PageHeader title="콘티" action={headerAction} />
+        <EmptyState
+          title="게시된 콘티가 없습니다"
+          description="새 콘티가 게시되면 이곳에서 바로 확인할 수 있습니다."
+        />
         {draftSection}
-      </div>
+      </PageContainer>
     );
   }
 
@@ -86,33 +118,55 @@ function ContiMain() {
     .filter((item) => item.title.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
-    <div>
-      {nav}
-      {canEdit && <Link to={`/conti/${conti.id}/edit`}>편집</Link>}
+    <PageContainer className="content-page">
+      <PageHeader
+        title="콘티"
+        description="예배 순서와 송폼, 악보를 한곳에서 확인하세요."
+        action={headerAction}
+      />
+      <div className="page-action-row">
+        {canEdit && (
+          <Button as={Link} to={`/conti/${conti.id}/edit`} variant="secondary">
+            현재 콘티 편집
+          </Button>
+        )}
+      </div>
       <ContiDetailView conti={conti} />
       {draftSection}
       {pastContis.length > 1 && (
-        <div>
-          <h2>과거 콘티</h2>
+        <section className="content-section">
+          <div className="section-heading">
+            <h2>과거 콘티</h2>
+          </div>
           <input
+            className="search-input"
             type="search"
             placeholder="제목 검색"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          {olderContis.length === 0 && <p style={{ color: "#666" }}>검색 결과가 없습니다.</p>}
-          <ul>
-            {olderContis.map((item) => (
-              <li key={item.id}>
-                <Link to={`/conti/${item.id}`}>
-                  {item.service_date} - {item.title}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </div>
+          {olderContis.length === 0 ? (
+            <EmptyState title="검색 결과가 없습니다" titleAs="h3" />
+          ) : (
+            <Card variant="list" className="compact-list-card">
+              <ul className="content-link-list">
+                {olderContis.map((item) => (
+                  <li key={item.id}>
+                    <Link to={`/conti/${item.id}`}>
+                      <span>
+                        <strong>{item.title}</strong>
+                        <small>{item.service_date}</small>
+                      </span>
+                      <span aria-hidden="true">›</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+        </section>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

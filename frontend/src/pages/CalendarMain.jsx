@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchCalendarEvents } from "../api/calendar";
 import { useAuth } from "../contexts/AuthContext";
+import Button from "../components/Button";
+import PageContainer from "../components/PageContainer";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -133,7 +135,7 @@ function EventBar({ seg }) {
   return (
     <Link
       to={`/calendar/${event.id}`}
-      className="calendar-event-bar"
+      className={`calendar-event-bar${isBirthday ? " calendar-event-bar--birthday" : ""}`}
       title={`${event.title}${label ? ` (${label})` : ""}${event.comment_count > 0 ? ` · 댓글 ${event.comment_count}개` : ""}`}
       style={{
         gridColumn: `${startCol + 1} / ${endCol + 2}`,
@@ -279,16 +281,10 @@ function CalendarMain() {
   const todayKey = toKey(now);
 
   return (
-    <div>
-      <h1>캘린더</h1>
+    <PageContainer size="editor" className="content-page calendar-page">
+      <header className="page-heading"><div><h1>캘린더</h1><p>행사와 특순, 팀원의 생일을 월별로 확인하세요.</p></div>{canEdit && <Button as={Link} to="/calendar/new">새 이벤트</Button>}</header>
 
-      {canEdit && (
-        <div>
-          <Link to="/calendar/new">새 이벤트</Link>
-        </div>
-      )}
-
-      <form onSubmit={handleSearch} style={{ margin: "0.5rem 0" }}>
+      <form onSubmit={handleSearch} className="calendar-toolbar">
         <button type="button" onClick={() => shiftMonth(-1)}>
           ◀
         </button>{" "}
@@ -301,7 +297,7 @@ function CalendarMain() {
             type="number"
             value={year}
             onChange={(e) => setYear(e.target.value)}
-            style={{ width: "5em" }}
+            className="month-input month-input--year"
           />
         </label>{" "}
         <label>
@@ -312,7 +308,7 @@ function CalendarMain() {
             max="12"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            style={{ width: "3em" }}
+            className="month-input month-input--month"
           />
         </label>{" "}
         <button type="submit">조회</button>{" "}
@@ -321,9 +317,9 @@ function CalendarMain() {
         </button>
       </form>
 
-      <div style={{ margin: "0.5rem 0" }}>
+      <div className="calendar-filters" aria-label="이벤트 카테고리 필터">
         {CATEGORIES.map((category) => (
-          <label key={category} style={{ marginRight: "1rem" }}>
+          <label key={category} className={visibleCategories.has(category) ? "calendar-filter calendar-filter--active" : "calendar-filter"}>
             <input
               type="checkbox"
               checked={visibleCategories.has(category)}
@@ -334,11 +330,11 @@ function CalendarMain() {
         ))}
       </div>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {loading && <p>불러오는 중...</p>}
+      {error && <p className="inline-notice inline-notice--danger">{error}</p>}
+      {loading && <p className="page-status">캘린더를 불러오는 중...</p>}
 
       {!loading && !error && (
-        <div className="calendar-grid" style={{ border: "1px solid #ccc", borderBottom: "none" }}>
+        <div className="calendar-grid">
           <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)" }}>
             {WEEKDAY_LABELS.map((label, i) => (
               <div
@@ -368,7 +364,7 @@ function CalendarMain() {
           ))}
         </div>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

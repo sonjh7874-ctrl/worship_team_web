@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchCalendarEvent } from "../api/calendar";
+import Badge from "../components/Badge";
+import Button from "../components/Button";
+import Card from "../components/Card";
 import CommentList from "../components/CommentList";
+import EmptyState from "../components/EmptyState";
+import PageContainer from "../components/PageContainer";
 import { useAuth } from "../contexts/AuthContext";
 
 function CalendarDetail() {
@@ -20,73 +25,100 @@ function CalendarDetail() {
       .finally(() => setLoading(false));
   }, [eventId]);
 
-  if (loading) return <p>불러오는 중...</p>;
-  if (error || !event) {
+  if (loading) {
     return (
-      <div>
-        <p>이벤트를 찾을 수 없습니다.</p>
-      </div>
+      <PageContainer>
+        <p className="page-status">이벤트를 불러오는 중...</p>
+      </PageContainer>
     );
   }
 
+  if (error || !event) {
+    return (
+      <PageContainer>
+        <EmptyState
+          title="이벤트를 찾을 수 없습니다"
+          action={
+            <Button as={Link} to="/calendar" variant="secondary">
+              캘린더로 이동
+            </Button>
+          }
+        />
+      </PageContainer>
+    );
+  }
+
+  // 특순(auto_from_schedule)과 생일(auto_birthday)은 각각 스케줄·인명부가 원본이라
+  // 여기서 직접 수정·삭제할 수 없다(README 단방향 동기화 원칙). 편집 버튼 대신 안내를 보여준다.
   const isAutoSchedule = event.source_type === "auto_from_schedule";
   const isBirthday = event.source_type === "auto_birthday";
   const isAuto = isAutoSchedule || isBirthday;
   const categoryLabel = event.category === "기타" ? event.category_custom : event.category;
 
   return (
-    <div>
-      {!isAuto && canEdit && <Link to={`/calendar/${eventId}/edit`}>편집</Link>}
-
-      <h1>
-        {event.color && (
-          <span
-            style={{
-              display: "inline-block",
-              width: "0.9rem",
-              height: "0.9rem",
-              borderRadius: "999px",
-              background: event.color,
-              marginRight: "0.4rem",
-              verticalAlign: "middle",
-            }}
-          />
+    <PageContainer className="content-page">
+      <div className="page-action-row">
+        {!isAuto && canEdit && (
+          <Button as={Link} to={`/calendar/${eventId}/edit`} variant="secondary">
+            편집
+          </Button>
         )}
-        {event.title}
-      </h1>
+      </div>
 
-      <p>
-        {event.start_date}
-        {event.end_date && ` ~ ${event.end_date}`}
-      </p>
-      <p>카테고리: {categoryLabel}</p>
-      {event.memo && <p>메모: {event.memo}</p>}
+      <Card className="calendar-detail-card">
+        <header className="detail-heading">
+          <div>
+            <div className="detail-heading__meta">
+              <Badge tone={isBirthday ? "birthday" : isAutoSchedule ? "primary" : "neutral"}>
+                {categoryLabel}
+              </Badge>
+              {isAuto && <Badge tone="neutral">자동 생성</Badge>}
+            </div>
+            <h1>
+              <span className="event-color-dot" style={{ background: event.color || undefined }} />
+              {event.title}
+            </h1>
+          </div>
+        </header>
 
-      {event.participants.length > 0 && (
-        <p>참여 인원: {event.participants.map((p) => p.name).join(", ")}</p>
-      )}
+        <dl className="detail-data-list">
+          <div>
+            <dt>일정</dt>
+            <dd>
+              {event.start_date}
+              {event.end_date && ` ~ ${event.end_date}`}
+            </dd>
+          </div>
+          {event.memo && (
+            <div>
+              <dt>메모</dt>
+              <dd>{event.memo}</dd>
+            </div>
+          )}
+          {event.participants.length > 0 && (
+            <div>
+              <dt>참여 인원</dt>
+              <dd>{event.participants.map((p) => p.name).join(", ")}</dd>
+            </div>
+          )}
+        </dl>
 
-      {isAutoSchedule && (
-        <div style={{ background: "#ede9fe", padding: "0.5rem", marginTop: "1rem" }}>
-          <p>
-            🔗 이 이벤트는 공지사항(월간 스케줄)의 특순 정보에서 자동으로 만들어졌습니다. 여기서
-            직접 수정·삭제할 수 없고, <Link to="/schedules">월간 스케줄</Link>에서 특순 정보를
-            바꾸면 이 이벤트도 함께 갱신됩니다.
+        {isAutoSchedule && (
+          <p className="source-callout">
+            이 이벤트는 월간 스케줄의 특순 정보에서 자동 생성되었습니다. 수정하려면{" "}
+            <Link to="/schedules">월간 스케줄</Link>에서 특순 정보를 변경해주세요.
           </p>
-        </div>
-      )}
-      {isBirthday && (
-        <div style={{ background: "#fce7f3", padding: "0.5rem", marginTop: "1rem" }}>
-          <p>
-            🎂 이 이벤트는 인명부의 생년월일에서 자동으로 만들어졌습니다. 여기서 직접
-            수정·삭제할 수 없고, <Link to="/members">인명부</Link>에서 생년월일을 바꾸면 다음에
-            이 달을 조회할 때 함께 갱신됩니다.
+        )}
+        {isBirthday && (
+          <p className="source-callout source-callout--birthday">
+            이 이벤트는 인명부의 생년월일에서 자동 생성되었습니다. 수정하려면{" "}
+            <Link to="/members">인명부</Link>에서 생년월일을 변경해주세요.
           </p>
-        </div>
-      )}
+        )}
+      </Card>
 
       <CommentList kind="calendar" parentId={eventId} />
-    </div>
+    </PageContainer>
   );
 }
 

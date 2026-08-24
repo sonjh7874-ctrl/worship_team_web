@@ -1,7 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchNotice, fetchNoticeList } from "../api/notices";
+import Badge from "../components/Badge";
+import Button from "../components/Button";
+import Card from "../components/Card";
+import EmptyState from "../components/EmptyState";
 import NoticeDetailView from "../components/NoticeDetailView";
+import PageContainer from "../components/PageContainer";
 import { useAuth } from "../contexts/AuthContext";
 
 function NoticeMain() {
@@ -34,18 +39,39 @@ function NoticeMain() {
       });
   }, []);
 
-  if (loading) return <p>불러오는 중...</p>;
-  if (error) return (
-    <div>
-      <p>공지사항을 불러오지 못했습니다.</p>
-    </div>
+  if (loading) {
+    return (
+      <PageContainer>
+        <p className="page-status">공지사항을 불러오는 중...</p>
+      </PageContainer>
+    );
+  }
+
+  const header = (
+    <header className="page-heading">
+      <div>
+        <h1>공지사항</h1>
+        <p>팀에 공유된 안내와 변경 사항을 확인하세요.</p>
+      </div>
+      {canEdit && (
+        <Button as={Link} to="/notices/new">
+          새 공지 작성
+        </Button>
+      )}
+    </header>
   );
-  if (!notice) return (
-    <div>
-      {canEdit && <Link to="/notices/new">새 공지 작성</Link>}
-      <p>등록된 공지사항이 없습니다.</p>
-    </div>
-  );
+
+  if (error || !notice) {
+    return (
+      <PageContainer className="content-page">
+        {header}
+        <EmptyState
+          title={error ? "공지사항을 불러오지 못했습니다" : "등록된 공지사항이 없습니다"}
+          description={error ? "잠시 후 다시 시도해주세요." : "새 공지가 등록되면 이곳에 표시됩니다."}
+        />
+      </PageContainer>
+    );
+  }
 
   // 목록에는 위에서 이미 보여준 최상단 공지도 포함돼 있으므로 중복되지 않게 제외한다.
   const olderNotices = pastNotices
@@ -53,40 +79,56 @@ function NoticeMain() {
     .filter((item) => item.title.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
-    <div>
-      {canEdit && (
-        <>
-          <Link to="/notices/new">새 공지 작성</Link>{" "}
-          <Link to={`/notices/${notice.id}/edit`}>편집</Link>
-        </>
-      )}
+    <PageContainer className="content-page">
+      {header}
+      <div className="page-action-row">
+        {canEdit && (
+          <Button as={Link} to={`/notices/${notice.id}/edit`} variant="secondary">
+            현재 공지 편집
+          </Button>
+        )}
+      </div>
       <NoticeDetailView notice={notice} />
       {pastNotices.length > 1 && (
-        <div>
-          <h2>지난 공지</h2>
+        <section className="content-section">
+          <div className="section-heading">
+            <h2>지난 공지</h2>
+          </div>
           <input
+            className="search-input"
             type="search"
             placeholder="제목 검색"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          {olderNotices.length === 0 && <p style={{ color: "#666" }}>검색 결과가 없습니다.</p>}
-          <ul>
-            {olderNotices.map((item) => (
-              <li key={item.id}>
-                <Link to={`/notices/${item.id}`}>
-                  {item.is_pinned && "📌 "}
-                  {item.title}
-                </Link>
-                {item.comment_count > 0 && (
-                  <span style={{ fontSize: 12, color: "#666" }}> 💬 {item.comment_count}</span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
+          {olderNotices.length === 0 ? (
+            <EmptyState title="검색 결과가 없습니다" titleAs="h3" />
+          ) : (
+            <Card variant="list" className="compact-list-card">
+              <ul className="content-link-list">
+                {olderNotices.map((item) => (
+                  <li key={item.id}>
+                    <Link to={`/notices/${item.id}`}>
+                      <span>
+                        <span className="list-title-row">
+                          {item.is_pinned && <Badge tone="warm">고정</Badge>}
+                          <strong>{item.title}</strong>
+                        </span>
+                        <small>
+                          {new Date(item.created_at).toLocaleDateString("ko-KR")}
+                          {item.comment_count > 0 && ` · 댓글 ${item.comment_count}`}
+                        </small>
+                      </span>
+                      <span aria-hidden="true">›</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+        </section>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

@@ -419,3 +419,745 @@ textarea {
     display: none;
   }
 }
+
+/* 3-1단계 홈 — 기존 데이터와 도메인 컴포넌트는 유지하고 정보 위계만 카드형으로 정리한다. */
+.home-page {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.home-page__intro {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.home-page__intro h1 {
+  margin: var(--space-1) 0 0;
+  color: var(--color-ink);
+  font-size: var(--font-page-title);
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.home-page__intro > div > p:last-child {
+  margin: var(--space-2) 0 0;
+  color: var(--color-muted);
+}
+
+.home-page__eyebrow {
+  margin: 0;
+  color: var(--color-primary);
+  font-size: var(--font-caption);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.home-section {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.home-section__header {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.home-section__header h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: var(--font-section-title);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.home-section__header .ui-button {
+  min-height: 36px;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-label);
+}
+
+.home-section__card {
+  overflow: hidden;
+}
+
+.home-status {
+  margin: 0;
+  padding: var(--space-5) 0;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.home-conti__meta,
+.home-week__meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-muted);
+  font-size: var(--font-caption);
+}
+
+.home-conti h3 {
+  margin: var(--space-3) 0 0;
+  color: var(--color-ink);
+  font-size: var(--font-card-title);
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.home-song-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-song-list li {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.home-song-list__number {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  color: var(--color-ink);
+  background: var(--color-surface-alt);
+  font-size: var(--font-label);
+  font-weight: 600;
+}
+
+.home-song-list strong {
+  color: var(--color-ink);
+  font-size: var(--font-card-title);
+  font-weight: 600;
+}
+
+.home-song-list p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-muted);
+  font-size: var(--font-caption);
+}
+
+.home-song-list .home-song-list__form {
+  color: var(--color-body);
+  font-size: var(--font-body);
+  white-space: pre-wrap;
+}
+
+.home-week {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.home-week__absence {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.home-week__absence strong {
+  margin-right: var(--space-2);
+}
+
+.home-notice-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.home-notice-list li + li {
+  border-top: 1px solid var(--color-hairline);
+}
+
+.home-notice-list a {
+  min-height: var(--control-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  color: var(--color-ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.home-notice-list a:hover > span:first-child {
+  color: var(--color-primary);
+}
+
+@media (max-width: 520px) {
+  .home-page__intro {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .home-page__intro > .ui-button {
+    width: 100%;
+  }
+}
+
+/* 3단계 핵심 조회 화면 — 콘티, 월간 스케줄, 공지, 캘린더의 정보 위계를 통일한다. */
+.content-page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.page-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.page-heading h1 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: var(--font-page-title);
+  line-height: 1.35;
+}
+
+.page-heading p {
+  margin: var(--space-2) 0 0;
+  color: var(--color-muted);
+}
+
+/* 헤더 액션이 버튼 2개 이상일 때(예: 콘티의 "곡 관리" + "새 콘티 만들기") 나란히 배치한다. */
+.inline-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.page-action-row {
+  min-height: 0;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+.page-action-row:empty {
+  display: none;
+}
+
+.page-status {
+  margin: 0;
+  padding: var(--space-7) 0;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.content-section {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.section-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.section-heading h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: var(--font-section-title);
+}
+
+.section-heading__eyebrow {
+  margin: 0 0 var(--space-1);
+  color: var(--color-accent-warm);
+  font-size: var(--font-caption);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+.search-input {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-canvas);
+  font-size: 16px;
+}
+
+.compact-list-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.content-link-list,
+.file-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.content-link-list li + li,
+.file-list li + li {
+  border-top: 1px solid var(--color-hairline);
+}
+
+.content-link-list a,
+.file-list a {
+  min-height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.content-link-list a:hover,
+.file-list a:hover {
+  background: var(--color-surface-alt);
+}
+
+.content-link-list a > span:first-child {
+  min-width: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.content-link-list strong {
+  font-size: var(--font-card-title);
+}
+
+.content-link-list small,
+.file-list a > span:last-child {
+  color: var(--color-muted);
+  font-size: var(--font-caption);
+}
+
+.list-title-row {
+  display: flex !important;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.detail-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.detail-heading h1 {
+  margin: var(--space-2) 0 0;
+  color: var(--color-ink);
+  font-size: var(--font-page-title);
+  line-height: 1.35;
+}
+
+.detail-heading__meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  color: var(--color-muted);
+  font-size: var(--font-caption);
+}
+
+.detail-subsection {
+  margin-top: var(--space-6);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-hairline);
+}
+
+.detail-subsection h2 {
+  margin: 0 0 var(--space-3);
+  font-size: var(--font-section-title);
+}
+
+.conti-song-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-5) 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+
+.conti-song-list li {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.conti-song-list__number {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-alt);
+  font-weight: 600;
+}
+
+.conti-song-list__title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.conti-song-list__title-row strong {
+  color: var(--color-ink);
+  font-size: var(--font-card-title);
+}
+
+.conti-song-list__artist {
+  margin: var(--space-1) 0 0;
+  color: var(--color-muted);
+  font-size: var(--font-caption);
+}
+
+.conti-song-list__form {
+  margin: var(--space-3) 0 0;
+  color: var(--color-body);
+  white-space: pre-wrap;
+}
+
+.notice-detail-card__content {
+  margin-top: var(--space-5);
+  padding-top: var(--space-5);
+  border-top: 1px solid var(--color-hairline);
+  line-height: 1.75;
+  white-space: pre-wrap;
+}
+
+.empty-copy {
+  color: var(--color-muted);
+}
+
+.inline-notice {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.inline-notice--danger {
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.inline-notice--success {
+  color: var(--color-success);
+  background: var(--color-success-soft);
+}
+
+.month-search-form,
+.calendar-toolbar {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.month-search-form label,
+.calendar-toolbar label {
+  display: grid;
+  gap: var(--space-1);
+  color: var(--color-muted);
+  font-size: var(--font-label);
+  font-weight: 600;
+}
+
+.month-search-form input,
+.calendar-toolbar input {
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-canvas);
+  font-size: 16px;
+}
+
+.month-input--year {
+  width: 6em;
+}
+
+.month-input--month {
+  width: 4em;
+}
+
+.schedule-month-content {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.schedule-week-card {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.schedule-week-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.schedule-week-card__header > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.schedule-week-card__header .ui-button {
+  min-height: 36px;
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--font-label);
+}
+
+.schedule-week-card__absence {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-danger);
+  background: var(--color-danger-soft);
+}
+
+.instrument-grid {
+  gap: var(--space-2) !important;
+}
+
+.instrument-slot,
+.mic-slot {
+  min-height: 48px;
+  border-color: var(--color-hairline) !important;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.mic-slot:not(.mic-slot--empty) {
+  background: var(--color-primary-soft);
+}
+
+.mic-stage__choir {
+  border-color: var(--color-hairline) !important;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.calendar-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.calendar-filter {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-pill);
+  color: var(--color-muted);
+  font-size: var(--font-label);
+  cursor: pointer;
+}
+
+.calendar-filter--active {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.calendar-grid {
+  min-width: 680px;
+  border: 1px solid var(--color-hairline);
+  border-bottom: 0;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+  overflow: hidden;
+}
+
+.calendar-page {
+  overflow-x: auto;
+}
+
+.calendar-event-bar {
+  min-height: 22px;
+  font-weight: 600;
+}
+
+.calendar-event-bar--birthday {
+  color: var(--color-birthday-text) !important;
+}
+
+.calendar-detail-card {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.event-color-dot {
+  width: 14px;
+  height: 14px;
+  display: inline-block;
+  margin-right: var(--space-2);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-pill);
+  vertical-align: 1px;
+  background: var(--color-primary-soft);
+}
+
+.detail-data-list {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  border-top: 1px solid var(--color-hairline);
+}
+
+.detail-data-list > div {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-hairline);
+}
+
+.detail-data-list dt {
+  color: var(--color-muted);
+  font-size: var(--font-label);
+  font-weight: 600;
+}
+
+.detail-data-list dd {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.source-callout {
+  margin: 0;
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--color-primary);
+  background: var(--color-primary-soft);
+}
+
+.source-callout--birthday {
+  color: var(--color-birthday-text);
+  background: var(--color-birthday);
+}
+
+.lyrics-page {
+  max-width: 760px;
+}
+
+.lyrics-song-card {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.lyrics-song-card h2 {
+  margin: 0;
+  font-size: var(--font-section-title);
+}
+
+.lyrics-block {
+  margin-bottom: var(--space-3);
+  white-space: pre-line;
+}
+
+.lyrics-block--lyrics,
+.lyrics-block--unresolved {
+  padding-left: var(--space-4);
+}
+
+.lyrics-block--marker {
+  color: var(--color-muted);
+  font-style: italic;
+}
+
+.lyrics-block--unresolved {
+  color: var(--color-danger);
+  font-weight: 600;
+}
+
+.lyrics-block__note,
+.lyrics-block__resolve {
+  margin-left: var(--space-2);
+}
+
+.lyrics-block__resolve {
+  font-size: var(--font-caption);
+}
+
+@media (max-width: 600px) {
+  .page-heading,
+  .detail-heading,
+  .schedule-week-card__header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .page-heading > .ui-button,
+  .page-heading > .inline-actions,
+  .detail-heading > .ui-button {
+    width: 100%;
+  }
+
+  .page-heading > .inline-actions .ui-button {
+    flex: 1;
+  }
+
+  .page-action-row .ui-button {
+    flex: 1;
+  }
+
+  .month-search-form > .ui-button {
+    flex: 1;
+  }
+
+  .calendar-toolbar {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .calendar-toolbar label {
+    grid-column: span 1;
+  }
+
+  .calendar-toolbar input {
+    width: 100%;
+  }
+
+  .conti-detail-card,
+  .notice-detail-card,
+  .calendar-detail-card,
+  .schedule-week-card {
+    padding: var(--space-3);
+  }
+
+  .detail-data-list > div {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+}

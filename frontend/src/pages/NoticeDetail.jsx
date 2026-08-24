@@ -1,8 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchNotice } from "../api/notices";
+import Button from "../components/Button";
 import CommentList from "../components/CommentList";
+import EmptyState from "../components/EmptyState";
 import NoticeDetailView from "../components/NoticeDetailView";
+import PageContainer from "../components/PageContainer";
 import { useAuth } from "../contexts/AuthContext";
 
 function NoticeDetail() {
@@ -23,19 +26,41 @@ function NoticeDetail() {
       .finally(() => setLoading(false));
   }, [noticeId]);
 
-  if (loading) return <p>불러오는 중...</p>;
-  if (error) return (
-    <div>
-      <p>공지사항을 찾을 수 없습니다.</p>
-    </div>
-  );
+  if (loading) {
+    return (
+      <PageContainer>
+        <p className="page-status">공지사항을 불러오는 중...</p>
+      </PageContainer>
+    );
+  }
+
+  if (error || !notice) {
+    return (
+      <PageContainer>
+        <EmptyState
+          title="공지사항을 찾을 수 없습니다"
+          action={
+            <Button as={Link} to="/notices" variant="secondary">
+              공지 목록
+            </Button>
+          }
+        />
+      </PageContainer>
+    );
+  }
 
   return (
-    <div>
-      {canEdit && <Link to={`/notices/${noticeId}/edit`}>편집</Link>}
+    <PageContainer className="content-page">
+      <div className="page-action-row">
+        {canEdit && (
+          <Button as={Link} to={`/notices/${noticeId}/edit`} variant="secondary">
+            편집
+          </Button>
+        )}
+      </div>
       <NoticeDetailView notice={notice} />
       <CommentList kind="notices" parentId={noticeId} />
-    </div>
+    </PageContainer>
   );
 }
 

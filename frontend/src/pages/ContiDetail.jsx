@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { fetchConti } from "../api/contis";
+import Button from "../components/Button";
 import ContiDetailView from "../components/ContiDetailView";
+import EmptyState from "../components/EmptyState";
+import PageContainer from "../components/PageContainer";
 import { useAuth } from "../contexts/AuthContext";
 
 function ContiDetail() {
@@ -22,18 +25,41 @@ function ContiDetail() {
       .finally(() => setLoading(false));
   }, [contiId]);
 
-  if (loading) return <p>불러오는 중...</p>;
-  if (error) return (
-    <div>
-      <p>콘티를 찾을 수 없습니다.</p>
-    </div>
-  );
+  if (loading) {
+    return (
+      <PageContainer>
+        <p className="page-status">콘티를 불러오는 중...</p>
+      </PageContainer>
+    );
+  }
+
+  if (error || !conti) {
+    return (
+      <PageContainer>
+        <EmptyState
+          title="콘티를 찾을 수 없습니다"
+          description="목록에서 다른 콘티를 선택해주세요."
+          action={
+            <Button as={Link} to="/conti" variant="secondary">
+              콘티 목록
+            </Button>
+          }
+        />
+      </PageContainer>
+    );
+  }
 
   return (
-    <div>
-      {canEdit && <Link to={`/conti/${contiId}/edit`}>편집</Link>}
+    <PageContainer className="content-page">
+      <div className="page-action-row">
+        {canEdit && (
+          <Button as={Link} to={`/conti/${contiId}/edit`} variant="secondary">
+            편집
+          </Button>
+        )}
+      </div>
       <ContiDetailView conti={conti} />
-    </div>
+    </PageContainer>
   );
 }
 
