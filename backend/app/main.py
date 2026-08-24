@@ -3,13 +3,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from postgrest.exceptions import APIError
 
+from app.config import CORS_ALLOWED_ORIGINS
 from app.routers import auth, calendar, contis, files, members, notices, schedules, songs
 
 app = FastAPI(title="청년부 주일찬양팀 웹 API")
 
+# 로컬 개발 주소(localhost/127.0.0.1)는 항상 허용하고, 운영 프론트 도메인은
+# CORS_ALLOWED_ORIGINS 환경변수로 추가한다(전체_구현_점검_보고서.md 2-3절).
+# "*" 전체 허용은 쓰지 않는다 — Bearer 토큰 방식이라 쿠키 기반 CSRF 위험은 없지만,
+# 운영 API의 호출 출처는 최소 범위로 제한하는 편이 안전하다.
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"http://(localhost|127\.0\.0\.1):\d+",
+    allow_origins=CORS_ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
