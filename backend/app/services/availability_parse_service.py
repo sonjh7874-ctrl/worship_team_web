@@ -109,14 +109,16 @@ def _normalize_name(name: str) -> str:
     return re.sub(r"[^0-9a-z가-힣]", "", unicodedata.normalize("NFKC", name).lower())
 
 
-def _build_member_index() -> dict[str, int]:
+def _build_member_index() -> tuple[dict[str, int], dict[int, str]]:
     members = member_repository.find_all()
-    index: dict[str, int] = {}
+    name_index: dict[str, int] = {}
+    team_by_id: dict[int, str] = {}
     for row in members:
         key = _normalize_name(row["name"])
-        if key and key not in index:
-            index[key] = row["id"]
-    return index
+        if key and key not in name_index:
+            name_index[key] = row["id"]
+        team_by_id[row["id"]] = row["team"]
+    return name_index, team_by_id
 
 
 def _call_openai(prompt: str, text: str) -> str:
@@ -203,7 +205,7 @@ def _day_entries_to_dates(days: list[dict], year: int, month: int) -> list[Avail
     return sorted(entries, key=lambda e: e.date)
 
 
-def parse_availability_text(text: str, year: int, month: int) -> AvailabilityParseResult:
+def parse_availability_text(text: str, year: int, month: int, team: str) -> AvailabilityParseResult:
     if not text or not text.strip():
         return AvailabilityParseResult(people=[])
 
@@ -216,7 +218,7 @@ def parse_availability_text(text: str, year: int, month: int) -> AvailabilityPar
             detail="AI 인식 결과를 해석할 수 없습니다. 다시 시도하거나 직접 입력해주세요.",
         )
 
-    member_index = _build_member_index()
+    member_index, team_by_id = _build_member_index()
     all_names = [
         (item.get("name_raw") or "").strip() for item in data.get("people", []) if item.get("name_raw")
     ]
@@ -229,6 +231,7 @@ def parse_availability_text(text: str, year: int, month: int) -> AvailabilityPar
             continue
 
         matched_member_id = member_index.get(_normalize_name(name_raw))
+        matched_member_team = team_by_id.get(matched_member_id) if matched_member_id else None
 
         default = item.get("default")
         default_status = None
@@ -242,6 +245,7 @@ def parse_availability_text(text: str, year: int, month: int) -> AvailabilityPar
                 name_raw=name_raw,
                 matched_member_id=matched_member_id,
                 match_status="matched" if matched_member_id else "unmatched",
+                matched_member_team=matched_member_team,
                 default_status=default_status,
                 default_reason=item.get("default_reason"),
                 entries=_day_entries_to_dates(item.get("days", []), year, month),

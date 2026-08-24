@@ -44,7 +44,9 @@ def get_assignment_counts(year: int, month: int):
 )
 def parse_availability(payload: AvailabilityParseRequest):
     """여러 명의 참/불참 텍스트를 AI로 구조화한다. 결과는 DB에 저장하지 않고 검수 화면으로 그대로 반환한다."""
-    return availability_parse_service.parse_availability_text(payload.text, payload.year, payload.month)
+    return availability_parse_service.parse_availability_text(
+        payload.text, payload.year, payload.month, payload.team
+    )
 
 
 @router.get(
@@ -52,8 +54,8 @@ def parse_availability(payload: AvailabilityParseRequest):
     response_model=AvailabilityResponse,
     dependencies=[Depends(require_role("leader"))],
 )
-def get_availability(year: int, month: int):
-    return availability_service.get_availability(year, month)
+def get_availability(year: int, month: int, team: str):
+    return availability_service.get_availability(year, month, team)
 
 
 @router.put(
@@ -61,8 +63,8 @@ def get_availability(year: int, month: int):
     response_model=AvailabilityResponse,
     dependencies=[Depends(require_role("leader"))],
 )
-def put_availability(year: int, month: int, payload: AvailabilitySubmissionsPutRequest):
-    return availability_service.put_availability(year, month, payload)
+def put_availability(year: int, month: int, team: str, payload: AvailabilitySubmissionsPutRequest):
+    return availability_service.put_availability(year, month, team, payload)
 
 
 @router.post(

@@ -372,6 +372,9 @@ create table availability_submissions (
   id             bigserial primary key,
   year           int not null,
   month          int not null,
+  -- 싱어팀장·악기팀장이 각자 자기 팀만 관리하므로, 저장(PUT)이 team으로 범위를 좁혀
+  -- 한 팀이 저장할 때 다른 팀 데이터가 지워지지 않게 한다(실사용 피드백으로 추가, 후속).
+  team           text not null check (team in ('singer', 'instrument')),
   member_id      bigint references members (id) on delete set null,
   name_snapshot  text not null,
   default_status text check (default_status in ('available', 'unavailable')),
@@ -380,7 +383,7 @@ create table availability_submissions (
   created_at     timestamptz not null default now(),
   updated_at     timestamptz not null default now()
 );
-create index idx_availability_submissions_month on availability_submissions (year, month);
+create index idx_availability_submissions_month_team on availability_submissions (year, month, team);
 
 create trigger trg_availability_submissions_updated before update on availability_submissions
   for each row execute function set_updated_at();

@@ -274,8 +274,8 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | DELETE | `/schedules/{schedule_id}/weeks/{week_id}` | 주차 삭제 | 필요 |
 | PUT | `/schedules/{schedule_id}/weeks/{week_id}/assignments` | **해당 주차의 배정 전체 교체** | 필요 |
 | POST | `/schedules/availability/ai-parse` | 여러 명 참/불참 텍스트를 AI로 구조화(저장 안 함, Phase 11-B) | 필요 |
-| GET | `/schedules/availability?year=2026&month=8` | 해당 월 참/불참 제출 현황 조회(Phase 11-B) | 필요(leader) |
-| PUT | `/schedules/availability?year=2026&month=8` | 해당 월 참/불참 제출 전체 교체(확정 저장, Phase 11-B) | 필요 |
+| GET | `/schedules/availability?year=2026&month=8&team=singer` | 해당 월·팀의 참/불참 제출 현황 조회(Phase 11-B) | 필요(leader) |
+| PUT | `/schedules/availability?year=2026&month=8&team=singer` | 해당 월·팀의 참/불참 제출 전체 교체(확정 저장, Phase 11-B) | 필요 |
 
 > **설계 근거**: 배정도 콘티-곡 배치와 동일하게, 리더십이 "이번 주 포지션표 전체"를 한 화면에서 입력하고 저장 버튼 한 번으로 반영하는 흐름이다. 포지션 19개 중 채워진 것만 배열로 보내면 서버가 `schedule_assignments`를 통째로 교체한다.
 
@@ -310,8 +310,8 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 `POST /schedules/availability/ai-parse` 요청/응답 예시:
 
 ```json
-// 요청
-{ "text": "8월 섬김 일정 (서유진)\n1,2일 참\n...\n\n8월 섬김 일정 (송지오)\n\n전참/ 특새 참", "year": 2026, "month": 8 }
+// 요청 — team은 이 붙여넣기가 어느 팀 화면에서 이뤄졌는지를 나타낸다.
+{ "text": "8월 섬김 일정 (서유진)\n1,2일 참\n...\n\n8월 섬김 일정 (송지오)\n\n전참/ 특새 참", "year": 2026, "month": 8, "team": "singer" }
 ```
 
 ```json
@@ -322,6 +322,7 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
       "name_raw": "서유진",
       "matched_member_id": 29,
       "match_status": "matched",
+      "matched_member_team": "singer",
       "default_status": null,
       "default_reason": null,
       "entries": [
@@ -334,6 +335,7 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
       "name_raw": "송지오",
       "matched_member_id": 27,
       "match_status": "matched",
+      "matched_member_team": "singer",
       "default_status": "available",
       "default_reason": null,
       "entries": [],
@@ -350,10 +352,15 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
   제외했다. 텍스트에 `특새 참` 같은 줄이 있어도 결과에 포함하지 않는다.
 - **이름 매칭은 곡 매칭(1-4절)과 동일 패턴** — 정규화 완전 일치로 인명부와 자동 매칭하고, 실패하면
   `match_status: "unmatched"`로 표시해 검수 화면에서 사람이 인명부 선택 또는 미등록 인물로 확정한다.
+- **`matched_member_team`은 매칭된 인명부 사람의 실제 팀이다.** 요청의 `team`과 다르면(예: 싱어팀 화면에서
+  붙여넣었는데 인명부상 악기팀원과 매칭된 경우) 프론트가 경고를 보여준다 — 저장은 막지 않는다(후속, 실사용 피드백).
 - **조회(`GET`)도 leader 이상만 필요하다.** 다른 도메인(콘티/공지/스케줄)의 조회는 비로그인 공개지만, 참/불참
   사유(`결혼식`, `가족일정` 등)는 팀원 개인 사정을 담은 텍스트라 리더십 전용으로 좁혔다.
-- `PUT /schedules/availability`는 그 달 제출 전체를 교체하는 방식이다(`conti_songs`/`schedule_assignments`와 동일한
-  delete-then-insert 패턴). 리더가 같은 달 참/불참을 다시 붙여넣어 재파싱·재확정해도 항상 최신 상태로 덮어써진다.
+- **저장(`PUT`)·조회(`GET`)는 모두 `team`으로 범위가 좁혀진다.** 싱어팀장·악기팀장이 각자 자기 팀 데이터만
+  독립적으로 관리하므로, `PUT`은 그 달-그 팀의 제출 전체만 교체한다(`conti_songs`/`schedule_assignments`와 동일한
+  delete-then-insert 패턴이되 team으로 한 번 더 좁힘). 한쪽 팀이 저장해도 다른 팀 데이터는 전혀 건드리지 않는다
+  — 초기 구현은 `team` 없이 그 달 전체를 교체했는데, 두 팀장이 각자 저장하면 서로의 데이터를 지우는 문제가 있어
+  후속으로 team을 저장 범위에 포함시켰다.
 - **이 API는 저장·조회까지만 하고, 배정 화면(`ScheduleEdit`)과 연동되지 않는다.** 불참자를 배정 드롭다운에서
   자동으로 걸러내거나 추천에 반영하는 것은 Phase 12(싱어팀 자동 배정 제안)의 범위다.
 

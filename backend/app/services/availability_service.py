@@ -2,6 +2,10 @@
 
 파싱(AI 호출)은 availability_parse_service.py가 담당하고, 여기서는 검수 확정 후의 저장·조회만 다룬다.
 Phase 6의 "AI는 결과만 반환, 저장은 별도 확정 API"와 동일한 역할 분리다.
+
+**팀 단위 저장(후속)**: 싱어팀장·악기팀장이 각자 자기 팀만 관리하므로, 조회·저장 범위를 모두
+year/month/team 세 값으로 좁힌다. team으로 좁히지 않으면 한 팀이 저장할 때 다른 팀 데이터가
+통째로 사라지는 사고로 이어진다(실사용 피드백으로 발견).
 """
 
 from app.repositories import availability_repository
@@ -32,11 +36,11 @@ def _to_submission_item(row: dict) -> AvailabilitySubmissionItem:
     )
 
 
-def get_availability(year: int, month: int) -> AvailabilityResponse:
-    rows = availability_repository.find_by_year_month(year, month)
+def get_availability(year: int, month: int, team: str) -> AvailabilityResponse:
+    rows = availability_repository.find_by_year_month_team(year, month, team)
     submissions = [_to_submission_item(r) for r in rows]
     submissions.sort(key=lambda s: s.name)
-    return AvailabilityResponse(year=year, month=month, submissions=submissions)
+    return AvailabilityResponse(year=year, month=month, team=team, submissions=submissions)
 
 
 def _dedupe_entries(entries: list) -> list:
@@ -52,12 +56,12 @@ def _dedupe_entries(entries: list) -> list:
 
 
 def put_availability(
-    year: int, month: int, payload: AvailabilitySubmissionsPutRequest
+    year: int, month: int, team: str, payload: AvailabilitySubmissionsPutRequest
 ) -> AvailabilityResponse:
-    # 그 달 전체를 교체하는 방식(delete-then-insert) — conti_songs/schedule_assignments와 동일 패턴.
-    # 리더가 같은 달 참/불참을 다시 붙여넣어 재파싱·재확정하는 경우가 실제로 잦을 것이므로,
-    # 부분 수정 API보다 전체 교체가 단순하다.
-    availability_repository.delete_by_year_month(year, month)
+    # 그 달-그 팀 전체를 교체하는 방식(delete-then-insert) — conti_songs/schedule_assignments와
+    # 동일 패턴이되, 범위를 team으로 한 번 더 좁혔다. 리더가 같은 달 참/불참을 다시 붙여넣어
+    # 재파싱·재확정하는 경우가 실제로 잦을 것이므로, 부분 수정 API보다 전체 교체가 단순하다.
+    availability_repository.delete_by_year_month_team(year, month, team)
 
     entry_rows = []
     for item in payload.submissions:
@@ -70,6 +74,7 @@ def put_availability(
                 {
                     "year": year,
                     "month": month,
+                    "team": team,
                     "member_id": item.member_id,
                     "name_snapshot": item.name_snapshot,
                     "default_status": item.default_status,
@@ -89,4 +94,4 @@ def put_availability(
             )
     availability_repository.insert_entries(entry_rows)
 
-    return get_availability(year, month)
+    return get_availability(year, month, team)

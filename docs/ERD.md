@@ -226,6 +226,7 @@ erDiagram
         bigint id PK
         int year
         int month
+        text team "singer | instrument"
         bigint member_id FK "nullable"
         text name_snapshot
         text default_status "available | unavailable | null"
@@ -331,6 +332,13 @@ Phase 7에서 로그인 도입으로 `EDIT_PASSWORD` 자체는 코드에서 제�
 - **부모(제출) + 자식(날짜별 항목) 구조**를 택했다 — `contis`+`conti_songs`, `monthly_schedules`+`schedule_weeks`와 같은
   이 프로젝트의 기존 패턴이다. 한 사람의 한 달치 제출이 부모(`availability_submissions`) 한 행, 그 안의 날짜별
   참/불참이 자식(`availability_entries`) 여러 행이다.
+- **`team` 컬럼(후속, 실사용 피드백으로 추가)**: 싱어팀장과 악기팀장은 서로 다른 사람이 각자 자기 팀만 관리하고,
+  스케줄도 따로 짠다. 처음엔 `team` 없이 `year`/`month`만으로 저장 범위를 잡았는데, 한 팀장이 저장(PUT, 그 달
+  전체 교체)하면 다른 팀장이 이미 저장해둔 데이터가 통째로 사라지는 문제가 있었다. `team`을 저장·조회 범위에
+  포함시켜, 같은 달이라도 팀별로 완전히 독립적으로 교체되게 했다. `member_id`로 인명부의 `team`을 조인해서
+  간접적으로 팀을 판정하는 대신 **명시적 컬럼으로 저장**한 이유는, 인명부 매칭에 실패한 사람(`member_id` null)도
+  어느 팀 화면에서 입력됐는지는 항상 알 수 있어야 하기 때문이다 — 매칭 여부와 무관하게 저장 시점의 화면 컨텍스트가
+  곧 `team` 값이 된다.
 - **저장 단위는 "날짜별 항목 + 월 단위 기본값" 조합**이다. 실제 카톡 텍스트에 `29일 불참(결혼식), 30일 참`처럼
   같은 주차 페어 안에서도 날짜별로 상태가 갈리는 사례가 있어, 주차(`schedule_weeks`) 단위가 아니라 **날짜 단위**로
   저장해야 정확하게 표현할 수 있다. 반대로 `전참`/`전체 불참(사유)` 같은 축약형은 `default_status`/`default_reason`에
