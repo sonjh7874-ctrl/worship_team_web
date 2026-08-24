@@ -66,19 +66,61 @@ function MemberSelect({ value, onChange, members, unlinkedName, counts }) {
   );
 }
 
-function MultiMemberSelect({ values, onChange, members }) {
-  function handleChange(e) {
-    const selected = Array.from(e.target.selectedOptions, (opt) => opt.value);
-    onChange(selected);
+function MultiMemberSelect({ values, onChange, members, label }) {
+  const [query, setQuery] = useState("");
+  const selectedIds = new Set(values);
+  const selectedMembers = values
+    .map((id) => members.find((member) => String(member.id) === id))
+    .filter(Boolean);
+  const normalizedQuery = query.trim().toLocaleLowerCase("ko-KR");
+  const filteredMembers = members.filter((member) =>
+    member.name.toLocaleLowerCase("ko-KR").includes(normalizedQuery)
+  );
+
+  function toggleMember(memberId) {
+    const id = String(memberId);
+    onChange(selectedIds.has(id) ? values.filter((value) => value !== id) : [...values, id]);
   }
+
   return (
-    <select multiple value={values} onChange={handleChange} size={Math.min(members.length, 6) || 1}>
-      {members.map((m) => (
-        <option key={m.id} value={m.id}>
-          {m.name}
-        </option>
-      ))}
-    </select>
+    <div className="multi-member-picker">
+      <input
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        placeholder={`${label} 이름 검색`}
+        aria-label={`${label} 이름 검색`}
+      />
+      <div className="multi-member-picker__summary" aria-live="polite">
+        <span>
+          선택 {values.length}명
+          {selectedMembers.length > 0 && `: ${selectedMembers.map((member) => member.name).join(", ")}`}
+        </span>
+        {values.length > 0 && (
+          <button type="button" onClick={() => onChange([])}>
+            전체 해제
+          </button>
+        )}
+      </div>
+      <div className="multi-member-picker__options" role="group" aria-label={`${label} 선택`}>
+        {filteredMembers.map((member) => {
+          const id = String(member.id);
+          return (
+            <label key={member.id} className="multi-member-picker__option">
+              <input
+                type="checkbox"
+                checked={selectedIds.has(id)}
+                onChange={() => toggleMember(id)}
+              />
+              <span>{member.name}</span>
+            </label>
+          );
+        })}
+        {filteredMembers.length === 0 && (
+          <p className="multi-member-picker__empty">검색 결과가 없습니다.</p>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -493,24 +535,22 @@ function ScheduleEdit() {
           </label>
         </div>
         <div>
-          <label>
-            콰이어 (싱어·악기 모두 가능, Ctrl/Cmd + 클릭으로 다중 선택){" "}
-          </label>
-          <br />
+          <label>콰이어 (싱어·악기 모두 선택 가능)</label>
           <MultiMemberSelect
             values={choirIds}
             onChange={setChoirIds}
             members={choirEligibleMembers}
+            label="콰이어"
           />
           <UnlinkedList label="콰이어" people={unlinkedChoir} />
         </div>
         <div>
           <label>악보(보통 2명, 다중 선택)</label>
-          <br />
           <MultiMemberSelect
             values={singerScoreIds}
             onChange={setSingerScoreIds}
             members={singerMembers}
+            label="악보"
           />
           <UnlinkedList label="악보" people={unlinkedSingerScore} />
         </div>
