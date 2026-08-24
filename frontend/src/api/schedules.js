@@ -31,3 +31,8 @@ export function deleteWeek(scheduleId, weekId) {
 export function putAssignments(scheduleId, weekId, payload) {
   return apiPut(`/api/v1/schedules/${scheduleId}/weeks/${weekId}/assignments`, payload);
 }
+
+// 싱어팀 마이크/콰이어 자동 배정 제안 (Phase 12). leader 이상만 조회 가능.
+export function fetchWeekSuggestions(scheduleId, weekId) {
+  return apiGet(`/api/v1/schedules/${scheduleId}/weeks/${weekId}/suggestions`);
+}

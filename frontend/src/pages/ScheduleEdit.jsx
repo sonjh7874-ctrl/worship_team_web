@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { fetchMembers } from "../api/members";
-import { fetchAssignmentCounts, fetchSchedule, putAssignments, updateWeek } from "../api/schedules";
+import {
+  fetchAssignmentCounts,
+  fetchSchedule,
+  fetchWeekSuggestions,
+  putAssignments,
+  updateWeek,
+} from "../api/schedules";
 
 // position_code(배정 저장 시 쓰는 값)와 field(GET 응답의 instrument.* 키)가 다른 경우가 있다
 // (inst_score → score) — 응답에서 기존 배정을 읽어올 때 이 매핑으로 되짚는다.
@@ -118,6 +124,12 @@ function ScheduleEdit() {
   // 배정 편집 자체는 이 집계 없이도 동작해야 한다(Phase 3 Home.jsx와 같은 원칙).
   const [micCounts, setMicCounts] = useState({});
 
+  // 싱어팀 마이크/콰이어 자동 배정 제안(Phase 12). null이면 "아직 안 불러왔거나 조회 실패" —
+  // 두 경우 모두 추천 버튼을 비활성화하는 것으로 동일하게 처리한다(배정 편집 자체는 영향 없음).
+  const [suggestions, setSuggestions] = useState(null);
+  // "추천으로 채우기" 누르기 직전 상태 스냅샷. 저장 전까지는 언제든 이 값으로 되돌릴 수 있다.
+  const [preSuggestionSnapshot, setPreSuggestionSnapshot] = useState(null);
+
   function loadMicCounts() {
     fetchAssignmentCounts(year, month)
       .then((res) => {
@@ -132,10 +144,17 @@ function ScheduleEdit() {
       });
   }
 
+  function loadSuggestions() {
+    fetchWeekSuggestions(scheduleId, weekId)
+      .then(setSuggestions)
+      .catch(() => setSuggestions(null));
+  }
+
   useEffect(() => {
     setLoading(true);
     setLoadError(null);
     loadMicCounts();
+    loadSuggestions();
     Promise.all([
       fetchSchedule(year, month),
       fetchMembers("instrument", true),
@@ -193,6 +212,39 @@ function ScheduleEdit() {
 
   function setSingleValue(code, value) {
     setSingleAssignments((prev) => ({ ...prev, [code]: value }));
+  }
+
+  // 추천은 빈 마이크 슬롯과 콰이어만 채운다 — 이미 채워진 슬롯(리드보컬·특순 등 예외 배치)은
+  // 백엔드가 애초에 추천 목록에 담지 않으므로 여기서 덮어쓸 값 자체가 없다.
+  function handleApplySuggestions() {
+    if (!suggestions || !suggestions.has_availability) return;
+    setPreSuggestionSnapshot({
+      singleAssignments: { ...singleAssignments },
+      choirIds: [...choirIds],
+    });
+    setSingleAssignments((prev) => {
+      const next = { ...prev };
+      suggestions.mic.forEach((m) => {
+        next[`mic${m.slot}`] = String(m.member_id);
+      });
+      return next;
+    });
+    setChoirIds((prev) => {
+      const existing = new Set(prev);
+      const added = suggestions.choir
+        .map((c) => String(c.member_id))
+        .filter((id) => !existing.has(id));
+      return [...prev, ...added];
+    });
+    setFormError(null);
+    setMessage(null);
+  }
+
+  function handleUndoSuggestions() {
+    if (!preSuggestionSnapshot) return;
+    setSingleAssignments(preSuggestionSnapshot.singleAssignments);
+    setChoirIds(preSuggestionSnapshot.choirIds);
+    setPreSuggestionSnapshot(null);
   }
 
   async function handleSaveMeta(e) {
@@ -260,8 +312,11 @@ function ScheduleEdit() {
     try {
       await putAssignments(scheduleId, weekId, { assignments });
       setMessage("배정이 저장되었습니다.");
-      // 방금 저장한 배정이 숫자에 반영되지 않으면 연달아 편집할 때 옛 값을 보게 되므로 재조회한다.
+      // 방금 저장한 배정이 숫자·추천에 반영되지 않으면 연달아 편집할 때 옛 값을 보게 되므로 재조회한다.
       loadMicCounts();
+      loadSuggestions();
+      // 저장된 이후의 "이전 상태"는 더 이상 의미가 없으므로 되돌리기 스냅샷을 비운다.
+      setPreSuggestionSnapshot(null);
     } catch (err) {
       setFormError(err.message);
     }
@@ -368,6 +423,32 @@ function ScheduleEdit() {
         <p style={{ color: "#666" }}>
           마이크 옆 괄호는 마이크 배정 횟수입니다(이번 달 · 올해 누적, 콰이어·악보 등은 세지 않습니다).
         </p>
+
+        <div style={{ margin: "8px 0", padding: "8px", border: "1px solid #ddd" }}>
+          {suggestions && suggestions.has_availability ? (
+            <>
+              <button type="button" onClick={handleApplySuggestions}>
+                추천으로 채우기
+              </button>{" "}
+              {preSuggestionSnapshot && (
+                <button type="button" onClick={handleUndoSuggestions}>
+                  되돌리기
+                </button>
+              )}
+              <p style={{ color: "#666", margin: "4px 0 0" }}>
+                참석 가능 {suggestions.mic.length + suggestions.choir.length}명 · 미제출/불명확{" "}
+                {suggestions.skipped.unknown.length}명 · 불참 {suggestions.skipped.unavailable.length}명
+                {" · "}빈 마이크 슬롯과 콰이어만 채우며, 이미 배정된 자리는 바뀌지 않습니다.
+              </p>
+            </>
+          ) : (
+            <p style={{ color: "#666", margin: 0 }}>
+              추천으로 채우기는 이 달 참/불참 데이터가 있어야 사용할 수 있습니다.{" "}
+              <Link to="/schedules/availability">참/불참 검토 화면으로 이동</Link>
+            </p>
+          )}
+        </div>
+
         {MIC_POSITIONS.map(({ code, label }) => (
           <div key={code}>
             <label>
