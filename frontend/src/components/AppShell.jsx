@@ -9,6 +9,7 @@ const PRIMARY_NAV_ITEMS = [
   { to: "/schedules", label: "스케줄" },
   { to: "/notices", label: "공지" },
   { to: "/calendar", label: "캘린더" },
+  { to: "/members", label: "인명부", requiresAuth: true },
 ];
 
 const ROLE_LABELS = { member: "팀원", leader: "리더십", admin: "관리자" };
@@ -63,9 +64,12 @@ function getTopBarMeta(pathname) {
 }
 
 function PrimaryNav() {
+  const { user } = useAuth();
+  const visibleItems = PRIMARY_NAV_ITEMS.filter((item) => !item.requiresAuth || user);
+
   return (
     <nav className="app-shell__nav" aria-label="주요 메뉴">
-      {PRIMARY_NAV_ITEMS.map((item) => (
+      {visibleItems.map((item) => (
         <NavLink
           key={item.to}
           to={item.to}
@@ -90,7 +94,7 @@ function AppShell({ children }) {
         <div className="app-shell__header-inner">
           <div className="app-shell__brand-row">
             <Link className="app-shell__brand" to="/">
-              청년부 주일찬양팀
+              EVERYDAY WORSHIP
             </Link>
             <div className="app-shell__account">
               {user ? (

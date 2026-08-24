@@ -77,7 +77,14 @@ function App() {
             </RequireRole>
           }
         />
-        <Route path="/members" element={<MemberMain />} />
+        <Route
+          path="/members"
+          element={
+            <RequireRole minRole="member">
+              <MemberMain />
+            </RequireRole>
+          }
+        />
         <Route path="/notices" element={<NoticeMain />} />
         <Route
           path="/notices/new"

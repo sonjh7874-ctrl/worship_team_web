@@ -7,7 +7,11 @@ from app.services import member_service
 router = APIRouter(prefix="/api/v1/members", tags=["members"])
 
 
-@router.get("", response_model=list[Member])
+@router.get(
+    "",
+    response_model=list[Member],
+    dependencies=[Depends(require_role("member"))],
+)
 def list_members(team: str | None = None, active: bool | None = None):
     return member_service.list_members(team, active)
 

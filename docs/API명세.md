@@ -546,7 +546,7 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 
 | Method | Path | 설명 | 인증 |
 |---|---|---|---|
-| GET | `/members?team=singer&active=true` | 인명부 목록 (배정 드롭다운용, 필터 가능) | 불필요 |
+| GET | `/members?team=singer&active=true` | 인명부 목록 (배정 드롭다운용, 필터 가능) | 로그인 필요 (`member` 이상) |
 | POST | `/members` | 팀원 추가 | 필요 |
 | PATCH | `/members/{member_id}` | 팀원 정보/활동여부 수정 | 필요 |
 | DELETE | `/members/{member_id}` | 팀원 삭제 | 필요 |

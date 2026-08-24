@@ -10,11 +10,13 @@ import PageContainer from "../components/PageContainer";
 import { fetchLatestConti } from "../api/contis";
 import { fetchNoticeList } from "../api/notices";
 import { fetchSchedule } from "../api/schedules";
+import { useAuth } from "../contexts/AuthContext";
 
 // 이번 주 콘티 / 이번 달 스케줄 / 공지를 한 화면에서 요약해서 보여주는 사이트 루트 대시보드.
 // 세 섹션은 서로 무관한 데이터라, 하나가 없거나 실패해도 나머지는 정상 표시돼야 한다
 // (콘티는 있는데 이번 달 스케줄이 아직 없는 경우 등이 실제로 흔하다).
 function Home() {
+  const { user } = useAuth();
   const [conti, setConti] = useState(null);
   const [contiLoading, setContiLoading] = useState(true);
   const [contiError, setContiError] = useState(false);
@@ -57,13 +59,15 @@ function Home() {
     <PageContainer className="home-page">
       <header className="home-page__intro">
         <div>
-          <p className="home-page__eyebrow">WORSHIP TEAM</p>
+          <p className="home-page__eyebrow">EVERYDAY WORSHIP</p>
           <h1>청년부 주일찬양팀</h1>
           <p>이번 주 콘티와 섬김 일정, 중요한 공지를 한곳에서 확인하세요.</p>
         </div>
-        <Button as={Link} to="/members" variant="secondary">
-          인명부 보기
-        </Button>
+        {user && (
+          <Button as={Link} to="/members" variant="secondary">
+            인명부 보기
+          </Button>
+        )}
       </header>
 
       <section className="home-section" aria-labelledby="home-conti-title">
