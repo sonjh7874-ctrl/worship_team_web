@@ -231,6 +231,13 @@ create unique index uq_event_source_week
   on calendar_events (source_week_id)
   where source_week_id is not null;
 
+-- 한 팀원의 생일은 같은 날짜로 중복 생성될 수 없다 (source_member_id + start_date 조합).
+-- 연도가 다르면 start_date도 달라지므로 매년 새 행이 정상적으로 허용되고, 동시 요청이
+-- 같은 해에 같은 날짜의 생일 이벤트를 두 번 만들려는 경쟁 상태만 막는다(Phase 12 후속 3-12절).
+create unique index uq_event_source_member_date
+  on calendar_events (source_member_id, start_date)
+  where source_member_id is not null;
+
 comment on column calendar_events.source_type is 'auto_from_schedule 인 행은 API에서 수정/삭제 거부. 공지사항이 원본';
 comment on column calendar_events.color is '프리셋 팔레트 색상(hex, 8개 중 하나). null이면 카테고리 기본색 사용. 허용값은 API 서비스 레이어에서 검증(DB 제약 없음)';
 

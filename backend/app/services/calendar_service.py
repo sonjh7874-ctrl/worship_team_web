@@ -1,7 +1,7 @@
-import calendar as cal
 from datetime import date
 
 from fastapi import HTTPException
+from postgrest.exceptions import APIError
 
 from app.repositories import calendar_repository, member_repository
 from app.schemas.calendar import (
@@ -142,20 +142,29 @@ def _sync_birthday_events(year: int, month: int) -> None:
         row = existing.pop(member_id, None)
         start_date_iso = event_date.isoformat()
         if row is None:
-            calendar_repository.create_event(
-                {
-                    "title": title,
-                    "start_date": start_date_iso,
-                    "end_date": None,
-                    "category": "생일",
-                    "category_custom": None,
-                    "color": None,
-                    "memo": None,
-                    "source_type": "auto_birthday",
-                    "source_week_id": None,
-                    "source_member_id": member_id,
-                }
-            )
+            try:
+                calendar_repository.create_event(
+                    {
+                        "title": title,
+                        "start_date": start_date_iso,
+                        "end_date": None,
+                        "category": "생일",
+                        "category_custom": None,
+                        "color": None,
+                        "memo": None,
+                        "source_type": "auto_birthday",
+                        "source_week_id": None,
+                        "source_member_id": member_id,
+                    }
+                )
+            except APIError as exc:
+                # 이 GET 요청과 거의 동시에 들어온 다른 요청이 먼저 같은 생일 이벤트를 만든
+                # 경쟁 상태(예: React StrictMode의 이중 호출, 여러 탭 동시 접속)다.
+                # uq_event_source_member_year가 막아주므로 조용히 넘어간다 — 이번 조회는
+                # find_by_month에서 방금 다른 요청이 만든 행을 그대로 읽어오면 된다.
+                # 그 외 원인의 DB 오류는 그대로 올려 원래 있던 500 처리 경로를 따르게 한다.
+                if exc.code != "23505":
+                    raise
         elif row["start_date"] != start_date_iso or row["title"] != title:
             calendar_repository.update_event(row["id"], {"start_date": start_date_iso, "title": title})
 
