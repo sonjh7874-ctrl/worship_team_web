@@ -29,6 +29,7 @@ function AdminUsers() {
   // 방금 발급한 임시 비밀번호 — 응답에만 담기고 어디에도 저장되지 않으므로 화면에서
   // 이 순간에만 보여주고 안내를 유도한다.
   const [tempPassword, setTempPassword] = useState(null);
+  const [passwordCopied, setPasswordCopied] = useState(false);
   // 이력 펼침 상태 — 사용자 id별로 이벤트 목록을 캐시해 다시 펼칠 때 재조회하지 않는다.
   const [expandedUserId, setExpandedUserId] = useState(null);
   const [eventsByUser, setEventsByUser] = useState({});
@@ -66,6 +67,7 @@ function AdminUsers() {
     setError(null);
     setMessage(null);
     setTempPassword(null);
+    setPasswordCopied(false);
     try {
       const { temp_password } = await resetUserPassword(user.id);
       setTempPassword({ user, value: temp_password });
@@ -76,6 +78,20 @@ function AdminUsers() {
       );
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  // 임시 비밀번호는 서버에서 다시 조회할 수 없는 1회성 값이므로, 관리자가 오타 없이
+  // 전달할 수 있게 현재 화면의 값만 클립보드로 복사하고 별도 저장은 하지 않는다.
+  async function handleCopyTempPassword() {
+    if (!tempPassword) return;
+    setError(null);
+    try {
+      await navigator.clipboard.writeText(tempPassword.value);
+      setPasswordCopied(true);
+      window.setTimeout(() => setPasswordCopied(false), 2000);
+    } catch {
+      setError("임시 비밀번호를 복사하지 못했습니다. 값을 직접 선택해 복사해주세요.");
     }
   }
 
@@ -115,8 +131,12 @@ function AdminUsers() {
 
       {tempPassword && (
         <aside className="temp-password-callout" role="status">
-          <strong>{tempPassword.user.display_name}</strong>님의 임시 비밀번호:{" "}
-          <code>{tempPassword.value}</code>
+          <div className="temp-password-callout__value">
+            <span><strong>{tempPassword.user.display_name}</strong>님의 임시 비밀번호: <code>{tempPassword.value}</code></span>
+            <Button variant="secondary" onClick={handleCopyTempPassword} aria-live="polite">
+              {passwordCopied ? "복사됨" : "복사"}
+            </Button>
+          </div>
           <p>
             이 값은 지금 한 번만 표시됩니다. 본인에게 직접(카톡 등) 안내해주세요. 로그인하면 즉시 새
             비밀번호로 바꾸라는 화면이 뜹니다.
@@ -147,11 +167,16 @@ function AdminUsers() {
             <Button variant="danger" onClick={() => handleResetPassword(user)}>
               비밀번호 초기화
             </Button>{" "}
-            <button type="button" onClick={() => handleToggleHistory(user)}>
+            <button
+              type="button"
+              onClick={() => handleToggleHistory(user)}
+              aria-expanded={expandedUserId === user.id}
+              aria-controls={`account-history-${user.id}`}
+            >
               {expandedUserId === user.id ? "이력 닫기" : "이력 보기"}
             </button>
             {expandedUserId === user.id && (
-              <div className="account-history">
+              <div className="account-history" id={`account-history-${user.id}`}>
                 {eventsError && <p className="inline-notice inline-notice--danger" role="alert">{eventsError}</p>}
                 {eventsByUser[user.id] === undefined && !eventsError && <p>불러오는 중...</p>}
                 {eventsByUser[user.id]?.length === 0 && <p>기록된 이벤트가 없습니다.</p>}

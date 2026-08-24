@@ -1277,6 +1277,7 @@ textarea {
 .admin-user-card__readonly {
   color: var(--color-muted);
   font-size: var(--font-caption);
+  overflow-wrap: anywhere;
 }
 
 .admin-user-card button:not(.ui-button) {
@@ -1305,6 +1306,22 @@ textarea {
   background: var(--color-canvas);
   font-size: 16px;
   user-select: all;
+  overflow-wrap: anywhere;
+}
+
+.temp-password-callout__value {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.temp-password-callout__value > span {
+  min-width: 0;
+}
+
+.temp-password-callout__value .ui-button {
+  flex: 0 0 auto;
 }
 
 .temp-password-callout p {
@@ -1345,6 +1362,15 @@ textarea {
   .admin-user-card__identity {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .temp-password-callout__value {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .temp-password-callout__value .ui-button {
+    width: 100%;
   }
 }
 
