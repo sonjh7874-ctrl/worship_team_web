@@ -107,3 +107,40 @@ class AssignmentCountsResponse(BaseModel):
     year: int
     month: int
     counts: list[MicAssignmentCount] = []
+
+
+# ---------------------------------------------------------------------------
+# 싱어팀 마이크/콰이어 자동 배정 제안 (Phase 12)
+# 참/불참(Phase 11-B) + 배정 횟수(Phase 11-A) 위에 순수 로직만 얹어 "제안"하고,
+# 최종 배정은 사람이 확정한다(전체_로드맵.md Phase 12 SDD).
+# ---------------------------------------------------------------------------
+
+
+class SuggestedPerson(BaseModel):
+    member_id: int
+    name: str
+    month_count: int
+    year_count: int
+
+
+class SuggestedMicSlot(SuggestedPerson):
+    slot: int
+
+
+class SuggestionSkipped(BaseModel):
+    # 왜 이 사람이 추천에 없는지 리더가 알 수 있게 하는 안내용. 불참 사유 텍스트는 담지 않는다
+    # (사유는 참/불참 화면에서 보면 되고, 배정 화면에 개인 사정을 다시 노출할 이유가 없다).
+    already_assigned: list[str] = []
+    unavailable: list[str] = []
+    unknown: list[str] = []
+
+
+class SingerSuggestionsResponse(BaseModel):
+    week_id: int
+    service_date: date_type | None = None
+    # 그 달 참/불참 제출이 하나도 없으면 false — 프론트가 추천 버튼을 비활성화하고
+    # 참/불참 화면 링크를 안내한다(README/로드맵의 "미제출자는 추천 대상에서 제외" 원칙과 일관).
+    has_availability: bool
+    mic: list[SuggestedMicSlot] = []
+    choir: list[SuggestedPerson] = []
+    skipped: SuggestionSkipped = SuggestionSkipped()
