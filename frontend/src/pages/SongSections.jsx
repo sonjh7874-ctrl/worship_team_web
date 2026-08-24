@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { fetchSongSections, putSongSections } from "../api/songSections";
 import { fetchSongs } from "../api/songs";
+import LoadingState from "../components/LoadingState";
+import PageContainer from "../components/PageContainer";
 
 // 자주 쓰이는 구간 코드 프리셋. 목록에 없으면 "기타"를 골라 직접 입력한다
 // (CalendarEdit의 카테고리 드롭다운과 같은 패턴).
@@ -150,15 +152,15 @@ function SongSections() {
 
   if (loading) {
     return (
-      <div>
+      <PageContainer size="editor">
         {contiLyricsLink}
-        <p>불러오는 중...</p>
-      </div>
+        <LoadingState label="가사 구간을 불러오는 중..." rows={4} />
+      </PageContainer>
     );
   }
 
   return (
-    <div>
+    <PageContainer size="editor" className="editor-page song-sections-page">
       {contiLyricsLink}
       <h1>가사 구간 관리{song ? ` — ${song.title}` : ""}</h1>
       <p style={{ fontSize: 13 }}>
@@ -172,8 +174,8 @@ function SongSections() {
         </p>
       )}
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {message && <p style={{ color: "green" }}>{message}</p>}
+      {error && <p className="inline-notice inline-notice--danger" role="alert">{error}</p>}
+      {message && <p className="inline-notice inline-notice--success">{message}</p>}
 
       <form onSubmit={handleSave}>
         {rows.map((row, index) => (
@@ -235,7 +237,7 @@ function SongSections() {
           {saving ? "저장 중..." : "저장"}
         </button>
       </form>
-    </div>
+    </PageContainer>
   );
 }
 

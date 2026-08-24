@@ -13,6 +13,9 @@ import {
 import { fetchSongs } from "../api/songs";
 import SongFormDiff from "../components/SongFormDiff";
 import SongPicker from "../components/SongPicker";
+import Button from "../components/Button";
+import LoadingState from "../components/LoadingState";
+import PageContainer from "../components/PageContainer";
 
 const FILE_TYPE_LABELS = { score_pdf: "악보 PDF", conti_image: "콘티 원본 이미지" };
 
@@ -356,7 +359,7 @@ function ContiEdit() {
     }
   }
 
-  if (loading) return <p>불러오는 중...</p>;
+  if (loading) return <PageContainer size="editor"><LoadingState label="콘티 편집 정보를 불러오는 중..." rows={5} /></PageContainer>;
 
   // 생성·편집 양쪽에서 같은 UI를 쓴다. 생성 화면에서는 draft 콘티를 만들어 검수 화면으로 넘기고,
   // 편집 화면에서는 현재 곡 목록을 인식 결과로 갈아끼운다.
@@ -391,11 +394,11 @@ function ContiEdit() {
   );
 
   return (
-    <div>
+    <PageContainer size="editor" className="editor-page conti-editor-page">
       <h1>{isNew ? "콘티 만들기" : "콘티 편집"}</h1>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {message && <p style={{ color: "green" }}>{message}</p>}
+      {error && <p className="inline-notice inline-notice--danger" role="alert">{error}</p>}
+      {message && <p className="inline-notice inline-notice--success">{message}</p>}
 
       {isNew ? (
         <>
@@ -462,9 +465,9 @@ function ContiEdit() {
             <button type="submit">정보 저장</button>
           </form>
 
-          <button type="button" onClick={handleDeleteConti} style={{ color: "red" }}>
+          <Button variant="danger" onClick={handleDeleteConti} className="danger-zone__action">
             콘티 삭제
-          </button>
+          </Button>
 
           {aiSection}
 
@@ -609,7 +612,7 @@ function ContiEdit() {
           </div>
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 import { createMember, deleteMember, fetchMembers, updateMember } from "../api/members";
 import { useAuth } from "../contexts/AuthContext";
+import Badge from "../components/Badge";
+import Button from "../components/Button";
+import LoadingState from "../components/LoadingState";
+import PageContainer from "../components/PageContainer";
 
 const TEAM_LABELS = { singer: "싱어팀", instrument: "악기팀" };
 const GENDER_LABELS = { male: "남", female: "여" };
@@ -122,20 +126,20 @@ function MemberMain() {
     }
   }
 
-  if (loading) return <p>불러오는 중...</p>;
+  if (loading) return <PageContainer size="editor"><LoadingState label="인명부를 불러오는 중..." rows={5} /></PageContainer>;
 
   return (
-    <div>
-      <h1>인명부</h1>
+    <PageContainer size="editor" className="editor-page member-admin-page">
+      <header className="page-heading"><div><h1>인명부</h1><p>배정에 사용하는 팀원 정보와 활동 상태를 관리합니다.</p></div></header>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {message && <p style={{ color: "green" }}>{message}</p>}
+      {error && <p className="inline-notice inline-notice--danger" role="alert">{error}</p>}
+      {message && <p className="inline-notice inline-notice--success">{message}</p>}
 
-      <ul>
+      <ul className="admin-card-list">
         {members.map((member) => (
-          <li key={member.id} style={{ marginBottom: "0.4rem" }}>
+          <li key={member.id} className={!member.is_active ? "admin-card admin-card--inactive" : "admin-card"}>
             {editingId === member.id ? (
-              <form onSubmit={(e) => handleSaveEdit(e, member)} style={{ display: "inline" }}>
+              <form onSubmit={(e) => handleSaveEdit(e, member)} className="inline-edit-form">
                 <input value={editName} onChange={(e) => setEditName(e.target.value)} required />{" "}
                 <select value={editTeam} onChange={(e) => setEditTeam(e.target.value)}>
                   <option value="singer">싱어팀</option>
@@ -150,16 +154,16 @@ function MemberMain() {
                   value={editBirthDate}
                   onChange={(e) => setEditBirthDate(e.target.value)}
                 />{" "}
-                <button type="submit">저장</button>{" "}
-                <button type="button" onClick={cancelEdit}>
+                <Button type="submit">저장</Button>{" "}
+                <Button variant="secondary" onClick={cancelEdit}>
                   취소
-                </button>
+                </Button>
               </form>
             ) : (
               <>
                 {member.name} ({TEAM_LABELS[member.team]} · {GENDER_LABELS[member.gender]}
                 {member.birth_date && ` · ${member.birth_date}`}) —{" "}
-                {member.is_active ? "활동중" : "비활동"}{" "}
+                <Badge tone={member.is_active ? "success" : "neutral"}>{member.is_active ? "활동중" : "비활동"}</Badge>{" "}
                 {canEdit && (
                   <>
                     <button type="button" onClick={() => startEdit(member)}>
@@ -168,9 +172,9 @@ function MemberMain() {
                     <button type="button" onClick={() => handleToggleActive(member)}>
                       {member.is_active ? "비활동으로 전환" : "활동으로 전환"}
                     </button>{" "}
-                    <button type="button" onClick={() => handleDelete(member)} style={{ color: "red" }}>
+                    <Button variant="danger" onClick={() => handleDelete(member)}>
                       삭제
-                    </button>
+                    </Button>
                   </>
                 )}
               </>
@@ -182,7 +186,7 @@ function MemberMain() {
       {canEdit && (
         <>
           <h2>팀원 추가</h2>
-          <form onSubmit={handleAdd}>
+          <form onSubmit={handleAdd} className="editor-form editor-form--compact">
             <label>
               이름{" "}
               <input value={name} onChange={(e) => setName(e.target.value)} required />
@@ -205,11 +209,11 @@ function MemberMain() {
               생년월일(선택){" "}
               <input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
             </label>{" "}
-            <button type="submit">추가</button>
+            <Button type="submit">추가</Button>
           </form>
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

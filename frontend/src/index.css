@@ -1162,6 +1162,282 @@ textarea {
   }
 }
 
+/* 5단계 리더십 편집·검수 화면 */
+.editor-page {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.editor-page > h1 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: var(--font-page-title);
+  line-height: 1.35;
+}
+
+.editor-page > p {
+  margin: 0;
+  color: var(--color-muted);
+}
+
+.editor-page > section,
+.editor-page > form,
+.editor-page > fieldset,
+.editor-form {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: var(--space-5);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  background: var(--color-canvas);
+}
+
+.editor-page section > h2,
+.editor-page form > h2,
+.editor-page > h2 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: var(--font-section-title);
+}
+
+.editor-page fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+}
+
+.editor-page legend {
+  padding: 0 var(--space-2);
+  color: var(--color-ink);
+  font-size: var(--font-label);
+  font-weight: 600;
+}
+
+.editor-page form > div,
+.editor-form > div {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.editor-page label {
+  color: var(--color-body);
+  font-size: var(--font-label);
+  font-weight: 600;
+}
+
+.editor-page input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+.editor-page select,
+.editor-page textarea {
+  min-height: var(--control-height);
+  max-width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--color-body);
+  background: var(--color-canvas);
+  font-family: inherit;
+  font-size: 16px;
+}
+
+.editor-page textarea {
+  min-height: 112px;
+  line-height: 1.55;
+  resize: vertical;
+}
+
+.editor-page input[type="checkbox"],
+.editor-page input[type="radio"] {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--color-primary);
+  vertical-align: middle;
+}
+
+.editor-page button:not(.ui-button),
+.editor-page input[type="submit"] {
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-sm);
+  color: var(--color-ink);
+  background: var(--color-canvas);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.editor-page button:not(.ui-button):hover {
+  background: var(--color-surface-alt);
+}
+
+.editor-page button[type="submit"]:not(.ui-button),
+.editor-page form > button:last-child:not([type="button"]) {
+  color: var(--color-canvas);
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+}
+
+.editor-page button:disabled {
+  color: var(--color-faint) !important;
+  border-color: var(--color-hairline) !important;
+  background: var(--color-surface-alt) !important;
+  cursor: not-allowed;
+}
+
+.editor-page a {
+  color: var(--color-primary);
+}
+
+.editor-page pre,
+.editor-page code {
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+}
+
+.editor-page pre {
+  padding: var(--space-3);
+}
+
+.editor-form--compact {
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+/* 삭제 버튼(Button variant="danger")을 다른 입력 요소들 사이에서 시각적으로 분리한다. */
+.danger-zone__action,
+.editor-page > .ui-button--danger {
+  justify-self: start;
+  margin-top: var(--space-2);
+}
+
+.conti-editor-page > section {
+  background: var(--color-surface);
+}
+
+.conti-editor-page > form > div,
+.conti-editor-page section > div {
+  min-width: 0;
+}
+
+.conti-editor-page .ui-badge {
+  vertical-align: middle;
+}
+
+.schedule-editor-page > form {
+  gap: var(--space-5);
+}
+
+.schedule-editor-page > form > div {
+  padding: var(--space-4);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.availability-editor-page > div {
+  min-width: 0;
+}
+
+.availability-editor-page textarea {
+  width: 100% !important;
+}
+
+.admin-card-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.admin-card {
+  min-width: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+
+.admin-card--inactive {
+  opacity: 0.72;
+  background: var(--color-surface-alt);
+}
+
+.admin-card .ui-badge {
+  margin: 0 var(--space-1);
+}
+
+.admin-card > .ui-button,
+.admin-card button,
+.admin-card a {
+  margin-top: var(--space-2);
+}
+
+.inline-edit-form {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  align-items: end;
+}
+
+.inline-edit-form input:first-child {
+  grid-column: span 2;
+}
+
+.song-admin-page > p:first-of-type {
+  padding: var(--space-3);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-soft);
+  color: var(--color-body);
+}
+
+.song-sections-page form > div {
+  padding: var(--space-3);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.song-sections-page form > div > textarea {
+  min-width: 0;
+}
+
+@media (max-width: 700px) {
+  .editor-page > section,
+  .editor-page > form,
+  .editor-page > fieldset,
+  .editor-form {
+    padding: var(--space-4);
+  }
+
+  .inline-edit-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .inline-edit-form input:first-child {
+    grid-column: 1 / -1;
+  }
+
+  .song-sections-page form > div {
+    flex-direction: column !important;
+  }
+
+  .song-sections-page form > div > div,
+  .song-sections-page form > div > textarea {
+    width: 100% !important;
+  }
+
+  .availability-editor-page input[type="number"] {
+    width: 100% !important;
+  }
+}
+
 /* 4단계 공통 상태·댓글·배치·캘린더 상호작용 */
 .sr-only {
   position: absolute;

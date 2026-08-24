@@ -7,6 +7,9 @@ import {
   updateCalendarEvent,
 } from "../api/calendar";
 import { fetchMembers } from "../api/members";
+import Button from "../components/Button";
+import LoadingState from "../components/LoadingState";
+import PageContainer from "../components/PageContainer";
 
 const CATEGORY_OPTIONS = ["수련회", "엠티", "특순", "기타"];
 
@@ -200,32 +203,30 @@ function CalendarEdit() {
     }
   }
 
-  if (loading) return <p>불러오는 중...</p>;
+  if (loading) return <PageContainer><LoadingState label="이벤트 편집 정보를 불러오는 중..." rows={4} /></PageContainer>;
   if (loadError) {
     return (
-      <div>
-        <p style={{ color: "red" }}>{loadError}</p>
-      </div>
+      <PageContainer><p className="inline-notice inline-notice--danger" role="alert">{loadError}</p></PageContainer>
     );
   }
   if (isAuto) {
     return (
-      <div>
-        <p>
+      <PageContainer>
+        <p className="source-callout">
           이 이벤트는 공지사항(월간 스케줄)의 특순 정보에서 자동으로 생성돼 여기서 직접 수정할 수
           없습니다. <Link to="/schedules">월간 스케줄</Link>에서 특순 정보를 수정해주세요.
         </p>
-      </div>
+      </PageContainer>
     );
   }
 
   return (
-    <div>
+    <PageContainer className="editor-page calendar-editor-page">
       <h1>{isNew ? "이벤트 작성" : "이벤트 편집"}</h1>
 
-      {formError && <p style={{ color: "red" }}>{formError}</p>}
+      {formError && <p className="inline-notice inline-notice--danger" role="alert">{formError}</p>}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="editor-form">
         <div>
           <label>
             제목 <input value={title} onChange={(e) => setTitle(e.target.value)} required />
@@ -312,15 +313,15 @@ function CalendarEdit() {
           )}
         </fieldset>
 
-        <button type="submit">{isNew ? "작성" : "저장"}</button>
+        <Button type="submit">{isNew ? "작성" : "저장"}</Button>
       </form>
 
       {!isNew && (
-        <button type="button" onClick={handleDelete} style={{ color: "red" }}>
+        <Button variant="danger" onClick={handleDelete}>
           이벤트 삭제
-        </button>
+        </Button>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

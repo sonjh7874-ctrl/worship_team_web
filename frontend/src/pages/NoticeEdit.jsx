@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { createNotice, deleteNotice, fetchNotice, updateNotice } from "../api/notices";
+import Button from "../components/Button";
+import LoadingState from "../components/LoadingState";
+import PageContainer from "../components/PageContainer";
 
 function NoticeEdit() {
   const { noticeId } = useParams();
@@ -58,15 +61,15 @@ function NoticeEdit() {
     }
   }
 
-  if (loading) return <p>불러오는 중...</p>;
+  if (loading) return <PageContainer><LoadingState label="공지 편집 정보를 불러오는 중..." /></PageContainer>;
 
   return (
-    <div>
+    <PageContainer className="editor-page notice-editor-page">
       <h1>{isNew ? "공지 작성" : "공지 편집"}</h1>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {error && <p className="inline-notice inline-notice--danger" role="alert">{error}</p>}
 
-      <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="editor-form">
         <div>
           <label>
             제목{" "}
@@ -93,15 +96,15 @@ function NoticeEdit() {
             상단 고정
           </label>
         </div>
-        <button type="submit">{isNew ? "작성" : "저장"}</button>
+        <Button type="submit">{isNew ? "작성" : "저장"}</Button>
       </form>
 
       {!isNew && (
-        <button type="button" onClick={handleDelete} style={{ color: "red" }}>
+        <Button variant="danger" onClick={handleDelete} className="danger-zone__action">
           공지 삭제
-        </button>
+        </Button>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

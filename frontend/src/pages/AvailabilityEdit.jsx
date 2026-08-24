@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { fetchAvailability, parseAvailability, putAvailability } from "../api/availability";
 import { fetchMembers } from "../api/members";
+import LoadingState from "../components/LoadingState";
+import PageContainer from "../components/PageContainer";
 
 const TEAM_LABELS = { singer: "싱어팀", instrument: "악기팀" };
 
@@ -328,7 +330,7 @@ function AvailabilityEdit() {
   const missing = teamMembers.filter((m) => !submittedIds.has(m.id));
 
   return (
-    <div>
+    <PageContainer size="editor" className="editor-page availability-editor-page">
       <h1>참/불참 현황</h1>
       <p style={{ color: "#666" }}>
         카톡에서 받은 여러 명의 참/불참 텍스트를 한 번에 붙여넣고 분석한 뒤, 확인·수정해서 저장하세요.
@@ -378,11 +380,11 @@ function AvailabilityEdit() {
         <button type="submit">조회</button>
       </form>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {message && <p style={{ color: "green" }}>{message}</p>}
+      {error && <p className="inline-notice inline-notice--danger" role="alert">{error}</p>}
+      {message && <p className="inline-notice inline-notice--success">{message}</p>}
 
       {loading ? (
-        <p>불러오는 중...</p>
+        <LoadingState label="참·불참 현황을 불러오는 중..." rows={4} />
       ) : (
         <>
           {current.savedCount !== null && (
@@ -441,7 +443,7 @@ function AvailabilityEdit() {
           )}
         </>
       )}
-    </div>
+    </PageContainer>
   );
 }
 

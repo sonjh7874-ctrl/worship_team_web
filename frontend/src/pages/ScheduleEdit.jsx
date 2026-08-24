@@ -8,6 +8,8 @@ import {
   putAssignments,
   updateWeek,
 } from "../api/schedules";
+import LoadingState from "../components/LoadingState";
+import PageContainer from "../components/PageContainer";
 
 // position_code(배정 저장 시 쓰는 값)와 field(GET 응답의 instrument.* 키)가 다른 경우가 있다
 // (inst_score → score) — 응답에서 기존 배정을 읽어올 때 이 매핑으로 되짚는다.
@@ -338,20 +340,22 @@ function ScheduleEdit() {
     }
   }
 
-  if (loading) return <p>불러오는 중...</p>;
-  if (loadError) return (
-    <div>
-      <p style={{ color: "red" }}>{loadError}</p>
-    </div>
-  );
+  if (loading) return <PageContainer size="editor"><LoadingState label="주차 편집 정보를 불러오는 중..." rows={5} /></PageContainer>;
+  if (loadError) {
+    return (
+      <PageContainer size="editor">
+        <p className="inline-notice inline-notice--danger" role="alert">{loadError}</p>
+      </PageContainer>
+    );
+  }
 
   return (
-    <div>
+    <PageContainer size="editor" className="editor-page schedule-editor-page">
       <h1>주차 편집: {weekLabel}</h1>
 
 
-      {formError && <p style={{ color: "red" }}>{formError}</p>}
-      {message && <p style={{ color: "green" }}>{message}</p>}
+      {formError && <p className="inline-notice inline-notice--danger" role="alert">{formError}</p>}
+      {message && <p className="inline-notice inline-notice--success">{message}</p>}
 
       <form onSubmit={handleSaveMeta}>
         <h2>주차 정보</h2>
@@ -513,7 +517,7 @@ function ScheduleEdit() {
 
         <button type="submit">배정 저장</button>
       </form>
-    </div>
+    </PageContainer>
   );
 }
 

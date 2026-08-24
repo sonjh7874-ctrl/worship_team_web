@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { deleteSong, fetchSongs, updateSong } from "../api/songs";
 import { useAuth } from "../contexts/AuthContext";
+import Badge from "../components/Badge";
+import Button from "../components/Button";
+import LoadingState from "../components/LoadingState";
+import PageContainer from "../components/PageContainer";
 
 // 곡 마스터를 리더십이 정리하는 최소 화면. 곡 등록은 콘티 편집 화면에서 이뤄지므로 여기서는
 // 잘못 저장된 곡을 고치거나 지우는 일만 한다.
@@ -76,31 +80,29 @@ function SongMain() {
 
   if (loading) {
     return (
-      <div>
-        <p>불러오는 중...</p>
-      </div>
+      <PageContainer size="editor"><LoadingState label="곡 목록을 불러오는 중..." rows={5} /></PageContainer>
     );
   }
 
   return (
-    <div>
+    <PageContainer size="editor" className="editor-page song-admin-page">
       <h1>곡 마스터 관리</h1>
       <p style={{ fontSize: 13 }}>
         콘티에 한 번이라도 배치된 곡은 과거 콘티 기록이 깨지므로 삭제할 수 없습니다(수정은 가능). AI 콘티 인식이
         이 목록을 참고하므로, 잘못된 제목을 고쳐두면 다음 인식부터 같은 오타가 반복되지 않습니다.
       </p>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {message && <p style={{ color: "green" }}>{message}</p>}
+      {error && <p className="inline-notice inline-notice--danger" role="alert">{error}</p>}
+      {message && <p className="inline-notice inline-notice--success">{message}</p>}
 
       {songs.length === 0 ? (
         <p>등록된 곡이 없습니다.</p>
       ) : (
-        <ul>
+        <ul className="admin-card-list">
           {songs.map((song) => (
-            <li key={song.id}>
+            <li key={song.id} className="admin-card">
               {canEdit && editingId === song.id ? (
-                <form onSubmit={handleSaveEdit}>
+                <form onSubmit={handleSaveEdit} className="inline-edit-form">
                   <input
                     value={draft.title}
                     onChange={(e) => setDraft({ ...draft, title: e.target.value })}
@@ -118,10 +120,10 @@ function SongMain() {
                     placeholder="기본 키"
                     size={6}
                   />{" "}
-                  <button type="submit">저장</button>{" "}
-                  <button type="button" onClick={() => setEditingId(null)}>
+                  <Button type="submit">저장</Button>{" "}
+                  <Button variant="secondary" onClick={() => setEditingId(null)}>
                     취소
-                  </button>
+                  </Button>
                 </form>
               ) : (
                 <>
@@ -129,9 +131,9 @@ function SongMain() {
                   {song.artist ? ` _ ${song.artist}` : ""}
                   {song.default_key ? ` (${song.default_key})` : ""}{" "}
                   {song.section_count > 0 ? (
-                    <span style={{ fontSize: 12, color: "#2a7" }}>가사 등록됨</span>
+                    <Badge tone="success">가사 등록됨</Badge>
                   ) : (
-                    <span style={{ fontSize: 12, color: "#999" }}>가사 미등록</span>
+                    <Badge tone="neutral">가사 미등록</Badge>
                   )}{" "}
                   {canEdit && (
                     <Link to={`/songs/${song.id}/sections`}>가사 구간 관리</Link>
@@ -160,7 +162,7 @@ function SongMain() {
           ))}
         </ul>
       )}
-    </div>
+    </PageContainer>
   );
 }
 
