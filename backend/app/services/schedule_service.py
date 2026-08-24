@@ -5,7 +5,9 @@ from fastapi import HTTPException
 from app.repositories import calendar_repository, schedule_repository
 from app.schemas.schedule import (
     AssignedPerson,
+    AssignmentCountsResponse,
     InstrumentAssignment,
+    MicAssignmentCount,
     MonthlyScheduleCreate,
     MonthlyScheduleResponse,
     ScheduleAssignmentsPutRequest,
@@ -227,3 +229,32 @@ def put_assignments(week_id: int, payload: ScheduleAssignmentsPutRequest) -> Sch
     schedule_repository.replace_assignments(week_id, rows)
     row = schedule_repository.find_week_with_assignments(week_id)
     return _to_week_item(row)
+
+
+def aggregate_mic_counts(rows: list[dict], month: int) -> list[MicAssignmentCount]:
+    # 순수 함수 — DB/네트워크 없이 마이크 배정 원자재 행을 사람별 월/연 카운트로 집계한다.
+    # member_id가 없는 행(인명부 밖 인물, name_snapshot만 저장된 경우)은 애초에 배정
+    # 드롭다운 선택지에 없어 숫자를 붙일 자리가 없으므로 집계에서 제외한다 (ERD 3-3).
+    counts: dict[int, MicAssignmentCount] = {}
+    for row in rows:
+        member_id = row.get("member_id")
+        if member_id is None:
+            continue
+        member = row.get("members")
+        name = member.get("name") if member else None
+        if not name:
+            continue
+        entry = counts.get(member_id)
+        if entry is None:
+            entry = MicAssignmentCount(member_id=member_id, name=name, month_count=0, year_count=0)
+            counts[member_id] = entry
+        entry.year_count += 1
+        if row.get("month") == month:
+            entry.month_count += 1
+    return sorted(counts.values(), key=lambda c: c.name)
+
+
+def get_assignment_counts(year: int, month: int) -> AssignmentCountsResponse:
+    rows = schedule_repository.find_mic_assignments_by_year(year)
+    counts = aggregate_mic_counts(rows, month)
+    return AssignmentCountsResponse(year=year, month=month, counts=counts)

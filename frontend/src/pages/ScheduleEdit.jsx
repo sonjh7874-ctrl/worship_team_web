@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { fetchMembers } from "../api/members";
-import { fetchSchedule, putAssignments, updateWeek } from "../api/schedules";
+import { fetchAssignmentCounts, fetchSchedule, putAssignments, updateWeek } from "../api/schedules";
 
 // position_code(배정 저장 시 쓰는 값)와 field(GET 응답의 instrument.* 키)가 다른 경우가 있다
 // (inst_score → score) — 응답에서 기존 배정을 읽어올 때 이 매핑으로 되짚는다.
@@ -21,14 +21,21 @@ const MIC_POSITIONS = Array.from({ length: 8 }, (_, i) => ({
   label: `마이크 ${i + 1}`,
 }));
 
-function MemberSelect({ value, onChange, members, unlinkedName }) {
+// counts가 있으면(마이크 슬롯 전용, Phase 11-A) 옵션 라벨에 "이번 달 N · 올해 M" 배정 횟수를
+// 함께 보여준다. 숫자는 저장된 DB 기준이라 아직 저장하지 않은 화면상의 변경은 반영되지 않는다.
+function MemberSelect({ value, onChange, members, unlinkedName, counts }) {
+  function optionLabel(m) {
+    const c = counts?.[m.id];
+    if (!c) return m.name;
+    return `${m.name} (이번 달 ${c.month_count}회 · 올해 ${c.year_count}회)`;
+  }
   return (
     <>
       <select value={value} onChange={(e) => onChange(e.target.value)}>
         <option value="">(미배정)</option>
         {members.map((m) => (
           <option key={m.id} value={m.id}>
-            {m.name}
+            {optionLabel(m)}
           </option>
         ))}
       </select>
@@ -106,9 +113,29 @@ function ScheduleEdit() {
   const [unlinkedChoir, setUnlinkedChoir] = useState([]);
   const [unlinkedSingerScore, setUnlinkedSingerScore] = useState([]);
 
+  // 마이크 1~8 배정 횟수(Phase 11-A). member_id -> {month_count, year_count} 맵으로 들고 있다가
+  // MemberSelect에 넘긴다. 조회 실패는 흡수하고 조용히 숫자만 안 보이게 한다 —
+  // 배정 편집 자체는 이 집계 없이도 동작해야 한다(Phase 3 Home.jsx와 같은 원칙).
+  const [micCounts, setMicCounts] = useState({});
+
+  function loadMicCounts() {
+    fetchAssignmentCounts(year, month)
+      .then((res) => {
+        const map = {};
+        res.counts.forEach((c) => {
+          map[c.member_id] = c;
+        });
+        setMicCounts(map);
+      })
+      .catch(() => {
+        // 실패해도 배정 편집 폼은 그대로 동작해야 하므로 조용히 무시한다.
+      });
+  }
+
   useEffect(() => {
     setLoading(true);
     setLoadError(null);
+    loadMicCounts();
     Promise.all([
       fetchSchedule(year, month),
       fetchMembers("instrument", true),
@@ -233,6 +260,8 @@ function ScheduleEdit() {
     try {
       await putAssignments(scheduleId, weekId, { assignments });
       setMessage("배정이 저장되었습니다.");
+      // 방금 저장한 배정이 숫자에 반영되지 않으면 연달아 편집할 때 옛 값을 보게 되므로 재조회한다.
+      loadMicCounts();
     } catch (err) {
       setFormError(err.message);
     }
@@ -336,6 +365,9 @@ function ScheduleEdit() {
         ))}
 
         <h3>싱어팀</h3>
+        <p style={{ color: "#666" }}>
+          마이크 옆 괄호는 마이크 배정 횟수입니다(이번 달 · 올해 누적, 콰이어·악보 등은 세지 않습니다).
+        </p>
         {MIC_POSITIONS.map(({ code, label }) => (
           <div key={code}>
             <label>
@@ -345,6 +377,7 @@ function ScheduleEdit() {
                 onChange={(v) => setSingleValue(code, v)}
                 members={singerMembers}
                 unlinkedName={unlinkedNames[code]}
+                counts={micCounts}
               />
             </label>
           </div>

@@ -141,3 +141,45 @@ def backfill_assignment_names(member_id: int, name: str) -> None:
         .is_("name_snapshot", "null")
         .execute()
     )
+
+
+MIC_POSITION_CODES = [f"mic{i}" for i in range(1, 9)]
+
+
+def find_mic_assignments_by_year(year: int) -> list[dict]:
+    # 마이크 배정 횟수 집계용 원자재 조회. 중첩 select의 dotted 필터
+    # (schedule_weeks.monthly_schedules.year) 대신, 이 프로젝트의 다른 리포지토리와 동일하게
+    # 3단계로 나눠 조회한다 — supabase-py 버전에 따라 중첩 필터가 불안정할 수 있어
+    # 안전한 방식을 택했다. 월 12건 이하·주차 52건 이하 규모라 3회 조회 비용은 무시할 만하다.
+    supabase = get_supabase()
+
+    schedules_res = (
+        supabase.table(SCHEDULE_TABLE).select("id, month").eq("year", year).execute()
+    )
+    schedule_rows = schedules_res.data or []
+    if not schedule_rows:
+        return []
+    schedule_id_to_month = {row["id"]: row["month"] for row in schedule_rows}
+
+    weeks_res = (
+        supabase.table(WEEK_TABLE)
+        .select("id, schedule_id")
+        .in_("schedule_id", list(schedule_id_to_month.keys()))
+        .execute()
+    )
+    week_rows = weeks_res.data or []
+    if not week_rows:
+        return []
+    week_id_to_month = {row["id"]: schedule_id_to_month[row["schedule_id"]] for row in week_rows}
+
+    assignments_res = (
+        supabase.table(ASSIGNMENT_TABLE)
+        .select("week_id, position_code, member_id, members(name)")
+        .in_("week_id", list(week_id_to_month.keys()))
+        .in_("position_code", MIC_POSITION_CODES)
+        .execute()
+    )
+    rows = assignments_res.data or []
+    for row in rows:
+        row["month"] = week_id_to_month[row["week_id"]]
+    return rows

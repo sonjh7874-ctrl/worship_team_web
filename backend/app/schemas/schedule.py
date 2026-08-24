@@ -94,3 +94,16 @@ class ScheduleWeekUpdate(BaseModel):
     special_title: str | None = None
     special_date: date_type | None = None
     special_memo: str | None = None
+
+
+class MicAssignmentCount(BaseModel):
+    member_id: int
+    name: str
+    month_count: int
+    year_count: int
+
+
+class AssignmentCountsResponse(BaseModel):
+    year: int
+    month: int
+    counts: list[MicAssignmentCount] = []

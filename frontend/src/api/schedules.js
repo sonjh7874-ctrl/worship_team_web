@@ -4,6 +4,10 @@ export function fetchSchedule(year, month) {
   return apiGet(`/api/v1/schedules?year=${year}&month=${month}`);
 }
 
+export function fetchAssignmentCounts(year, month) {
+  return apiGet(`/api/v1/schedules/assignment-counts?year=${year}&month=${month}`);
+}
+
 export function createSchedule(payload) {
   return apiPost("/api/v1/schedules", payload);
 }
