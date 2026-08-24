@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { fetchMembers } from "../api/members";
 import {
@@ -140,7 +140,7 @@ function ScheduleEdit() {
   // "추천으로 채우기" 누르기 직전 상태 스냅샷. 저장 전까지는 언제든 이 값으로 되돌릴 수 있다.
   const [preSuggestionSnapshot, setPreSuggestionSnapshot] = useState(null);
 
-  function loadMicCounts() {
+  const loadMicCounts = useCallback(() => {
     fetchAssignmentCounts(year, month)
       .then((res) => {
         const map = {};
@@ -152,13 +152,13 @@ function ScheduleEdit() {
       .catch(() => {
         // 실패해도 배정 편집 폼은 그대로 동작해야 하므로 조용히 무시한다.
       });
-  }
+  }, [year, month]);
 
-  function loadSuggestions() {
+  const loadSuggestions = useCallback(() => {
     fetchWeekSuggestions(scheduleId, weekId)
       .then(setSuggestions)
       .catch(() => setSuggestions(null));
-  }
+  }, [scheduleId, weekId]);
 
   useEffect(() => {
     setLoading(true);
@@ -218,14 +218,17 @@ function ScheduleEdit() {
       })
       .catch((err) => setLoadError(err.message))
       .finally(() => setLoading(false));
-  }, [year, month, weekId]);
+  }, [year, month, weekId, loadMicCounts, loadSuggestions]);
 
   function setSingleValue(code, value) {
     setSingleAssignments((prev) => ({ ...prev, [code]: value }));
   }
 
-  // 추천은 빈 마이크 슬롯과 콰이어만 채운다 — 이미 채워진 슬롯(리드보컬·특순 등 예외 배치)은
-  // 백엔드가 애초에 추천 목록에 담지 않으므로 여기서 덮어쓸 값 자체가 없다.
+  // 추천은 빈 마이크 슬롯과 콰이어만 채운다 — 백엔드는 조회 시점의 DB 저장값을 기준으로
+  // 빈 슬롯을 판단하므로, 화면에서 방금 수동 선택했지만 아직 저장하지 않은 슬롯은 서버 입장에서
+  // 여전히 "비어 있다"고 보고 추천값을 내려줄 수 있다. 그래서 여기서도 현재 화면 값이 실제로
+  // 비어 있는 슬롯에만 추천을 대입해, 저장 전 수동 선택을 덮어쓰지 않게 한다
+  // (전체_구현_점검_보고서.md 2-1절).
   function handleApplySuggestions() {
     if (!suggestions || !suggestions.has_availability) return;
     setPreSuggestionSnapshot({
@@ -235,7 +238,10 @@ function ScheduleEdit() {
     setSingleAssignments((prev) => {
       const next = { ...prev };
       suggestions.mic.forEach((m) => {
-        next[`mic${m.slot}`] = String(m.member_id);
+        const key = `mic${m.slot}`;
+        if (!next[key]) {
+          next[key] = String(m.member_id);
+        }
       });
       return next;
     });
