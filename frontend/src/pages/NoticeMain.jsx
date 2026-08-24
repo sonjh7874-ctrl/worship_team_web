@@ -10,6 +10,9 @@ function NoticeMain() {
   const [pastNotices, setPastNotices] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  // 지난 공지 목록 검색(제목 기준, 클라이언트 필터). 목록 API가 페이지네이션 없이
+  // 전체를 반환하므로(API명세 0-3) 서버 쪽 검색 API 없이 이미 받은 목록만 걸러도 충분하다.
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     // 목록은 고정글이 최신순보다 우선 정렬되어 오므로(백엔드), 맨 앞 항목을 그대로
@@ -47,7 +50,9 @@ function NoticeMain() {
   );
 
   // 목록에는 위에서 이미 보여준 최상단 공지도 포함돼 있으므로 중복되지 않게 제외한다.
-  const olderNotices = pastNotices.filter((item) => item.id !== notice.id);
+  const olderNotices = pastNotices
+    .filter((item) => item.id !== notice.id)
+    .filter((item) => item.title.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
     <div>
@@ -59,9 +64,16 @@ function NoticeMain() {
         </>
       )}
       <NoticeDetailView notice={notice} />
-      {olderNotices.length > 0 && (
+      {pastNotices.length > 1 && (
         <div>
           <h2>지난 공지</h2>
+          <input
+            type="search"
+            placeholder="제목 검색"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {olderNotices.length === 0 && <p style={{ color: "#666" }}>검색 결과가 없습니다.</p>}
           <ul>
             {olderNotices.map((item) => (
               <li key={item.id}>

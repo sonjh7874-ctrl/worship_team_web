@@ -18,6 +18,8 @@ const CATEGORY_COLORS = {
   기타: "#f3f4f6",
 };
 
+const CATEGORIES = Object.keys(CATEGORY_COLORS);
+
 function pad2(n) {
   return String(n).padStart(2, "0");
 }
@@ -208,6 +210,20 @@ function CalendarMain() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  // 카테고리 체크박스 필터(클라이언트 필터, 서버 재조회 없음) — 기본은 전부 표시.
+  const [visibleCategories, setVisibleCategories] = useState(() => new Set(CATEGORIES));
+
+  function toggleCategory(category) {
+    setVisibleCategories((prev) => {
+      const next = new Set(prev);
+      if (next.has(category)) {
+        next.delete(category);
+      } else {
+        next.add(category);
+      }
+      return next;
+    });
+  }
 
   function load(y, m) {
     setLoading(true);
@@ -252,7 +268,8 @@ function CalendarMain() {
   }
 
   const weeks = buildMonthGrid(Number(year), Number(month));
-  const laneByEventId = assignLanesByEventId(events);
+  const visibleEvents = events.filter((e) => visibleCategories.has(e.category));
+  const laneByEventId = assignLanesByEventId(visibleEvents);
   const todayKey = toKey(now);
 
   return (
@@ -299,6 +316,19 @@ function CalendarMain() {
         </button>
       </form>
 
+      <div style={{ margin: "0.5rem 0" }}>
+        {CATEGORIES.map((category) => (
+          <label key={category} style={{ marginRight: "1rem" }}>
+            <input
+              type="checkbox"
+              checked={visibleCategories.has(category)}
+              onChange={() => toggleCategory(category)}
+            />{" "}
+            {category}
+          </label>
+        ))}
+      </div>
+
       {error && <p style={{ color: "red" }}>{error}</p>}
       {loading && <p>불러오는 중...</p>}
 
@@ -325,7 +355,7 @@ function CalendarMain() {
               weekDates={weekDates}
               year={Number(year)}
               month={Number(month)}
-              events={events}
+              events={visibleEvents}
               laneByEventId={laneByEventId}
               todayKey={todayKey}
               canEdit={canEdit}

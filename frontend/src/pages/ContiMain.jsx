@@ -11,6 +11,8 @@ function ContiMain() {
   const [draftContis, setDraftContis] = useState([]);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  // 과거 콘티 검색(제목 기준, 클라이언트 필터) — NoticeMain과 동일한 패턴.
+  const [query, setQuery] = useState("");
 
   useEffect(() => {
     fetchLatestConti()
@@ -80,7 +82,9 @@ function ContiMain() {
   }
 
   // 전체 목록에는 최신 콘티도 포함돼 있으므로, 위에서 이미 보여준 것과 중복되지 않게 제외한다.
-  const olderContis = pastContis.filter((item) => item.id !== conti.id);
+  const olderContis = pastContis
+    .filter((item) => item.id !== conti.id)
+    .filter((item) => item.title.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
     <div>
@@ -88,9 +92,16 @@ function ContiMain() {
       {canEdit && <Link to={`/conti/${conti.id}/edit`}>편집</Link>}
       <ContiDetailView conti={conti} />
       {draftSection}
-      {olderContis.length > 0 && (
+      {pastContis.length > 1 && (
         <div>
           <h2>과거 콘티</h2>
+          <input
+            type="search"
+            placeholder="제목 검색"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {olderContis.length === 0 && <p style={{ color: "#666" }}>검색 결과가 없습니다.</p>}
           <ul>
             {olderContis.map((item) => (
               <li key={item.id}>

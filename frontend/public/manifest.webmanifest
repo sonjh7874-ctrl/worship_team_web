@@ -1,0 +1,11 @@
+{
+  "name": "청년부 주일찬양팀 웹",
+  "short_name": "찬양팀",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#7e14ff",
+  "icons": [
+    { "src": "/favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

@@ -15,6 +15,7 @@ import MemberMain from "./pages/MemberMain";
 import NoticeDetail from "./pages/NoticeDetail";
 import NoticeEdit from "./pages/NoticeEdit";
 import NoticeMain from "./pages/NoticeMain";
+import NotFound from "./pages/NotFound";
 import Profile from "./pages/Profile";
 import ScheduleEdit from "./pages/ScheduleEdit";
 import Signup from "./pages/Signup";
@@ -161,6 +162,7 @@ function App() {
             </RequireRole>
           }
         />
+        <Route path="*" element={<NotFound />} />
       </Routes>
       </ForcePasswordChangeGuard>
     </>
