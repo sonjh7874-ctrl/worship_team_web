@@ -13,6 +13,7 @@ import Badge from "../components/Badge";
 import Button from "../components/Button";
 import Card from "../components/Card";
 import PageContainer from "../components/PageContainer";
+import LoadingState from "../components/LoadingState";
 import { useAuth } from "../contexts/AuthContext";
 
 function WeekCard({ week, scheduleId, year, month, onDelete, canEdit }) {
@@ -181,7 +182,7 @@ function ScheduleMain() {
       {error && <p className="inline-notice inline-notice--danger">{error}</p>}
       {message && <p className="inline-notice inline-notice--success">{message}</p>}
 
-      {loading && <p className="page-status">스케줄을 불러오는 중...</p>}
+      {loading && <LoadingState label="스케줄을 불러오는 중..." rows={4} />}
 
       {!loading && notFound && (
         <div>

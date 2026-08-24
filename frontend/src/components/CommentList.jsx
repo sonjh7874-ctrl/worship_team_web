@@ -2,6 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createComment, deleteComment, fetchComments, updateComment } from "../api/comments";
 import { useAuth } from "../contexts/AuthContext";
+import Button from "./Button";
+import EmptyState from "./EmptyState";
+import ErrorState from "./ErrorState";
+import LoadingState from "./LoadingState";
 
 // 백엔드 comment_service.MAX_CONTENT_LENGTH와 동일한 값 — 도배성 장문 게시를 막는다.
 const MAX_CONTENT_LENGTH = 1000;
@@ -100,51 +104,50 @@ function CommentList({ kind, parentId }) {
   }
 
   return (
-    <div style={{ marginTop: "1.5rem", borderTop: "1px solid #ddd", paddingTop: "1rem" }}>
-      <h3 style={{ fontSize: "1rem" }}>댓글 {comments.length > 0 ? `(${comments.length})` : ""}</h3>
+    <section className="comment-section">
+      <header className="comment-section__header"><h2>댓글</h2>{comments.length > 0 && <span>{comments.length}개</span>}</header>
 
-      {loading && <p>불러오는 중...</p>}
-      {error && <p style={{ color: "red" }}>{error}</p>}
+      {loading && <LoadingState label="댓글을 불러오는 중..." rows={2} compact />}
+      {error && <ErrorState title="댓글을 불러오지 못했습니다" description={error} onRetry={load} compact />}
 
-      {!loading &&
+      {!loading && !error &&
         comments.map((comment) => (
-          <div key={comment.id} style={{ padding: "0.5rem 0", borderBottom: "1px solid #eee" }}>
+          <article key={comment.id} className="comment-item">
             {editingId === comment.id ? (
-              <div>
+              <div className="comment-form comment-form--edit">
+                <label htmlFor={`comment-edit-${comment.id}`}>댓글 수정</label>
                 <textarea
+                  id={`comment-edit-${comment.id}`}
                   value={editingContent}
                   onChange={(e) => setEditingContent(e.target.value)}
                   maxLength={MAX_CONTENT_LENGTH}
                   rows={2}
-                  style={{ width: "100%" }}
                 />
-                <div style={{ fontSize: 11, color: "#999", textAlign: "right" }}>
+                <div className="comment-form__count">
                   {editingContent.length}/{MAX_CONTENT_LENGTH}
                 </div>
-                <button type="button" onClick={() => saveEdit(comment.id)} disabled={savingEdit || !editingContent.trim()}>
+                <div className="inline-actions"><Button onClick={() => saveEdit(comment.id)} disabled={savingEdit || !editingContent.trim()}>
                   저장
-                </button>{" "}
-                <button type="button" onClick={cancelEdit} disabled={savingEdit}>
+                </Button>
+                <Button variant="secondary" onClick={cancelEdit} disabled={savingEdit}>
                   취소
-                </button>
+                </Button></div>
               </div>
             ) : (
               <>
-                <p style={{ margin: 0, whiteSpace: "pre-wrap" }}>{comment.content}</p>
-                <p style={{ margin: "0.2rem 0 0", fontSize: 12, color: "#666" }}>
+                <p className="comment-item__content">{comment.content}</p>
+                <div className="comment-item__meta">
+                  <span>
                   {comment.author_name} · {new Date(comment.created_at).toLocaleString("ko-KR")}
                   {comment.is_edited && " (수정됨)"}
+                  </span>
+                  <div className="comment-item__actions">
                   {comment.can_edit && (
-                    <>
-                      {" · "}
                       <button type="button" onClick={() => startEdit(comment)} disabled={deletingId === comment.id}>
                         수정
                       </button>
-                    </>
                   )}
                   {comment.can_delete && (
-                    <>
-                      {" "}
                       <button
                         type="button"
                         onClick={() => handleDelete(comment.id)}
@@ -152,39 +155,40 @@ function CommentList({ kind, parentId }) {
                       >
                         {deletingId === comment.id ? "삭제 중..." : "삭제"}
                       </button>
-                    </>
                   )}
-                </p>
+                  </div>
+                </div>
               </>
             )}
-          </div>
+          </article>
         ))}
 
-      {!loading && comments.length === 0 && <p style={{ fontSize: 13, color: "#666" }}>아직 댓글이 없습니다.</p>}
+      {!loading && !error && comments.length === 0 && <EmptyState title="아직 댓글이 없습니다" description="첫 댓글을 남겨보세요." titleAs="h3" className="comment-empty" />}
 
       {user ? (
-        <form onSubmit={handleSubmit} style={{ marginTop: "0.8rem" }}>
+        <form onSubmit={handleSubmit} className="comment-form">
+          <label htmlFor={`comment-new-${kind}-${parentId}`}>댓글 작성</label>
           <textarea
+            id={`comment-new-${kind}-${parentId}`}
             value={content}
             onChange={(e) => setContent(e.target.value)}
             placeholder="댓글을 입력하세요"
             maxLength={MAX_CONTENT_LENGTH}
             rows={2}
-            style={{ width: "100%" }}
           />
-          <div style={{ fontSize: 11, color: "#999", textAlign: "right" }}>
+          <div className="comment-form__count">
             {content.length}/{MAX_CONTENT_LENGTH}
           </div>
-          <button type="submit" disabled={submitting || !content.trim()}>
+          <Button type="submit" disabled={submitting || !content.trim()}>
             등록
-          </button>
+          </Button>
         </form>
       ) : (
-        <p style={{ fontSize: 13, marginTop: "0.8rem" }}>
+        <p className="comment-login-notice">
           <Link to={`/login?next=${encodeURIComponent(location.pathname)}`}>로그인</Link> 후 댓글을 남길 수 있습니다.
         </p>
       )}
-    </div>
+    </section>
   );
 }
 

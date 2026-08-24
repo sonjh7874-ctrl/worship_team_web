@@ -7,6 +7,7 @@ import Card from "../components/Card";
 import ContiDetailView from "../components/ContiDetailView";
 import EmptyState from "../components/EmptyState";
 import PageContainer from "../components/PageContainer";
+import LoadingState from "../components/LoadingState";
 import { useAuth } from "../contexts/AuthContext";
 
 function PageHeader({ title, description, action }) {
@@ -94,7 +95,7 @@ function ContiMain() {
   if (loading) {
     return (
       <PageContainer className="content-page">
-        <p className="page-status">콘티를 불러오는 중...</p>
+        <LoadingState label="콘티를 불러오는 중..." />
       </PageContainer>
     );
   }

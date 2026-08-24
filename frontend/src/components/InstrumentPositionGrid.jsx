@@ -16,23 +16,19 @@ function InstrumentPositionGrid({ instrument }) {
   if (entries.length === 0) return null;
 
   return (
-    <div
-      className="instrument-grid"
-      style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(70px, 1fr))", gap: "0.25rem" }}
-    >
+    <section className="stage-group" aria-labelledby="instrument-stage-title">
+      <h3 id="instrument-stage-title" className="stage-group__title">악기팀</h3>
+      <div className="instrument-grid">
       {entries.map(([code, person]) => (
-        <div
-          key={code}
-          className="instrument-slot"
-          style={{ border: "1px solid #ccc", padding: "0.25rem", textAlign: "center" }}
-        >
-          <div className="instrument-slot__label" style={{ fontSize: "0.75rem", color: "#666" }}>
+        <div key={code} className="instrument-slot">
+          <div className="instrument-slot__label">
             {INSTRUMENT_LABELS[code]}
           </div>
           <div className="instrument-slot__name">{person.name}</div>
         </div>
       ))}
-    </div>
+      </div>
+    </section>
   );
 }
 

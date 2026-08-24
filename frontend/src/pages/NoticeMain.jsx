@@ -7,6 +7,7 @@ import Card from "../components/Card";
 import EmptyState from "../components/EmptyState";
 import NoticeDetailView from "../components/NoticeDetailView";
 import PageContainer from "../components/PageContainer";
+import LoadingState from "../components/LoadingState";
 import { useAuth } from "../contexts/AuthContext";
 
 function NoticeMain() {
@@ -42,7 +43,7 @@ function NoticeMain() {
   if (loading) {
     return (
       <PageContainer>
-        <p className="page-status">공지사항을 불러오는 중...</p>
+        <LoadingState label="공지사항을 불러오는 중..." />
       </PageContainer>
     );
   }

@@ -4,6 +4,9 @@ import { fetchCalendarEvents } from "../api/calendar";
 import { useAuth } from "../contexts/AuthContext";
 import Button from "../components/Button";
 import PageContainer from "../components/PageContainer";
+import Badge from "../components/Badge";
+import ErrorState from "../components/ErrorState";
+import LoadingState from "../components/LoadingState";
 
 const WEEKDAY_LABELS = ["일", "월", "화", "수", "목", "금", "토"];
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -160,7 +163,7 @@ function EventBar({ seg }) {
   );
 }
 
-function WeekRow({ weekDates, year, month, events, laneByEventId, todayKey, canEdit }) {
+function WeekRow({ weekDates, year, month, events, laneByEventId, todayKey, selectedKey, onSelectDate }) {
   const segments = computeWeekSegments(weekDates, events, laneByEventId);
 
   return (
@@ -189,18 +192,24 @@ function WeekRow({ weekDates, year, month, events, laneByEventId, todayKey, canE
           textDecoration: "none",
           background: toKey(date) === todayKey ? "#fff7ed" : undefined,
         };
-        // 빈 날짜 클릭 → 새 이벤트 작성은 편집 권한이 있을 때만 의미가 있다.
-        if (!canEdit) {
-          return (
-            <span key={i} className="calendar-cell" style={cellStyle}>
-              {date.getDate()}
-            </span>
-          );
-        }
+        const dateKey = toKey(date);
+        const eventCount = events.filter((event) => {
+          const endDate = event.end_date || event.start_date;
+          return event.start_date <= dateKey && dateKey <= endDate;
+        }).length;
         return (
-          <Link key={i} to={`/calendar/new?date=${toKey(date)}`} className="calendar-cell" style={cellStyle}>
+          <button
+            key={i}
+            type="button"
+            onClick={() => onSelectDate(dateKey)}
+            className={`calendar-cell${dateKey === selectedKey ? " calendar-cell--selected" : ""}`}
+            style={cellStyle}
+            aria-pressed={dateKey === selectedKey}
+            aria-label={`${dateKey} 일정 보기`}
+          >
             {date.getDate()}
-          </Link>
+            {eventCount > 0 && <small className="calendar-cell__count">+{eventCount}개</small>}
+          </button>
         );
       })}
       {segments.map((seg, idx) => (
@@ -218,6 +227,7 @@ function CalendarMain() {
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(() => toKey(now));
   // 카테고리 체크박스 필터(클라이언트 필터, 서버 재조회 없음) — 기본은 전부 표시.
   const [visibleCategories, setVisibleCategories] = useState(() => new Set(CATEGORIES));
 
@@ -249,7 +259,10 @@ function CalendarMain() {
 
   function handleSearch(e) {
     e.preventDefault();
-    load(Number(year), Number(month));
+    const y = Number(year);
+    const m = Number(month);
+    setSelectedDate(`${y}-${pad2(m)}-01`);
+    load(y, m);
   }
 
   function shiftMonth(delta) {
@@ -264,6 +277,7 @@ function CalendarMain() {
     }
     setYear(y);
     setMonth(m);
+    setSelectedDate(`${y}-${pad2(m)}-01`);
     load(y, m);
   }
 
@@ -272,6 +286,7 @@ function CalendarMain() {
     const m = now.getMonth() + 1;
     setYear(y);
     setMonth(m);
+    setSelectedDate(toKey(now));
     load(y, m);
   }
 
@@ -279,6 +294,11 @@ function CalendarMain() {
   const visibleEvents = events.filter((e) => visibleCategories.has(e.category));
   const laneByEventId = assignLanesByEventId(visibleEvents);
   const todayKey = toKey(now);
+  // 선택한 날짜와 하루라도 겹치는 이벤트를 시작일·종료일 모두 고려해 보여준다.
+  const selectedEvents = visibleEvents.filter((event) => {
+    const endDate = event.end_date || event.start_date;
+    return event.start_date <= selectedDate && selectedDate <= endDate;
+  });
 
   return (
     <PageContainer size="editor" className="content-page calendar-page">
@@ -330,8 +350,8 @@ function CalendarMain() {
         ))}
       </div>
 
-      {error && <p className="inline-notice inline-notice--danger">{error}</p>}
-      {loading && <p className="page-status">캘린더를 불러오는 중...</p>}
+      {error && <ErrorState title="캘린더를 불러오지 못했습니다" description={error} onRetry={() => load(Number(year), Number(month))} />}
+      {loading && <LoadingState label="캘린더를 불러오는 중..." rows={4} />}
 
       {!loading && !error && (
         <div className="calendar-grid">
@@ -359,10 +379,49 @@ function CalendarMain() {
               events={visibleEvents}
               laneByEventId={laneByEventId}
               todayKey={todayKey}
-              canEdit={canEdit}
+              selectedKey={selectedDate}
+              onSelectDate={setSelectedDate}
             />
           ))}
         </div>
+      )}
+
+      {!loading && !error && (
+        <section className="calendar-day-summary" aria-live="polite">
+          <div className="section-heading">
+            <div>
+              <p className="section-heading__eyebrow">SELECTED DATE</p>
+              <h2>{selectedDate} 일정</h2>
+            </div>
+            {canEdit && (
+              <Button as={Link} to={`/calendar/new?date=${selectedDate}`} variant="secondary">
+                이 날짜에 추가
+              </Button>
+            )}
+          </div>
+          {selectedEvents.length === 0 ? (
+            <p className="calendar-day-summary__empty">등록된 일정이 없습니다.</p>
+          ) : (
+            <ul>
+              {selectedEvents.map((event) => {
+                const label = event.category === "기타" ? event.category_custom : event.category;
+                return (
+                  <li key={event.id}>
+                    <Link to={`/calendar/${event.id}`}>
+                      <span>
+                        <Badge tone={event.source_type === "auto_birthday" ? "birthday" : "neutral"}>
+                          {label}
+                        </Badge>
+                        <strong>{event.title}</strong>
+                      </span>
+                      {event.comment_count > 0 && <small>댓글 {event.comment_count}</small>}
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </section>
       )}
     </PageContainer>
   );

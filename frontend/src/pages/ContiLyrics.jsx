@@ -6,6 +6,7 @@ import Button from "../components/Button";
 import Card from "../components/Card";
 import EmptyState from "../components/EmptyState";
 import PageContainer from "../components/PageContainer";
+import LoadingState from "../components/LoadingState";
 
 // 마디/간주 표기(마커)는 가사가 아니라 진행 정보라 옅고 좁게, 실제 가사 블록(파트)은
 // 들여쓰기 + 넉넉한 간격을 줘서 파트 사이가 눈에 띄게 구분되도록 한다. 해석 실패(unresolved)
@@ -116,7 +117,7 @@ function ContiLyrics() {
 
   if (loading) {
     return (
-      <PageContainer><p className="page-status">가사를 불러오는 중...</p></PageContainer>
+      <PageContainer><LoadingState label="가사를 불러오는 중..." /></PageContainer>
     );
   }
 

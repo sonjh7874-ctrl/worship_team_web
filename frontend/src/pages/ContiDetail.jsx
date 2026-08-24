@@ -5,6 +5,7 @@ import Button from "../components/Button";
 import ContiDetailView from "../components/ContiDetailView";
 import EmptyState from "../components/EmptyState";
 import PageContainer from "../components/PageContainer";
+import LoadingState from "../components/LoadingState";
 import { useAuth } from "../contexts/AuthContext";
 
 function ContiDetail() {
@@ -28,7 +29,7 @@ function ContiDetail() {
   if (loading) {
     return (
       <PageContainer>
-        <p className="page-status">콘티를 불러오는 중...</p>
+        <LoadingState label="콘티를 불러오는 중..." />
       </PageContainer>
     );
   }
