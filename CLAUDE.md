@@ -57,20 +57,22 @@ claude.ai Project("DX스쿨 개인 사이드 프로젝트")의 설계 문서를 
 - `docs/schema.sql` — Supabase에 그대로 실행 가능한 DDL (테이블/제약/RLS/seed 데이터 포함)
 - `docs/전체_로드맵.md` — Phase 0~7 전체 진행 순서와 각 Phase의 작업 분해. 완료된 Phase는 상단에 완료 표시가 돼 있으니, 세션 시작 시 이 문서로 지금이 어느 Phase인지부터 파악할 것
 
-## 다음 세션에서 이어갈 작업 (2026-08-20 기준)
+## 다음 세션에서 이어갈 작업 (2026-08-24 기준)
 
-Phase 0~6 완료 + AI 인식 정확도 개선/검수 보조 UI까지 반영. 콘티/공지사항/인명부/월간 스케줄(배정·마이크 배치도)/대시보드/캘린더/AI 콘티 이미지 인식까지 전부 화면-API-DB 흐름이 동작한다. 자세한 내용은 `docs/전체_로드맵.md`의 각 Phase 절 참고.
+Phase 0~12(후속 포함) 전부 완료. 콘티/공지사항/인명부/월간 스케줄(배정·마이크 배치도·배정 횟수·참불참 파싱·자동 배정 제안)/대시보드/캘린더(특순·생일 자동 동기화)/AI 콘티 이미지 인식/자막 가사/댓글/정식 로그인(Supabase Auth, admin/leader/member)까지 전부 화면-API-DB 흐름이 동작한다. 자세한 내용은 `docs/전체_로드맵.md`의 각 Phase 절 참고.
 
 **AI 인식 정확도를 건드릴 때**: 프롬프트·모델 설정을 바꾸면 반드시 `backend/tests/ai_parse_baseline.py`로 재측정하고 숫자로 비교할 것(현재 94.8%). 실제 콘티 이미지와 정답은 `backend/tests/fixtures/`에 있고 git에는 없다 — 다른 환경에서는 이미지를 다시 넣어야 한다.
 
-다음은 **Phase 7 — 정식 로그인 / 리더십 역할 구분**:
+다음은 **Phase 13 — 마무리(배포·실사용자 테스트·README/트러블슈팅 정리)**. 착수 전 `docs/전체_구현_점검_보고서.md`에서 발견된 항목 중 처리 상태:
 
-- [ ] Supabase Auth 도입 방식 검토(수단, 세션 관리)
-- [ ] 현재 `EDIT_PASSWORD` 단일 비밀번호 게이트(`verify_edit_password` 의존성)를 역할 기반으로 교체할지 병행할지 결정 — 쓰기 API 전체에 영향
-- [ ] 실패·시간 부족 시 기존 비밀번호 게이트로 되돌아갈 수 있어야 함(README 6절 fallback 원칙)
-- 착수 전에 Phase 1~6 때처럼 작업을 더 작은 단위로 쪼갠 설계(SDD)부터 `docs/전체_로드맵.md`에 정리할 것
+- [x] 자동 추천이 저장 전 수동 마이크 배정을 덮어쓰던 버그 수정(`ScheduleEdit.jsx`) + 회귀 테스트
+- [x] 중첩 스케줄 API(`PATCH/DELETE weeks/{week_id}`, `PUT .../assignments`)의 부모 `schedule_id` 검증 추가 + 회귀 테스트 9건
+- [x] 운영 CORS를 `CORS_ALLOWED_ORIGINS` 환경변수로 구성 가능하게 함(`backend/app/config.py`, `main.py`) — **실제 운영 도메인이 정해지면 그 값을 `.env.local`/배포 환경변수에 설정해야 함**, 아직 미설정
+- [x] `ScheduleEdit.jsx`의 `react-hooks/exhaustive-deps` 경고 정리(`useCallback`으로 안정화)
+- [ ] `AuthContext.jsx`의 `react(only-export-components)` 경고는 의도적으로 보류 — `useAuth`를 쓰는 파일이 16곳이라 분리 비용 대비 실익이 낮다고 판단, 알려진 개발 경고로 둠
+- [ ] 운영 Supabase에 `docs/schema.sql` 최신 구조(특히 `uq_event_source_member_date`, `members.gender NOT NULL`)가 실제 적용됐는지는 로컬 점검으로 확인 불가 — 사용자가 다음 접속 시 확인 필요
 
-**개발 중 주의**: 백엔드를 고친 뒤에는 `uvicorn --reload`가 변경을 놓치는 경우가 있으므로, 동작이 이상하면 코드보다 `/openapi.json`(Swagger)에 새 필드가 반영됐는지부터 확인하고 서버를 재기동한다. (Phase 6에서 실제로 겪음)
+**개발 중 주의**: 백엔드를 고친 뒤에는 `uvicorn --reload`가 변경을 놓치는 경우가 있으므로, 동작이 이상하면 코드보다 `/openapi.json`(Swagger)에 새 필드가 반영됐는지부터 확인하고 서버를 재기동한다. Windows에서는 `--reload`가 리로더(부모)와 워커(자식) 프로세스를 분리 실행해, 리로더만 죽이면 워커가 고아로 남아 옛 코드로 계속 응답하는 경우가 있다 — 재시작 시 `Get-CimInstance Win32_Process`로 모든 python 프로세스(리로더+워커)를 확인해서 정리할 것(Phase 11-B 후속 2에서 원인 확인).
 
 ## claude.ai Project와 이 로컬 저장소의 관계
 

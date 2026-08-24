@@ -274,6 +274,12 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | DELETE | `/schedules/{schedule_id}/weeks/{week_id}` | 주차 삭제 | 필요 |
 | PUT | `/schedules/{schedule_id}/weeks/{week_id}/assignments` | **해당 주차의 배정 전체 교체** | 필요 |
 | GET | `/schedules/{schedule_id}/weeks/{week_id}/suggestions` | 그 주차의 싱어팀 마이크/콰이어 자동 배정 제안(Phase 12) | 필요(leader) |
+
+> **부모 `schedule_id` 검증(전체_구현_점검_보고서.md 2-2절 수정)**: 위 `PATCH`/`DELETE weeks/{week_id}`와
+> `PUT .../assignments`는 URL의 `week_id`가 실제로 존재하더라도, 그 주차의 실제 부모 `schedule_id`가
+> URL의 `schedule_id`와 다르면 `404`를 반환하고 아무것도 바꾸지 않는다. `suggestions` 엔드포인트가
+> 이미 쓰던 부모-자식 일치 검증(Phase 12)을 나머지 세 엔드포인트에도 동일하게 적용한 것이다 —
+> 이전에는 `week_id`만 맞으면 잘못된 `schedule_id`로도 다른 달의 주차를 수정·삭제할 수 있었다.
 | POST | `/schedules/availability/ai-parse` | 여러 명 참/불참 텍스트를 AI로 구조화(저장 안 함, Phase 11-B) | 필요 |
 | GET | `/schedules/availability?year=2026&month=8&team=singer` | 해당 월·팀의 참/불참 제출 현황 조회(Phase 11-B) | 필요(leader) |
 | PUT | `/schedules/availability?year=2026&month=8&team=singer` | 해당 월·팀의 참/불참 제출 전체 교체(확정 저장, Phase 11-B) | 필요 |
