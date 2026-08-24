@@ -18,7 +18,7 @@
 - 콘티/곡/파일/공지사항/스케줄/캘린더/인명부의 **쓰기 엔드포인트는 모두 `require_role("leader")`**. 사용자 관리(`/auth/users` — 목록 조회·역할 변경·비밀번호 초기화)만 `require_role("admin")`이고, 내 정보 조회·수정·비밀번호 변경(`/auth/me`)은 로그인만 하면 된다(`require_role("member")`).
 - **예외 — 가사 관련 조회(GET)만 member 이상 필요**: `GET /songs/{song_id}/sections`, `GET /contis/{conti_id}/lyrics`(Phase 9). 저작권 있는 콘텐츠라 다른 조회 엔드포인트와 달리 비로그인 접근은 `401`이다.
 - **예외 — 댓글은 작성/수정/삭제만 로그인 필요**: `POST/PATCH/DELETE /notices/{id}/comments`, `/calendar/{id}/comments`(Phase 10)는 `require_role("member")`이지만, **목록 조회(GET)는 다른 콘텐츠와 동일하게 비로그인 공개**다. 수정은 작성자 본인만, 삭제는 본인 또는 `leader` 이상만 가능하도록 서비스 레이어에서 소유권을 추가로 검사한다(역할 게이트만으로는 표현할 수 없는 리소스 소유권 비교).
-- **예외 — 참/불참 조회는 leader 이상 필요**: `GET/PUT /schedules/availability`(Phase 11-B)는 조회(`GET`)도 `require_role("leader")`다. 참/불참 사유(`결혼식`, `가족일정` 등)가 팀원 개인 사정을 담은 텍스트라, 다른 도메인의 "조회는 비로그인 공개" 원칙과 달리 리더십 전용으로 좁혔다.
+- **예외 — 참/불참 조회는 leader 이상 필요**: `GET/PUT /schedules/availability`(Phase 11-B)는 조회(`GET`)도 `require_role("leader")`다. 참/불참 사유(`결혼식`, `가족일정` 등)가 팀원 개인 사정을 담은 텍스트라, 다른 도메인의 "조회는 비로그인 공개" 원칙과 달리 리더십 전용으로 좁혔다. `GET /schedules/{schedule_id}/weeks/{week_id}/suggestions`(Phase 12)도 이 참/불참 데이터에서 파생된 값이라 같은 이유로 leader 이상만 조회할 수 있다.
 - 액세스 토큰은 기본 1시간 만료다. 만료 시 `POST /auth/refresh`에 `refresh_token`을 보내 재발급받는다(프론트는 401 응답을 받으면 이 과정을 자동으로 1회 재시도한다).
 - **이전 방식이던 `X-Edit-Password` 단일 비밀번호 게이트(`EDIT_PASSWORD`)는 완전히 제거됐다.** 문제가 생기면 Phase 7의 교체 커밋을 git revert해 되돌아간다.
 
@@ -273,6 +273,7 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | PATCH | `/schedules/{schedule_id}/weeks/{week_id}` | 주차 정보 수정 (비고/불참사항/특순) | 필요 |
 | DELETE | `/schedules/{schedule_id}/weeks/{week_id}` | 주차 삭제 | 필요 |
 | PUT | `/schedules/{schedule_id}/weeks/{week_id}/assignments` | **해당 주차의 배정 전체 교체** | 필요 |
+| GET | `/schedules/{schedule_id}/weeks/{week_id}/suggestions` | 그 주차의 싱어팀 마이크/콰이어 자동 배정 제안(Phase 12) | 필요(leader) |
 | POST | `/schedules/availability/ai-parse` | 여러 명 참/불참 텍스트를 AI로 구조화(저장 안 함, Phase 11-B) | 필요 |
 | GET | `/schedules/availability?year=2026&month=8&team=singer` | 해당 월·팀의 참/불참 제출 현황 조회(Phase 11-B) | 필요(leader) |
 | PUT | `/schedules/availability?year=2026&month=8&team=singer` | 해당 월·팀의 참/불참 제출 전체 교체(확정 저장, Phase 11-B) | 필요 |
@@ -299,6 +300,43 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
   선택지에 없어 숫자를 붙일 자리가 없다(ERD 3-3).
 - **표시 위치는 `ScheduleEdit`의 마이크 1~8 드롭다운뿐**이다. 숫자는 항상 저장된 DB 기준이라, 아직 저장하지 않은 화면상의
   배정 변경은 반영되지 않는다.
+
+**`GET /schedules/{schedule_id}/weeks/{week_id}/suggestions` 응답 예시 (Phase 12)**
+
+```json
+{
+  "week_id": 9,
+  "service_date": "2026-08-02",
+  "has_availability": true,
+  "mic": [
+    { "member_id": 21, "name": "정승주", "month_count": 0, "year_count": 9, "slot": 1 },
+    { "member_id": 23, "name": "서다은", "month_count": 1, "year_count": 7, "slot": 3 }
+  ],
+  "choir": [
+    { "member_id": 29, "name": "노유안", "month_count": 2, "year_count": 11 }
+  ],
+  "skipped": {
+    "already_assigned": ["임하늘"],
+    "unavailable": ["김예진"],
+    "unknown": ["백지은"]
+  }
+}
+```
+
+- Phase 11의 데이터(참/불참 + 마이크 배정 횟수) 위에 **순수 로직(AI 아님)** 만 얹어 "참석 가능 + 배정 적은 순"으로
+  싱어팀 마이크·콰이어를 제안한다. **자동 확정이 아니라 제안**이고 최종 배정은 사람이 한다.
+- **악기 포지션은 대상이 아니다** — 인원이 9명뿐이고 포지션별 가능 여부가 인명부에 없어 자동화 이득이 적다.
+- `mic` 배열에는 **비어 있던 슬롯만** 담긴다. 이미 채워진 슬롯(리드보컬·특순 등 예외 배치)은 절대 덮어쓰지 않고,
+  그 슬롯에 배정된 사람은 `choir`를 포함해 후보 풀에서도 제외된다(`skipped.already_assigned`).
+- **정렬은 이번 달 배정 횟수 → 올해 누적 → 이름순**이다. 참석 여부가 불확실한 사람(미제출 또는 그 주일 정보가
+  없는 제출)과 그 주일에 불참으로 확인된 사람은 각각 `skipped.unknown`/`skipped.unavailable`로 분류되고
+  추천 대상에서 제외된다 — 참석이 확인된 사람만 제안해야 신뢰할 수 있는 추천이 된다.
+- **콰이어 추천은 마이크에 안 뽑히고 남은 참석 가능자 전원**이다(인원수 상한 없음).
+- 그 달 싱어팀 참/불참 제출이 하나도 없으면 `has_availability: false`이고 `mic`/`choir`는 빈 배열이다 — 프론트가
+  추천 버튼을 비활성화하고 `/schedules/availability` 화면으로 안내한다.
+- **추천 결과는 저장하지 않는다.** 매 요청 계산하므로 참/불참이나 배정이 바뀌면 다음 조회에 곧바로 반영된다.
+- 조회(`GET`)도 leader 이상만 가능하다 — 참석 가능 여부가 리더십 전용인 참/불참 데이터(2-2절 참/불참 파싱 참고)에서
+  파생된 값이기 때문이다.
 
 **참/불참 텍스트 파싱 (Phase 11-B)**
 
@@ -532,11 +570,11 @@ README/ERD 원칙과 동일하게, **값이 없는 필드는 응답 JSON에서 `
 | 그룹 | 엔드포인트 수 | 내역 |
 |---|---|---|
 | 콘티/곡/악보 | 18 | 콘티 11(AI 인식 + 자막 가사 포함) + 곡 4 + 곡 가사 구간 2(Phase 9) + 파일 삭제 1 |
-| 공지사항/스케줄 | 20 | 공지 5 + 공지 댓글 4(Phase 10) + 스케줄 7 + 배정 횟수 조회 1(Phase 11-A) + 참/불참 파싱 3(Phase 11-B) |
+| 공지사항/스케줄 | 21 | 공지 5 + 공지 댓글 4(Phase 10) + 스케줄 7 + 배정 횟수 조회 1(Phase 11-A) + 참/불참 파싱 3(Phase 11-B) + 싱어팀 배정 제안 1(Phase 12) |
 | 캘린더 | 9 | 이벤트 5 + 이벤트 댓글 4(Phase 10) |
 | 인명부 | 4 | |
 | 인증/사용자 | 10 | Phase 7 신설(비밀번호 초기화·변경·내 정보 수정 3개 추가) + 계정 이벤트 로그(Phase 7 후속) 1개 |
-| **합계** | **61** | |
+| **합계** | **62** | |
 
 ---
 
