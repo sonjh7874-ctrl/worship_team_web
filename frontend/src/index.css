@@ -1,8 +1,116 @@
+/* 공식 Pretendard v1.3.9의 웹폰트 두 굵기만 로컬에서 제공한다.
+   font-display: swap과 시스템 폰트 fallback으로 폰트 로딩 전에도 내용을 바로 표시한다. */
+@font-face {
+  font-family: "Pretendard";
+  src: url("/fonts/Pretendard-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("/fonts/Pretendard-SemiBold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* 0단계에서는 토큰과 전역 기본값만 정의한다. 개별 화면 적용은 이후 단계에서 진행한다. */
+:root {
+  --color-primary: #4c5fd5;
+  --color-primary-hover: #5e70e0;
+  --color-primary-soft: #eef0fc;
+  --color-accent-warm: #e0a23a;
+  --color-accent-warm-soft: #fbf1de;
+  --color-ink: #1f2430;
+  --color-body: #3a4150;
+  --color-muted: #767f91;
+  --color-faint: #a6adbb;
+  --color-disabled: #d3d7df;
+  --color-canvas: #ffffff;
+  --color-surface: #f7f8fb;
+  --color-surface-alt: #f1f2f7;
+  --color-hairline: #e4e6ed;
+  --color-danger: #d8493a;
+  --color-danger-soft: #fcebe8;
+  --color-success: #3e9a5f;
+  --color-success-soft: #eaf6ee;
+  --color-status-draft: #9aa0af;
+  --color-status-published: #3e9a5f;
+  --color-birthday: #fce7f3;
+  --color-birthday-text: #9d3f73;
+
+  --font-page-title: 22px;
+  --font-section-title: 18px;
+  --font-card-title: 16px;
+  --font-body: 15px;
+  --font-control: 15px;
+  --font-label: 13px;
+  --font-caption: 12px;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  --control-height: 44px;
+  --page-gutter-mobile: 16px;
+  --page-gutter-wide: 24px;
+  --content-width-reading: 720px;
+  --content-width-editor: 960px;
+
+  --shadow-card: 0 1px 2px rgba(31, 36, 48, 0.06);
+  --shadow-elevated: 0 4px 16px rgba(31, 36, 48, 0.1);
+  --focus-ring: 0 0 0 2px var(--color-canvas), 0 0 0 4px var(--color-primary);
+}
+
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: system-ui, sans-serif;
+  font-family: "Pretendard", system-ui, sans-serif;
+  font-size: var(--font-body);
+  line-height: 1.55;
+  background-color: var(--color-canvas);
+  color: var(--color-body);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+@media (min-width: 768px) {
+  :root {
+    --page-gutter-mobile: var(--page-gutter-wide);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
