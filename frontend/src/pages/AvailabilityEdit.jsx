@@ -3,6 +3,8 @@ import { fetchAvailability, parseAvailability, putAvailability } from "../api/av
 import { fetchMembers } from "../api/members";
 import LoadingState from "../components/LoadingState";
 import PageContainer from "../components/PageContainer";
+import Badge from "../components/Badge";
+import Button from "../components/Button";
 
 const TEAM_LABELS = { singer: "싱어팀", instrument: "악기팀" };
 
@@ -46,21 +48,22 @@ function summarizeCard(card) {
 
 function EntryRow({ entry, onChange, onRemove }) {
   return (
-    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+    <div className="availability-entry-row">
       <input
         type="date"
+        aria-label="날짜"
         value={entry.date}
         onChange={(e) => onChange({ ...entry, date: e.target.value })}
       />
-      <select value={entry.status} onChange={(e) => onChange({ ...entry, status: e.target.value })}>
+      <select aria-label="참석 여부" value={entry.status} onChange={(e) => onChange({ ...entry, status: e.target.value })}>
         <option value="available">참</option>
         <option value="unavailable">불참</option>
       </select>
       <input
         placeholder="사유(선택)"
+        aria-label="사유"
         value={entry.reason}
         onChange={(e) => onChange({ ...entry, reason: e.target.value })}
-        style={{ flex: 1 }}
       />
       <button type="button" onClick={onRemove}>
         삭제
@@ -88,34 +91,22 @@ function PersonCard({ card, index, members, team, expanded, onToggleExpand, onCh
   const mismatched = card.matched_member_team && card.matched_member_team !== team;
 
   return (
-    <div style={{ border: "1px solid #ccc", padding: "0.5rem 0.75rem", marginBottom: "0.5rem" }}>
-      <div
-        style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}
-        onClick={onToggleExpand}
-      >
-        <span>{expanded ? "▼" : "▶"}</span>
+    <article className="availability-person-card">
+      <div className="availability-person-card__header">
+        <button type="button" className="availability-person-card__toggle" onClick={onToggleExpand} aria-expanded={expanded}>
+        <span aria-hidden="true">{expanded ? "▼" : "▶"}</span>
         <strong>{card.name_raw}</strong>
-        {card.member_id == null && <span style={{ color: "#b36b00" }}>미매칭</span>}
+        {card.member_id == null && <Badge tone="warm">미매칭</Badge>}
         {mismatched && (
-          <span style={{ color: "#c0392b" }}>
-            ⚠ 인명부상 {TEAM_LABELS[card.matched_member_team]}원인데 {TEAM_LABELS[team]} 화면에 입력됨
-          </span>
+          <Badge tone="danger">인명부상 {TEAM_LABELS[card.matched_member_team]} · 현재 {TEAM_LABELS[team]}</Badge>
         )}
-        <span style={{ color: "#666", flex: 1 }}>{summarizeCard(card)}</span>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onRemove();
-          }}
-          style={{ color: "red" }}
-        >
-          제외
+        <span className="availability-person-card__summary">{summarizeCard(card)}</span>
         </button>
+        <Button variant="danger" onClick={onRemove}>제외</Button>
       </div>
 
       {expanded && (
-        <div style={{ marginTop: 8, paddingLeft: 20 }}>
+        <div className="availability-person-card__body">
           {card.member_id == null && (
             <div>
               <label>
@@ -157,7 +148,7 @@ function PersonCard({ card, index, members, team, expanded, onToggleExpand, onCh
             )}
           </div>
 
-          <div style={{ marginTop: 8 }}>
+          <div className="availability-person-card__entries">
             <strong>날짜별 항목</strong>
             {card.entries.map((entry, i) => (
               <EntryRow
@@ -173,14 +164,14 @@ function PersonCard({ card, index, members, team, expanded, onToggleExpand, onCh
           </div>
 
           {card.raw_text && (
-            <details style={{ marginTop: 8 }}>
+            <details className="availability-person-card__raw">
               <summary>원문 보기</summary>
-              <pre style={{ whiteSpace: "pre-wrap" }}>{card.raw_text}</pre>
+              <pre>{card.raw_text}</pre>
             </details>
           )}
         </div>
       )}
-    </div>
+    </article>
   );
 }
 
@@ -332,24 +323,20 @@ function AvailabilityEdit() {
   return (
     <PageContainer size="editor" className="editor-page availability-editor-page">
       <h1>참/불참 현황</h1>
-      <p style={{ color: "#666" }}>
+      <p>
         카톡에서 받은 여러 명의 참/불참 텍스트를 한 번에 붙여넣고 분석한 뒤, 확인·수정해서 저장하세요.
         저장은 지금 선택한 팀 데이터만 교체합니다(다른 팀 데이터는 그대로 유지). 이 화면은 배정
         화면과 아직 연동되지 않으며, 참고용으로만 쓰입니다.
       </p>
 
-      <div style={{ marginBottom: 12 }}>
+      <div className="availability-team-tabs" role="group" aria-label="팀 선택">
         {["singer", "instrument"].map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTeam(t)}
-            style={{
-              marginRight: 8,
-              padding: "6px 14px",
-              fontWeight: team === t ? "bold" : "normal",
-              textDecoration: team === t ? "underline" : "none",
-            }}
+            className={team === t ? "availability-team-tabs__button availability-team-tabs__button--active" : "availability-team-tabs__button"}
+            aria-pressed={team === t}
           >
             {TEAM_LABELS[t]}
           </button>
@@ -363,7 +350,7 @@ function AvailabilityEdit() {
             type="number"
             value={year}
             onChange={(e) => setYear(e.target.value)}
-            style={{ width: "5em" }}
+            className="month-input month-input--year"
           />
         </label>{" "}
         <label>
@@ -374,7 +361,7 @@ function AvailabilityEdit() {
             max="12"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            style={{ width: "3em" }}
+            className="month-input month-input--month"
           />
         </label>{" "}
         <button type="submit">조회</button>
@@ -388,12 +375,12 @@ function AvailabilityEdit() {
       ) : (
         <>
           {current.savedCount !== null && (
-            <p style={{ color: "#666" }}>
+            <p className="availability-status-copy">
               현재 저장된 {TEAM_LABELS[team]} 제출: {current.savedCount}건
             </p>
           )}
           {missing.length > 0 && (
-            <p style={{ color: "#b36b00" }}>
+            <p className="inline-notice inline-notice--warm">
               미제출({missing.length}명): {missing.map((m) => m.name).join(", ")}
             </p>
           )}
@@ -403,7 +390,6 @@ function AvailabilityEdit() {
             value={current.bulkText}
             onChange={(e) => patchCurrent({ bulkText: e.target.value })}
             rows={12}
-            style={{ width: "100%" }}
             placeholder={`${TEAM_LABELS[team]} 카톡에서 받은 여러 명의 참/불참 메시지를 그대로 붙여넣으세요.\n\n예:\n8월 섬김 일정 (홍길동)\n1,2일 참\n8,9일 참\n...`}
           />
           <div>
@@ -415,7 +401,7 @@ function AvailabilityEdit() {
           {current.cards.length > 0 && (
             <>
               <h2>검토 · 확정 ({current.cards.length}명)</h2>
-              <div style={{ marginBottom: 8 }}>
+              <div className="inline-actions">
                 <button type="button" onClick={expandAll}>
                   전체 펼치기
                 </button>{" "}

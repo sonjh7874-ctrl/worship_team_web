@@ -46,13 +46,13 @@ function diffTokens(previous, current) {
   return { prevMarks, currMarks };
 }
 
-function Tokens({ marks, color }) {
+function Tokens({ marks, tone }) {
   return (
     <span>
       {marks.map((mark, index) => (
         <span
           key={index}
-          style={mark.changed ? { background: color, fontWeight: "bold" } : undefined}
+          className={mark.changed ? `song-form-diff__token song-form-diff__token--${tone}` : undefined}
         >
           {mark.text}{" "}
         </span>
@@ -67,13 +67,13 @@ function SongFormDiff({ previous, current, onUsePrevious }) {
   const { prevMarks, currMarks } = diffTokens(previous, current);
 
   return (
-    <div style={{ fontSize: 12, border: "1px solid #e0c080", padding: 6, margin: "4px 0" }}>
-      <div style={{ color: "#a06000" }}>지난번 콘티와 송폼이 다릅니다 — 잘못 읽은 것인지 확인해주세요.</div>
+    <div className="song-form-diff">
+      <div className="song-form-diff__notice">지난번 콘티와 송폼이 다릅니다 — 잘못 읽은 것인지 확인해주세요.</div>
       <div>
-        지난번: <Tokens marks={prevMarks} color="#ffe0a0" />
+        지난번: <Tokens marks={prevMarks} tone="previous" />
       </div>
       <div>
-        이번: <Tokens marks={currMarks} color="#ffd0d0" />
+        이번: <Tokens marks={currMarks} tone="current" />
       </div>
       <button type="button" onClick={onUsePrevious}>
         지난번 송폼으로 되돌리기

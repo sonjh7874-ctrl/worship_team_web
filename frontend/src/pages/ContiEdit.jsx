@@ -16,6 +16,7 @@ import SongPicker from "../components/SongPicker";
 import Button from "../components/Button";
 import LoadingState from "../components/LoadingState";
 import PageContainer from "../components/PageContainer";
+import Badge from "../components/Badge";
 
 const FILE_TYPE_LABELS = { score_pdf: "악보 PDF", conti_image: "콘티 원본 이미지" };
 
@@ -364,9 +365,9 @@ function ContiEdit() {
   // 생성·편집 양쪽에서 같은 UI를 쓴다. 생성 화면에서는 draft 콘티를 만들어 검수 화면으로 넘기고,
   // 편집 화면에서는 현재 곡 목록을 인식 결과로 갈아끼운다.
   const aiSection = (
-    <section style={{ border: "1px solid #ccc", padding: 12, margin: "12px 0" }}>
+    <section className="ai-parse-card">
       <h2>콘티 이미지로 {isNew ? "시작하기" : "곡 목록 덮어쓰기"}</h2>
-      <p style={{ fontSize: 13 }}>
+      <p className="editor-help-copy">
         콘티 이미지를 올리면 곡 순서·제목·키·송폼을 자동으로 읽어옵니다. 인식 결과는 그대로 저장되지 않으니
         반드시 확인·수정한 뒤 저장해주세요. (png/jpeg/webp, 8MB 이하)
       </p>
@@ -455,7 +456,7 @@ function ContiEdit() {
               </label>
             </div>
             {status === "draft" && (
-              <p style={{ color: "#a06000" }}>
+              <p className="inline-notice inline-notice--warm">
                 검수 중이라 콘티 목록·메인 화면에는 보이지 않습니다. 확인이 끝나면 게시해주세요.{" "}
                 <button type="button" onClick={handlePublish}>
                   지금 게시하기
@@ -484,15 +485,15 @@ function ContiEdit() {
                     onSelect={(song) => selectSong(index, song)}
                   />{" "}
                   {row.match_status === "matched" && (
-                    <span style={{ fontSize: 12, color: "green" }}>AI: 기존 곡과 일치</span>
+                    <Badge tone="success">AI: 기존 곡과 일치</Badge>
                   )}
                   {row.match_status === "new" && (
-                    <span style={{ fontSize: 12, color: "#a06000" }}>AI: 새 곡으로 제안</span>
+                    <Badge tone="warm">AI: 새 곡으로 제안</Badge>
                   )}
                   {/* 제목을 조금 잘못 읽었을 때를 대비한 유사 곡 후보(서버가 자모 유사도로 계산).
                       자동으로 바꾸지 않고 사람이 눌러서 확정한다(ERD 3-1). */}
                   {row.candidates?.length > 0 && (
-                    <div style={{ fontSize: 12 }}>
+                    <div className="conti-candidate-list">
                       혹시 이 곡인가요?{" "}
                       {row.candidates.map((candidate) => (
                         <button

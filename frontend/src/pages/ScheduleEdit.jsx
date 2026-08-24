@@ -60,7 +60,7 @@ function MemberSelect({ value, onChange, members, unlinkedName, counts }) {
       {/* 인명부에 없는 인물(name_snapshot만 저장됨)은 드롭다운에 선택지가 없어 미리 채우지 못하므로,
           누가 배정돼 있었는지만 텍스트로 알려준다. */}
       {unlinkedName && (
-        <span style={{ color: "#666" }}> (현재: {unlinkedName} — 인명부 미등록)</span>
+        <span className="editor-help-copy"> (현재: {unlinkedName} — 인명부 미등록)</span>
       )}
     </>
   );
@@ -87,7 +87,7 @@ function MultiMemberSelect({ values, onChange, members }) {
 function UnlinkedList({ label, people }) {
   if (people.length === 0) return null;
   return (
-    <p style={{ color: "#666" }}>
+    <p className="editor-help-copy">
       {label} (인명부 미등록, 저장 시 유지됨): {people.join(", ")}
     </p>
   );
@@ -417,7 +417,7 @@ function ScheduleEdit() {
 
       <form onSubmit={handleSaveAssignments}>
         <h2>배정</h2>
-        <p style={{ color: "#666" }}>
+        <p className="editor-help-copy">
           기존 배정은 인명부에 등록된 사람이면 자동으로 채워집니다. 저장하면 이번 주
           배정 전체가 화면에 입력된 내용으로 교체됩니다.
         </p>
@@ -438,11 +438,11 @@ function ScheduleEdit() {
         ))}
 
         <h3>싱어팀</h3>
-        <p style={{ color: "#666" }}>
+        <p className="editor-help-copy">
           마이크 옆 괄호는 마이크 배정 횟수입니다(이번 달 · 올해 누적, 콰이어·악보 등은 세지 않습니다).
         </p>
 
-        <div style={{ margin: "8px 0", padding: "8px", border: "1px solid #ddd" }}>
+        <div className="assignment-suggestion-card">
           {suggestions && suggestions.has_availability ? (
             <>
               <button type="button" onClick={handleApplySuggestions}>
@@ -453,14 +453,14 @@ function ScheduleEdit() {
                   되돌리기
                 </button>
               )}
-              <p style={{ color: "#666", margin: "4px 0 0" }}>
+              <p className="editor-help-copy">
                 참석 가능 {suggestions.mic.length + suggestions.choir.length}명 · 미제출/불명확{" "}
                 {suggestions.skipped.unknown.length}명 · 불참 {suggestions.skipped.unavailable.length}명
                 {" · "}빈 마이크 슬롯과 콰이어만 채우며, 이미 배정된 자리는 바뀌지 않습니다.
               </p>
             </>
           ) : (
-            <p style={{ color: "#666", margin: 0 }}>
+            <p className="editor-help-copy">
               추천으로 채우기는 이 달 참/불참 데이터가 있어야 사용할 수 있습니다.{" "}
               <Link to="/schedules/availability">참/불참 검토 화면으로 이동</Link>
             </p>

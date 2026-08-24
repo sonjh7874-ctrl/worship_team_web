@@ -77,7 +77,7 @@
 | accent-warm-soft | `#FBF1DE` | warm 뱃지·강조 카드 배경 |
 | ink | `#1F2430` | 제목, 최고 강조 텍스트 |
 | body | `#3A4150` | 본문 |
-| muted | `#767F91` | 캡션, 날짜, 작성자 |
+| muted | `#6B7280` | 캡션, 날짜, 작성자 — surface 위 일반 텍스트 WCAG AA 대비 확보 |
 | faint | `#A6ADBB` | 최저 강조, 빈 상태 보조 문구 |
 | disabled | `#D3D7DF` | 비활성 텍스트·아이콘 |
 | canvas | `#FFFFFF` | 페이지 배경 |

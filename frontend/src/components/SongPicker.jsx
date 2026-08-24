@@ -38,7 +38,7 @@ function SongPicker({ songs, value, onSelect }) {
   // 곡을 이미 고른 상태 — 검색창을 접어두고 무엇을 골랐는지만 보여준다.
   if (selected && !searching) {
     return (
-      <div>
+      <div className="song-picker song-picker--selected">
         <strong>{selected.title}</strong>
         {selected.artist ? ` _ ${selected.artist}` : ""}{" "}
         <button type="button" onClick={() => setSearching(true)}>
@@ -52,7 +52,7 @@ function SongPicker({ songs, value, onSelect }) {
   }
 
   return (
-    <div>
+    <div className="song-picker">
       <input
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -64,11 +64,11 @@ function SongPicker({ songs, value, onSelect }) {
         </button>
       )}
       {matches.list.length === 0 ? (
-        <p style={{ fontSize: 12, color: "#666" }}>
+        <p className="song-picker__empty">
           검색 결과가 없습니다. 이대로 두면 새 곡으로 등록됩니다.
         </p>
       ) : (
-        <ul style={{ margin: "4px 0", paddingLeft: 18 }}>
+        <ul className="song-picker__results">
           {matches.list.map((song) => (
             <li key={song.id}>
               <button type="button" onClick={() => choose(song)}>
@@ -78,7 +78,7 @@ function SongPicker({ songs, value, onSelect }) {
             </li>
           ))}
           {matches.total > VISIBLE_LIMIT && (
-            <li style={{ fontSize: 12, color: "#666" }}>
+            <li className="song-picker__more">
               외 {matches.total - VISIBLE_LIMIT}건 — 검색어를 더 입력해주세요
             </li>
           )}

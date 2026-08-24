@@ -163,13 +163,13 @@ function SongSections() {
     <PageContainer size="editor" className="editor-page song-sections-page">
       {contiLyricsLink}
       <h1>가사 구간 관리{song ? ` — ${song.title}` : ""}</h1>
-      <p style={{ fontSize: 13 }}>
+      <p className="editor-help-copy">
         구간 코드는 송폼에 쓰이는 표기(A1, B, Tag 등)와 맞춰 등록해야 자막용 가사 조합에서 자동으로
         연결됩니다. 한 번 등록하면 이 곡이 다음에 나올 때부터 계속 재사용됩니다. 곡마다 송폼 표기가
         바뀌는 경우(예: A1을 이번 주엔 A로 표기)에는 "별칭"에 다른 표기를 함께 등록해두면 됩니다.
       </p>
       {lastSongForm && (
-        <p style={{ fontSize: 13, color: "#555" }}>
+        <p className="editor-help-copy">
           최근 이 곡이 쓰인 송폼: <code>{lastSongForm}</code>
         </p>
       )}
@@ -179,12 +179,12 @@ function SongSections() {
 
       <form onSubmit={handleSave}>
         {rows.map((row, index) => (
-          <div key={index} style={{ display: "flex", gap: 8, alignItems: "flex-start", marginBottom: 8 }}>
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <div key={index} className="song-section-row">
+            <div className="song-section-row__meta">
               <select
                 value={row.custom ? "__custom__" : row.section_code}
                 onChange={(e) => selectCode(index, e.target.value)}
-                style={{ width: 130 }}
+                className="song-section-row__code"
               >
                 <option value="" disabled>
                   선택...
@@ -214,9 +214,9 @@ function SongSections() {
               onChange={(e) => updateRow(index, "lyrics", e.target.value)}
               placeholder="이 구간 가사"
               rows={3}
-              style={{ flex: 1 }}
+              className="song-section-row__lyrics"
             />
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div className="song-section-row__actions">
               <button type="button" onClick={() => moveRow(index, -1)} disabled={index === 0}>
                 ↑
               </button>

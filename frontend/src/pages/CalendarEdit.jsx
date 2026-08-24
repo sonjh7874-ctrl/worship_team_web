@@ -27,19 +27,12 @@ const PRESET_COLORS = [
 
 function ColorSwatchPicker({ value, onChange }) {
   return (
-    <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+    <div className="color-swatch-picker" role="group" aria-label="이벤트 색상">
       <button
         type="button"
         onClick={() => onChange(null)}
         title="기본(카테고리 색)"
-        style={{
-          width: "1.5rem",
-          height: "1.5rem",
-          borderRadius: "999px",
-          border: value === null ? "2px solid #111" : "1px solid #ccc",
-          background: "#fff",
-          cursor: "pointer",
-        }}
+        className={`color-swatch${value === null ? " color-swatch--selected" : ""}`}
       >
         ⨯
       </button>
@@ -49,14 +42,9 @@ function ColorSwatchPicker({ value, onChange }) {
           type="button"
           onClick={() => onChange(c)}
           title={c}
-          style={{
-            width: "1.5rem",
-            height: "1.5rem",
-            borderRadius: "999px",
-            border: value === c ? "2px solid #111" : "1px solid #ccc",
-            background: c,
-            cursor: "pointer",
-          }}
+          className={`color-swatch${value === c ? " color-swatch--selected" : ""}`}
+          style={{ background: c }}
+          aria-label={`${c} 색상`}
         />
       ))}
     </div>
@@ -287,10 +275,10 @@ function CalendarEdit() {
 
         <fieldset>
           <legend>참여 인원</legend>
-          <p style={{ color: "#666" }}>인명부 목록(Ctrl/Cmd + 클릭으로 다중 선택)</p>
+          <p className="editor-help-copy">인명부 목록(Ctrl/Cmd + 클릭으로 다중 선택)</p>
           <MultiMemberSelect values={memberIds} onChange={setMemberIds} members={members} />
 
-          <p style={{ color: "#666" }}>인명부 밖 인물은 이름을 입력해 추가</p>
+          <p className="editor-help-copy">인명부 밖 인물은 이름을 입력해 추가</p>
           <input
             value={freeTextInput}
             onChange={(e) => setFreeTextInput(e.target.value)}
