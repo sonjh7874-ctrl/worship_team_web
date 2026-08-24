@@ -58,10 +58,15 @@ function PersonCard({ card, index, members, onChange, onRemove }) {
     update({ entries: [...card.entries, { date: "", status: "available", reason: "" }] });
   }
 
+  const team = findTeam(card.member_id, members);
+
   return (
     <div style={{ border: "1px solid #ccc", padding: "0.75rem", marginBottom: "0.75rem" }}>
       <strong>{card.name_raw}</strong>{" "}
-      {card.match_status === "matched" ? (
+      {team && <span style={{ color: "#555" }}>[{TEAM_LABELS[team]}]</span>}{" "}
+      {/* member_id 기준으로 판정한다 — match_status는 최초 파싱/조회 시점 값이라, 아래 드롭다운으로
+          수동 연결한 뒤에도 갱신되지 않아 "미매칭"으로 잘못 남아있는 문제가 있었다. */}
+      {card.member_id != null ? (
         <span style={{ color: "green" }}>인명부 매칭됨</span>
       ) : (
         <span style={{ color: "#b36b00" }}>미매칭 — 아래에서 인명부 선택 또는 미등록으로 저장</span>
@@ -131,6 +136,16 @@ function PersonCard({ card, index, members, onChange, onRemove }) {
   );
 }
 
+// member_id로 인명부에서 팀(singer/instrument)을 찾는다. 미매칭 카드(member_id가 null)는
+// 팀을 알 수 없으므로 null을 돌려준다 — 이런 카드는 탭 필터와 무관하게 항상 보여줘야 한다.
+function findTeam(memberId, members) {
+  if (memberId == null) return null;
+  const member = members.find((m) => m.id === memberId);
+  return member ? member.team : null;
+}
+
+const TEAM_LABELS = { singer: "싱어팀", instrument: "악기팀" };
+
 function AvailabilityEdit() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
@@ -140,6 +155,8 @@ function AvailabilityEdit() {
   const [bulkText, setBulkText] = useState("");
   const [cards, setCards] = useState([]);
   const [savedCount, setSavedCount] = useState(null);
+  // "all" | "singer" | "instrument" — 인명부와 매칭된 카드만 이 필터의 영향을 받는다.
+  const [teamFilter, setTeamFilter] = useState("all");
 
   const [loading, setLoading] = useState(true);
   const [parsing, setParsing] = useState(false);
@@ -283,10 +300,17 @@ function AvailabilityEdit() {
               const submittedIds = new Set(cards.map((c) => c.member_id).filter((id) => id != null));
               const missing = members.filter((m) => !submittedIds.has(m.id));
               if (missing.length === 0) return null;
+              const missingSinger = missing.filter((m) => m.team === "singer");
+              const missingInstrument = missing.filter((m) => m.team === "instrument");
               return (
-                <p style={{ color: "#b36b00" }}>
-                  미제출({missing.length}명): {missing.map((m) => m.name).join(", ")}
-                </p>
+                <div style={{ color: "#b36b00" }}>
+                  {missingSinger.length > 0 && (
+                    <p>미제출 · 싱어팀({missingSinger.length}명): {missingSinger.map((m) => m.name).join(", ")}</p>
+                  )}
+                  {missingInstrument.length > 0 && (
+                    <p>미제출 · 악기팀({missingInstrument.length}명): {missingInstrument.map((m) => m.name).join(", ")}</p>
+                  )}
+                </div>
               );
             })()}
 
@@ -304,24 +328,74 @@ function AvailabilityEdit() {
             </button>
           </div>
 
-          {cards.length > 0 && (
-            <>
-              <h2>검토 · 확정 ({cards.length}명)</h2>
-              {cards.map((card, i) => (
-                <PersonCard
-                  key={i}
-                  card={card}
-                  index={i}
-                  members={members}
-                  onChange={updateCard}
-                  onRemove={() => removeCard(i)}
-                />
-              ))}
-              <button type="button" onClick={handleSave} disabled={saving}>
-                {saving ? "저장 중..." : "이 달 전체 저장"}
-              </button>
-            </>
-          )}
+          {cards.length > 0 &&
+            (() => {
+              // 원래 인덱스를 유지한 채로 미매칭/매칭 카드를 나눈다 — updateCard/removeCard가
+              // cards 배열의 실제 인덱스를 참조하므로 필터링 후에도 인덱스가 어긋나면 안 된다.
+              const indexed = cards.map((card, i) => ({ card, i, team: findTeam(card.member_id, members) }));
+              const unmatched = indexed.filter((x) => x.card.member_id == null);
+              const matched = indexed.filter((x) => x.card.member_id != null);
+              const visibleMatched =
+                teamFilter === "all" ? matched : matched.filter((x) => x.team === teamFilter);
+
+              return (
+                <>
+                  <h2>검토 · 확정 ({cards.length}명)</h2>
+
+                  <div style={{ marginBottom: 12 }}>
+                    {["all", "singer", "instrument"].map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => setTeamFilter(t)}
+                        style={{
+                          marginRight: 6,
+                          fontWeight: teamFilter === t ? "bold" : "normal",
+                          textDecoration: teamFilter === t ? "underline" : "none",
+                        }}
+                      >
+                        {t === "all" ? "전체" : TEAM_LABELS[t]}
+                      </button>
+                    ))}
+                  </div>
+
+                  {unmatched.length > 0 && (
+                    <div style={{ marginBottom: 16 }}>
+                      <strong>미매칭 — 팀을 알 수 없어 탭과 무관하게 항상 표시됩니다 ({unmatched.length}명)</strong>
+                      {unmatched.map(({ card, i }) => (
+                        <PersonCard
+                          key={i}
+                          card={card}
+                          index={i}
+                          members={members}
+                          onChange={updateCard}
+                          onRemove={() => removeCard(i)}
+                        />
+                      ))}
+                    </div>
+                  )}
+
+                  {visibleMatched.length === 0 ? (
+                    <p style={{ color: "#666" }}>이 팀에 해당하는 매칭된 제출이 없습니다.</p>
+                  ) : (
+                    visibleMatched.map(({ card, i }) => (
+                      <PersonCard
+                        key={i}
+                        card={card}
+                        index={i}
+                        members={members}
+                        onChange={updateCard}
+                        onRemove={() => removeCard(i)}
+                      />
+                    ))
+                  )}
+
+                  <button type="button" onClick={handleSave} disabled={saving}>
+                    {saving ? "저장 중..." : "이 달 전체 저장"}
+                  </button>
+                </>
+              );
+            })()}
         </>
       )}
     </div>
