@@ -10,13 +10,14 @@
 ### 0-1. Base URL / 인증
 
 - Base URL: `/api/v1`
-- **Supabase Auth 기반 로그인** (Phase 7, 2026-08-20). 조회(GET)는 로그인 여부와 무관하게 **전체 공개**이며, 쓰기(POST/PATCH/DELETE)는 **역할(role)** 로 게이트한다.
+- **Supabase Auth 기반 로그인** (Phase 7, 2026-08-20). 일반 콘텐츠 조회(GET)는 비로그인 공개를 유지하되, 개인정보·저작권 또는 민감한 운영 데이터가 포함된 조회는 아래 예외 정책에 따라 인증한다. 쓰기(POST/PATCH/DELETE)는 **역할(role)** 로 게이트한다.
 - 인증은 요청 헤더로 전달한다: `Authorization: Bearer <access_token>`. 토큰은 `POST /auth/login`(또는 `/auth/signup`) 응답의 `access_token`이다.
 - 서버는 이 토큰을 Supabase Auth로 검증한 뒤, `user_profiles.role`을 조회해 등급을 비교한다(`app/dependencies.py`의 `require_role(min_role)`). 등급은 `member < leader < admin` — `require_role("leader")`는 leader 이상을, `require_role("admin")`은 admin만 통과시킨다.
   - 헤더가 없거나 토큰이 무효/만료: `401 Unauthorized`
   - 역할이 부족: `403 Forbidden`
 - 콘티/곡/파일/공지사항/스케줄/캘린더/인명부의 **쓰기 엔드포인트는 모두 `require_role("leader")`**. 사용자 관리(`/auth/users` — 목록 조회·역할 변경·비밀번호 초기화)만 `require_role("admin")`이고, 내 정보 조회·수정·비밀번호 변경(`/auth/me`)은 로그인만 하면 된다(`require_role("member")`).
-- **예외 — 가사 관련 조회(GET)만 member 이상 필요**: `GET /songs/{song_id}/sections`, `GET /contis/{conti_id}/lyrics`(Phase 9). 저작권 있는 콘텐츠라 다른 조회 엔드포인트와 달리 비로그인 접근은 `401`이다.
+- **예외 — 가사 관련 조회(GET)는 member 이상 필요**: `GET /songs/{song_id}/sections`, `GET /contis/{conti_id}/lyrics`(Phase 9). 저작권 있는 콘텐츠라 일반 공개 조회와 달리 비로그인 접근은 `401`이다.
+- **예외 — 인명부 조회(GET)는 member 이상 필요**: `GET /members`는 이름·성별·생년월일 등 개인정보를 포함하므로 `require_role("member")`를 적용한다. 프론트도 비로그인 상태에서는 홈 진입점과 상단 인명부 메뉴를 숨기고, `/members` 직접 접근은 로그인 화면으로 보낸다(2026-08-24 개인정보 보호 후속).
 - **예외 — 댓글은 작성/수정/삭제만 로그인 필요**: `POST/PATCH/DELETE /notices/{id}/comments`, `/calendar/{id}/comments`(Phase 10)는 `require_role("member")`이지만, **목록 조회(GET)는 다른 콘텐츠와 동일하게 비로그인 공개**다. 수정은 작성자 본인만, 삭제는 본인 또는 `leader` 이상만 가능하도록 서비스 레이어에서 소유권을 추가로 검사한다(역할 게이트만으로는 표현할 수 없는 리소스 소유권 비교).
 - **예외 — 참/불참 조회는 leader 이상 필요**: `GET/PUT /schedules/availability`(Phase 11-B)는 조회(`GET`)도 `require_role("leader")`다. 참/불참 사유(`결혼식`, `가족일정` 등)가 팀원 개인 사정을 담은 텍스트라, 다른 도메인의 "조회는 비로그인 공개" 원칙과 달리 리더십 전용으로 좁혔다. `GET /schedules/{schedule_id}/weeks/{week_id}/suggestions`(Phase 12)도 이 참/불참 데이터에서 파생된 값이라 같은 이유로 leader 이상만 조회할 수 있다.
 - 액세스 토큰은 기본 1시간 만료다. 만료 시 `POST /auth/refresh`에 `refresh_token`을 보내 재발급받는다(프론트는 401 응답을 받으면 이 과정을 자동으로 1회 재시도한다).
