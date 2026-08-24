@@ -103,7 +103,7 @@ def create_week(schedule_id: int, payload: ScheduleWeekCreate):
     dependencies=[Depends(require_role("leader"))],
 )
 def update_week(schedule_id: int, week_id: int, payload: ScheduleWeekUpdate):
-    return schedule_service.update_week(week_id, payload)
+    return schedule_service.update_week(schedule_id, week_id, payload)
 
 
 @router.delete(
@@ -112,7 +112,7 @@ def update_week(schedule_id: int, week_id: int, payload: ScheduleWeekUpdate):
     dependencies=[Depends(require_role("leader"))],
 )
 def delete_week(schedule_id: int, week_id: int):
-    schedule_service.delete_week(week_id)
+    schedule_service.delete_week(schedule_id, week_id)
 
 
 @router.put(
@@ -121,7 +121,7 @@ def delete_week(schedule_id: int, week_id: int):
     dependencies=[Depends(require_role("leader"))],
 )
 def put_assignments(schedule_id: int, week_id: int, payload: ScheduleAssignmentsPutRequest):
-    return schedule_service.put_assignments(week_id, payload)
+    return schedule_service.put_assignments(schedule_id, week_id, payload)
 
 
 @router.get(

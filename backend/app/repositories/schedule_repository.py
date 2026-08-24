@@ -70,7 +70,7 @@ def find_week_by_id(week_id: int) -> dict | None:
         get_supabase()
         .table(WEEK_TABLE)
         .select(
-            "id, week_label, service_date, remark, absence_note,"
+            "id, schedule_id, week_label, service_date, remark, absence_note,"
             " special_title, special_date, special_memo"
         )
         .eq("id", week_id)

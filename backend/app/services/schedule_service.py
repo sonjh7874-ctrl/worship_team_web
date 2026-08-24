@@ -166,7 +166,18 @@ def create_week(schedule_id: int, payload: ScheduleWeekCreate) -> ScheduleWeekIt
     return _to_week_item(row)
 
 
-def update_week(week_id: int, payload: ScheduleWeekUpdate) -> ScheduleWeekItem:
+def _require_week_belongs_to_schedule(schedule_id: int, week_id: int) -> None:
+    # URL은 "/{schedule_id}/weeks/{week_id}" 형태라 week_id만으로도 리소스를 찾을 수 있지만,
+    # 그러면 실제 부모가 다른 schedule_id로 요청해도 그대로 통과해버린다(다른 달의 주차를
+    # 잘못된 URL로 수정·삭제·배정할 수 있는 정합성 문제). get_week_suggestions(Phase 12)와
+    # Phase 10 댓글 API가 이미 쓰는 부모-자식 일치 검증을 여기서도 공통 규칙으로 적용한다.
+    week = schedule_repository.find_week_by_id(week_id)
+    if week is None or week.get("schedule_id") != schedule_id:
+        raise HTTPException(status_code=404, detail="주차를 찾을 수 없습니다.")
+
+
+def update_week(schedule_id: int, week_id: int, payload: ScheduleWeekUpdate) -> ScheduleWeekItem:
+    _require_week_belongs_to_schedule(schedule_id, week_id)
     # exclude_unset으로 요청에 포함된 필드만 갱신하는 부분 수정(PATCH)을 구현한다.
     fields = payload.model_dump(exclude_unset=True)
     touched = fields.keys()
@@ -192,14 +203,14 @@ def update_week(week_id: int, payload: ScheduleWeekUpdate) -> ScheduleWeekItem:
     return _to_week_item(row)
 
 
-def delete_week(week_id: int) -> None:
+def delete_week(schedule_id: int, week_id: int) -> None:
+    _require_week_belongs_to_schedule(schedule_id, week_id)
     if not schedule_repository.delete_week(week_id):
         raise HTTPException(status_code=404, detail="주차를 찾을 수 없습니다.")
 
 
-def put_assignments(week_id: int, payload: ScheduleAssignmentsPutRequest) -> ScheduleWeekItem:
-    if schedule_repository.find_week_by_id(week_id) is None:
-        raise HTTPException(status_code=404, detail="주차를 찾을 수 없습니다.")
+def put_assignments(schedule_id: int, week_id: int, payload: ScheduleAssignmentsPutRequest) -> ScheduleWeekItem:
+    _require_week_belongs_to_schedule(schedule_id, week_id)
 
     seen_single_slot_codes: set[str] = set()
     rows = []
