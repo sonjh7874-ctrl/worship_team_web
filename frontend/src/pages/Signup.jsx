@@ -1,6 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
+import Button from "../components/Button";
+import Card from "../components/Card";
+import PageContainer from "../components/PageContainer";
 
 function Signup() {
   const { signup } = useAuth();
@@ -33,67 +36,73 @@ function Signup() {
   }
 
   return (
-    <div>
-      <h1>회원가입</h1>
+    <PageContainer className="auth-page">
+      <Card className="auth-card">
+        <header>
+          <p className="auth-card__eyebrow">NEW MEMBER</p>
+          <h1>회원가입</h1>
+        </header>
 
-      <p>
-        가입 후에는 조회만 가능합니다. 콘티·공지·스케줄 편집 권한은 리더에게
-        요청해주세요.
-      </p>
+        <p>가입 후에는 조회만 가능합니다. 콘티·공지·스케줄 편집 권한은 리더에게 요청해주세요.</p>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
+        {error && (
+          <p className="inline-notice inline-notice--danger" role="alert">
+            {error}
+          </p>
+        )}
 
-      <form onSubmit={handleSubmit}>
-        <div>
-          <label>
-            이름{" "}
-            <input
-              value={displayName}
-              onChange={(e) => setDisplayName(e.target.value)}
-              required
-            />
-          </label>
-        </div>
-        <div>
-          <label>
-            이메일{" "}
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-          </label>
-        </div>
-        <div>
-          <label>
-            비밀번호{" "}
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              minLength={6}
-            />
-          </label>
-        </div>
-        <div>
-          <label>
-            비밀번호 확인{" "}
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              required
-              minLength={6}
-            />
-          </label>
-        </div>
-        <button type="submit" disabled={submitting}>
-          {submitting ? "가입 중..." : "가입하기"}
-        </button>
-      </form>
-    </div>
+        <form onSubmit={handleSubmit} className="auth-form">
+          <div>
+            <label>
+              이름{" "}
+              <input
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                required
+              />
+            </label>
+          </div>
+          <div>
+            <label>
+              이메일{" "}
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </label>
+          </div>
+          <div>
+            <label>
+              비밀번호{" "}
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </label>
+          </div>
+          <div>
+            <label>
+              비밀번호 확인{" "}
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                minLength={6}
+              />
+            </label>
+          </div>
+          <Button type="submit" disabled={submitting}>
+            {submitting ? "가입 중..." : "가입하기"}
+          </Button>
+        </form>
+      </Card>
+    </PageContainer>
   );
 }
 

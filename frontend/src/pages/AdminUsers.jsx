@@ -1,5 +1,9 @@
 import { useEffect, useState } from "react";
 import { fetchAccountEvents, fetchUsers, resetUserPassword, updateUserRole } from "../api/auth";
+import Badge from "../components/Badge";
+import Button from "../components/Button";
+import LoadingState from "../components/LoadingState";
+import PageContainer from "../components/PageContainer";
 
 const ROLE_LABELS = { admin: "관리자", leader: "리더십", member: "팀원" };
 
@@ -91,61 +95,71 @@ function AdminUsers() {
     }
   }
 
-  if (loading) return <p>불러오는 중...</p>;
+  if (loading) return <PageContainer size="editor"><LoadingState label="사용자 목록을 불러오는 중..." rows={5} /></PageContainer>;
 
   return (
-    <div>
-      <h1>사용자 관리</h1>
-      <p style={{ fontSize: 13 }}>
-        리더십(leader) 권한을 부여·회수합니다. 관리자(admin) 권한은 여기서 바꿀 수 없습니다.
-        비밀번호를 잊어버린 팀원은 여기서 초기화한 뒤 안내해주세요 — 이메일은 보내지 않으며,
-        초기화된 사람은 다음 로그인 시 새 비밀번호로 바꾸라는 화면을 먼저 보게 됩니다.
-      </p>
+    <PageContainer size="editor" className="admin-users-page">
+      <header className="page-heading">
+        <div>
+          <h1>사용자 관리</h1>
+          <p>
+            리더십(leader) 권한을 부여·회수합니다. 관리자(admin) 권한은 여기서 바꿀 수 없습니다.
+            비밀번호를 잊어버린 팀원은 여기서 초기화한 뒤 안내해주세요 — 이메일은 보내지 않으며,
+            초기화된 사람은 다음 로그인 시 새 비밀번호로 바꾸라는 화면을 먼저 보게 됩니다.
+          </p>
+        </div>
+      </header>
 
-      {error && <p style={{ color: "red" }}>{error}</p>}
-      {message && <p style={{ color: "green" }}>{message}</p>}
+      {error && <p className="inline-notice inline-notice--danger" role="alert">{error}</p>}
+      {message && <p className="inline-notice inline-notice--success">{message}</p>}
 
       {tempPassword && (
-        <div style={{ border: "1px solid #a06000", padding: "0.6rem", margin: "0.6rem 0" }}>
+        <aside className="temp-password-callout" role="status">
           <strong>{tempPassword.user.display_name}</strong>님의 임시 비밀번호:{" "}
-          <code style={{ fontSize: 16 }}>{tempPassword.value}</code>
-          <p style={{ fontSize: 12, color: "#a06000", margin: "0.3rem 0 0" }}>
+          <code>{tempPassword.value}</code>
+          <p>
             이 값은 지금 한 번만 표시됩니다. 본인에게 직접(카톡 등) 안내해주세요. 로그인하면 즉시 새
             비밀번호로 바꾸라는 화면이 뜹니다.
           </p>
-        </div>
+        </aside>
       )}
 
-      <ul>
+      <ul className="admin-user-list">
         {users.map((user) => (
-          <li key={user.id} style={{ marginBottom: "0.5rem" }}>
-            {user.display_name} ({user.email}) — {ROLE_LABELS[user.role]}
+          <li key={user.id} className="admin-user-card">
+            <div className="admin-user-card__identity">
+              <strong>{user.display_name}</strong>
+              <span>{user.email}</span>
+              <Badge tone={user.role === "admin" ? "warm" : user.role === "leader" ? "primary" : "neutral"}>
+                {ROLE_LABELS[user.role]}
+              </Badge>
+            </div>
             {user.force_password_change && (
-              <span style={{ fontSize: 12, color: "#a06000" }}> · 비밀번호 변경 대기중</span>
+              <Badge tone="warm">비밀번호 변경 대기</Badge>
             )}{" "}
             {user.role === "admin" ? (
-              <span style={{ fontSize: 12, color: "#555" }}>관리자는 SQL로만 변경 가능</span>
+              <span className="admin-user-card__readonly">관리자는 SQL로만 변경 가능</span>
             ) : (
               <button type="button" onClick={() => handleToggle(user)}>
                 {user.role === "leader" ? "팀원으로 전환" : "리더십으로 전환"}
               </button>
             )}{" "}
-            <button type="button" onClick={() => handleResetPassword(user)}>
+            <Button variant="danger" onClick={() => handleResetPassword(user)}>
               비밀번호 초기화
-            </button>{" "}
+            </Button>{" "}
             <button type="button" onClick={() => handleToggleHistory(user)}>
               {expandedUserId === user.id ? "이력 닫기" : "이력 보기"}
             </button>
             {expandedUserId === user.id && (
-              <div style={{ fontSize: 12, marginTop: "0.3rem", paddingLeft: "1rem" }}>
-                {eventsError && <p style={{ color: "red" }}>{eventsError}</p>}
+              <div className="account-history">
+                {eventsError && <p className="inline-notice inline-notice--danger" role="alert">{eventsError}</p>}
                 {eventsByUser[user.id] === undefined && !eventsError && <p>불러오는 중...</p>}
                 {eventsByUser[user.id]?.length === 0 && <p>기록된 이벤트가 없습니다.</p>}
                 {eventsByUser[user.id]?.map((event) => {
                   const oldLabel = formatEventValue(event.event_type, event.old_value);
                   const newLabel = formatEventValue(event.event_type, event.new_value);
                   return (
-                    <p key={event.id} style={{ margin: "0.15rem 0" }}>
+                    <p key={event.id}>
                       [{EVENT_LABELS[event.event_type]}]
                       {oldLabel && newLabel ? ` ${oldLabel} → ${newLabel}` : ""}{" "}
                       ({event.changed_by_name}, {new Date(event.created_at).toLocaleString("ko-KR")})
@@ -157,7 +171,7 @@ function AdminUsers() {
           </li>
         ))}
       </ul>
-    </div>
+    </PageContainer>
   );
 }
 
