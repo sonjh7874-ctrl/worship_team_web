@@ -5,8 +5,6 @@
 이 문서는 제품의 문제 정의, 사용자, 기능 범위와 운영 원칙을 정리한 내부 기준 문서다. 개발 과정과
 Phase별 결정은 `전체_로드맵.md`, API 계약은 `API명세.md`, 데이터 구조는 `ERD.md`와 `schema.sql`을 따른다.
 
-**테스트 서비스**: [everydayworship.vercel.app](https://everydayworship.vercel.app)
-
 ---
 
 ## 1. 문제 정의
