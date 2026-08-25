@@ -68,8 +68,8 @@ Phase 0~12(후속 포함) 전부 완료. 콘티/공지사항/인명부/월간 �
 
 **AI 인식 정확도를 건드릴 때**: 프롬프트·모델 설정을 바꾸면 반드시 `backend/tests/ai_parse_baseline.py`로 재측정하고 숫자로 비교할 것(현재 94.8%). 실제 콘티 이미지와 정답은 `backend/tests/fixtures/`에 있고 git에는 없다 — 다른 환경에서는 이미지를 다시 넣어야 한다.
 
-**디자인 개편 0~6단계**와 Phase 13의 테스트 배포까지 완료했다. Frontend는 Vercel
-(`everydayworship.vercel.app`), Backend는 Render에 분리 배포했고 운영 CORS도 최종 도메인으로 설정했다.
+**디자인 개편 0~6단계**와 Phase 13의 테스트 배포까지 완료했다. Frontend는 Vercel,
+Backend는 Render에 분리 배포했고 운영 CORS도 실제 운영 도메인(비공개)으로 설정했다.
 실제 모바일 기기에서 발견한 로그인 버튼, 캘린더 너비·툴바 문제도 수정했다.
 
 공개용 루트 `README.md`, 내부 제품 정의 `docs/README.md`, 환경변수 예시와 대표 화면 자료를 정리했다.
