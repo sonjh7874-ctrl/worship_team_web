@@ -415,7 +415,7 @@ textarea {
   }
 
   .app-shell__profile-link > span:first-child,
-  .app-shell__account > a:not(.app-shell__profile-link) {
+  .app-shell__admin-link {
     display: none;
   }
 }
@@ -976,6 +976,14 @@ textarea {
   border-bottom: 0;
   border-radius: var(--radius-md) var(--radius-md) 0 0;
   overflow: hidden;
+}
+
+@media (max-width: 640px) {
+  /* 좁은 화면에서도 그리드가 컨테이너 폭에 맞춰 줄어들도록 최소폭 강제를 해제한다 —
+     열 자체는 이미 1fr(균등폭)이라 폭이 줄어도 레이아웃은 깨지지 않는다. */
+  .calendar-grid {
+    min-width: 0;
+  }
 }
 
 /* 일정이 없는 주도 날짜 아래에 2~3줄 분량의 여백을 확보해 월간 달력의 칸 구조를 유지한다. */

@@ -103,7 +103,11 @@ function AppShell({ children }) {
                     <span>{user.display_name}</span>
                     <Badge tone={role === "admin" ? "warm" : "neutral"}>{ROLE_LABELS[role] ?? role}</Badge>
                   </Link>
-                  {role === "admin" && <Link to="/admin/users">사용자 관리</Link>}
+                  {role === "admin" && (
+                    <Link className="app-shell__admin-link" to="/admin/users">
+                      사용자 관리
+                    </Link>
+                  )}
                   <Button variant="secondary" onClick={logout}>
                     로그아웃
                   </Button>
