@@ -230,6 +230,9 @@ function CalendarMain() {
   const [selectedDate, setSelectedDate] = useState(() => toKey(now));
   // 카테고리 체크박스 필터(클라이언트 필터, 서버 재조회 없음) — 기본은 전부 표시.
   const [visibleCategories, setVisibleCategories] = useState(() => new Set(CATEGORIES));
+  // 연도/월 직접 입력 폼은 기본적으로 접어둔다 — 대부분은 ◀▶/오늘로만 이동하므로,
+  // 항상 펼쳐두면 툴바가 세로로 길어져 모바일에서 캘린더 그리드가 화면 아래로 밀려난다.
+  const [showMonthInput, setShowMonthInput] = useState(false);
 
   function toggleCategory(category) {
     setVisibleCategories((prev) => {
@@ -263,6 +266,7 @@ function CalendarMain() {
     const m = Number(month);
     setSelectedDate(`${y}-${pad2(m)}-01`);
     load(y, m);
+    setShowMonthInput(false);
   }
 
   function shiftMonth(delta) {
@@ -304,38 +308,53 @@ function CalendarMain() {
     <PageContainer size="editor" className="content-page calendar-page">
       <header className="page-heading"><div><h1>캘린더</h1><p>행사와 특순, 팀원의 생일을 월별로 확인하세요.</p></div>{canEdit && <Button as={Link} to="/calendar/new">새 이벤트</Button>}</header>
 
-      <form onSubmit={handleSearch} className="calendar-toolbar">
-        <button type="button" onClick={() => shiftMonth(-1)}>
-          ◀
-        </button>{" "}
-        <button type="button" onClick={goToToday}>
-          오늘
-        </button>{" "}
-        <label>
-          연도{" "}
-          <input
-            type="number"
-            value={year}
-            onChange={(e) => setYear(e.target.value)}
-            className="month-input month-input--year"
-          />
-        </label>{" "}
-        <label>
-          월{" "}
-          <input
-            type="number"
-            min="1"
-            max="12"
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="month-input month-input--month"
-          />
-        </label>{" "}
-        <button type="submit">조회</button>{" "}
-        <button type="button" onClick={() => shiftMonth(1)}>
-          ▶
-        </button>
-      </form>
+      <div className="calendar-toolbar">
+        <div className="calendar-toolbar__nav">
+          <Button variant="secondary" onClick={() => shiftMonth(-1)} aria-label="이전 달">
+            ◀
+          </Button>
+          <button
+            type="button"
+            className="calendar-toolbar__month"
+            onClick={() => setShowMonthInput((v) => !v)}
+            aria-expanded={showMonthInput}
+          >
+            {year}년 {month}월
+          </button>
+          <Button variant="secondary" onClick={() => shiftMonth(1)} aria-label="다음 달">
+            ▶
+          </Button>
+          <Button variant="secondary" onClick={goToToday}>
+            오늘
+          </Button>
+        </div>
+
+        {showMonthInput && (
+          <form onSubmit={handleSearch} className="calendar-toolbar__manual">
+            <label>
+              연도{" "}
+              <input
+                type="number"
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                className="month-input month-input--year"
+              />
+            </label>
+            <label>
+              월{" "}
+              <input
+                type="number"
+                min="1"
+                max="12"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+                className="month-input month-input--month"
+              />
+            </label>
+            <Button type="submit">조회</Button>
+          </form>
+        )}
+      </div>
 
       <div className="calendar-filters" aria-label="이벤트 카테고리 필터">
         {CATEGORIES.map((category) => (

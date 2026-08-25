@@ -871,14 +871,43 @@ textarea {
 
 .month-search-form,
 .calendar-toolbar {
-  display: flex;
-  align-items: end;
-  flex-wrap: wrap;
-  gap: var(--space-2);
+  display: grid;
+  gap: var(--space-3);
   padding: var(--space-4);
   border: 1px solid var(--color-hairline);
   border-radius: var(--radius-md);
   background: var(--color-surface);
+}
+
+.calendar-toolbar__nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.calendar-toolbar__month {
+  min-height: var(--control-height);
+  padding: 0 var(--space-2);
+  border: none;
+  background: none;
+  color: var(--color-body);
+  font-size: var(--font-body);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.calendar-toolbar__month:hover {
+  color: var(--color-primary);
+}
+
+.calendar-toolbar__manual {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: center;
 }
 
 .month-search-form label,
@@ -1129,16 +1158,16 @@ textarea {
     flex: 1;
   }
 
-  .calendar-toolbar {
+  .calendar-toolbar__manual {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
   }
 
-  .calendar-toolbar label {
+  .calendar-toolbar__manual label {
     grid-column: span 1;
   }
 
-  .calendar-toolbar input {
+  .calendar-toolbar__manual input {
     width: 100%;
   }
 
