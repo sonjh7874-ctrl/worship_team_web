@@ -1,4 +1,4 @@
-import { apiGet, apiPatch, apiPost } from "./client";
+import { apiDelete, apiGet, apiPatch, apiPost } from "./client";
 
 export function signup(payload) {
   return apiPost("/api/v1/auth/signup", payload);
@@ -41,4 +41,10 @@ export function updateMyProfile(displayName) {
 // 관리자 전용 — 특정 계정의 보안 이벤트 이력(이름/역할 변경, 비밀번호 초기화)을 최신순으로 조회.
 export function fetchAccountEvents(userId) {
   return apiGet(`/api/v1/auth/users/${userId}/events`);
+}
+
+// 관리자 전용 — 계정을 완전히 삭제한다(하드 삭제, 되돌릴 수 없음). 이메일 인증이 꺼져 있어
+// 잘못된 이메일로 가입했거나 테스트로 만든 계정을 정리할 수단으로 추가됨.
+export function deleteUser(userId) {
+  return apiDelete(`/api/v1/auth/users/${userId}`);
 }

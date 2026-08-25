@@ -105,6 +105,31 @@ def update_role(actor: UserProfile, target_user_id: str, role: str) -> UserProfi
     return _to_profile(target_user_id, emails.get(target_user_id), row)
 
 
+def delete_user(actor: UserProfile, target_user_id: str) -> None:
+    # 이메일 인증이 꺼져 있어(README 6절) 잘못된 이메일로 가입한 계정이나 테스트 계정을
+    # 정리할 수단이 없었다 — 관리자가 완전히 삭제할 수 있게 한다(soft delete가 아니라
+    # auth.users 자체를 지우는 하드 삭제, user_profiles는 FK CASCADE로 함께 지워진다).
+    if actor.id == target_user_id:
+        raise HTTPException(status_code=403, detail="자기 자신의 계정은 삭제할 수 없습니다.")
+
+    target = user_profile_repository.find_by_id(target_user_id)
+    if target is None:
+        raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
+    if target["role"] == "admin":
+        # admin 부여를 앱 밖(SQL)에서만 하는 것과 대칭 — 관리자 계정의 소멸 경로도
+        # 앱에 두지 않는다. admin을 지워야 하면 Supabase에서 직접 처리한다.
+        raise HTTPException(status_code=403, detail="관리자 계정은 앱에서 삭제할 수 없습니다.")
+
+    try:
+        get_supabase().auth.admin.delete_user(target_user_id)
+    except AuthApiError as e:
+        raise HTTPException(status_code=400, detail=e.message) from e
+    # account_events.user_id가 on delete cascade라 계정 삭제 즉시 그 계정의 이벤트 로그도
+    # 함께 사라진다 — "삭제됐다"는 사실을 로그로 남겨도 그 자리에서 바로 지워져 의미가 없으므로
+    # 여기서는 기록하지 않는다(로그 보존이 필요해지면 그때 FK를 on delete set null + 스냅샷
+    # 컬럼으로 바꾸는 마이그레이션이 필요하다).
+
+
 def reset_password(actor: UserProfile, target_user_id: str) -> str:
     # 관리자가 값을 직접 정하지 않도록 서버가 무작위 임시 비밀번호를 생성한다 —
     # 관리자가 그 값을 알게 되는 건 어차피 피할 수 없지만(재설정 행위 자체가 그렇다),

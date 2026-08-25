@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { fetchAccountEvents, fetchUsers, resetUserPassword, updateUserRole } from "../api/auth";
+import { deleteUser, fetchAccountEvents, fetchUsers, resetUserPassword, updateUserRole } from "../api/auth";
+import { useAuth } from "../contexts/AuthContext";
 import Badge from "../components/Badge";
 import Button from "../components/Button";
 import LoadingState from "../components/LoadingState";
@@ -22,6 +23,7 @@ function formatEventValue(eventType, value) {
 // 하지 않고 Supabase SQL로만 하도록 SDD가 정했으므로(관리자 증식 경로를 앱에 두지 않기 위함),
 // 여기서는 leader ↔ member 토글만 제공한다.
 function AdminUsers() {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -92,6 +94,28 @@ function AdminUsers() {
       window.setTimeout(() => setPasswordCopied(false), 2000);
     } catch {
       setError("임시 비밀번호를 복사하지 못했습니다. 값을 직접 선택해 복사해주세요.");
+    }
+  }
+
+  // 완전 삭제(하드 delete)는 되돌릴 수 없어, 단순 확인창보다 강한 확인 절차로
+  // 이메일을 그대로 타이핑하게 한다 — 실수로 옆자리 사람을 지우는 사고를 막기 위함.
+  async function handleDeleteUser(user) {
+    const typed = window.prompt(
+      `정말 "${user.display_name}"(${user.email}) 계정을 완전히 삭제할까요?\n되돌릴 수 없습니다. 확인하려면 이메일 주소를 그대로 입력하세요.`
+    );
+    if (typed === null) return;
+    if (typed.trim() !== user.email) {
+      setError("입력한 이메일이 일치하지 않아 삭제를 취소했습니다.");
+      return;
+    }
+    setError(null);
+    setMessage(null);
+    try {
+      await deleteUser(user.id);
+      setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      setMessage(`${user.display_name}님의 계정을 삭제했습니다.`);
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -167,6 +191,11 @@ function AdminUsers() {
             <Button variant="danger" onClick={() => handleResetPassword(user)}>
               비밀번호 초기화
             </Button>{" "}
+            {user.role !== "admin" && user.id !== currentUser?.id && (
+              <Button variant="danger" onClick={() => handleDeleteUser(user)}>
+                계정 삭제
+              </Button>
+            )}{" "}
             <button
               type="button"
               onClick={() => handleToggleHistory(user)}

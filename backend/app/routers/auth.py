@@ -60,6 +60,14 @@ def update_role(
     return auth_service.update_role(current_user, user_id, payload.role)
 
 
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(
+    user_id: str,
+    current_user: UserProfile = Depends(require_role("admin")),
+):
+    auth_service.delete_user(current_user, user_id)
+
+
 @router.post("/users/{user_id}/password", response_model=PasswordResetResponse)
 def reset_password(
     user_id: str,
