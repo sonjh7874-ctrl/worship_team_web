@@ -1,5 +1,5 @@
 import { Link, NavLink, useLocation } from "react-router-dom";
-import Badge from "./Badge";
+import AccountMenu from "./AccountMenu";
 import Button from "./Button";
 import TopBar from "./TopBar";
 import { useAuth } from "../contexts/AuthContext";
@@ -11,8 +11,6 @@ const PRIMARY_NAV_ITEMS = [
   { to: "/calendar", label: "캘린더" },
   { to: "/members", label: "인명부", requiresAuth: true },
 ];
-
-const ROLE_LABELS = { member: "팀원", leader: "리더십", admin: "관리자" };
 
 // 고정 경로와 동적 id 경로를 실제 사용자 관점의 화면명·상위 경로로 변환한다.
 function getTopBarMeta(pathname) {
@@ -98,20 +96,7 @@ function AppShell({ children }) {
             </Link>
             <div className="app-shell__account">
               {user ? (
-                <>
-                  <Link className="app-shell__profile-link" to="/profile">
-                    <span>{user.display_name}</span>
-                    <Badge tone={role === "admin" ? "warm" : "neutral"}>{ROLE_LABELS[role] ?? role}</Badge>
-                  </Link>
-                  {role === "admin" && (
-                    <Link className="app-shell__admin-link" to="/admin/users">
-                      사용자 관리
-                    </Link>
-                  )}
-                  <Button variant="secondary" onClick={logout}>
-                    로그아웃
-                  </Button>
-                </>
+                <AccountMenu user={user} role={role} onLogout={logout} />
               ) : (
                 <Button as={Link} to="/login" variant="secondary">
                   로그인

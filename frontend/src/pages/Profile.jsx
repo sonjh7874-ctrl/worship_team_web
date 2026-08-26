@@ -83,6 +83,13 @@ function Profile() {
         <Button as={Link} to="/change-password" variant="secondary">
           비밀번호 변경
         </Button>
+
+        {/* 관리자용 보조 진입점 — 헤더 메뉴와 별개로, 프로필 화면에서도 항상 접근 가능하게 둔다 */}
+        {user.role === "admin" && (
+          <Button as={Link} to="/admin/users" variant="secondary">
+            사용자 관리로 이동
+          </Button>
+        )}
       </Card>
     </PageContainer>
   );
